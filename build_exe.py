@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from utils.config import Config
 
-APP_NAME = "等保测评进度管理系统"
+APP_NAME = "项目进度管理系统"
 VERSION = Config.APP_VERSION
 # PyInstaller 版本号格式必须是 4 段数字
 version_tuple = VERSION.split(".")
