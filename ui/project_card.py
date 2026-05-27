@@ -87,7 +87,7 @@ class ProjectCard(tk.Frame):
         # ---- 中间内容区域 ----
         self._content = tk.Frame(self, bg=Config.CARD_BG)
         # 填充剩余空间，左右各有4像素内边距，上方6px下方2px
-        self._content.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=4, pady=(6, 2))
+        self._content.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=6, pady=(8, 4))
 
         # 公司名称（居中，粗体）
         # 显示优先级：公司名称 > 系统名称 > "无名称"

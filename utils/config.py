@@ -19,7 +19,7 @@ class Config:
 
     # ==================== 应用程序元数据 ====================
     APP_NAME = "项目进度管理系统"  # 应用程序显示名称
-    APP_VERSION = "2.1.5"               # 当前版本号
+    APP_VERSION = "2.2.0"               # 当前版本号
     APP_AUTHOR = "网络安全测评团队"       # 开发/维护团队名称
 
     # ==================== 文件路径配置 ====================
@@ -84,8 +84,8 @@ class Config:
     FONT_SIZE_HEADER = 16             # 页头字号
 
     # 窗口默认大小
-    WINDOW_WIDTH = 1400  # 主窗口默认宽度（像素）
-    WINDOW_HEIGHT = 800  # 主窗口默认高度（像素）
+    WINDOW_WIDTH = 1500  # 主窗口默认宽度（像素）
+    WINDOW_HEIGHT = 850  # 主窗口默认高度（像素）
     WINDOW_MIN_WIDTH = 900   # 主窗口最小宽度（防止缩得过小导致布局错乱）
     WINDOW_MIN_HEIGHT = 500  # 主窗口最小高度
 

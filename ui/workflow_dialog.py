@@ -55,11 +55,11 @@ class WorkflowDialog(tk.Toplevel):
         包含：标题、说明文字、阶段列表面板、操作按钮、底部保存/取消按钮。
         阶段列表使用Treeview组件以表格形式展示。
         """
-        main = tk.Frame(self, bg="#ffffff", padx=15, pady=15)  # 主容器
+        main = tk.Frame(self, bg="#ffffff", padx=22, pady=18)  # 主容器
         main.pack(fill=tk.BOTH, expand=True)  # 填充整个窗口
 
         # 标题行
-        tk.Label(main, text="⚙️ 流程阶段配置",
+        tk.Label(main, text="流程阶段配置",
                  bg="#ffffff", fg="#2c3e50",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_HEADER, "bold"),
                  ).pack(anchor="w", pady=(0, 10))  # 左对齐，下方10px间距

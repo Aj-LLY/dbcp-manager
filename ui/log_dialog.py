@@ -53,7 +53,7 @@ class LogDialog(tk.Toplevel):
         - 日志表格（Treeview：时间、操作类型、描述、关联项目）
         - 底部关闭按钮
         """
-        main = tk.Frame(self, bg="#ffffff", padx=15, pady=15)
+        main = tk.Frame(self, bg="#ffffff", padx=22, pady=18)
         main.pack(fill=tk.BOTH, expand=True)  # 填充整个窗口
 
         # 标题行

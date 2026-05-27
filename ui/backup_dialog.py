@@ -76,7 +76,7 @@ class BackupDialog(tk.Toplevel):
         canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-e.delta/120), "units"))
 
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=8, pady=8)
 
         # ---- 标签页1：服务器配置 ----
         self._config_frame = tk.Frame(nb, bg="#ffffff")
