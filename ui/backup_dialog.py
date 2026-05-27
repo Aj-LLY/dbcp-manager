@@ -47,30 +47,46 @@ class BackupDialog(tk.Toplevel):
 
     def _setup_window(self):
         """配置窗口属性"""
-        self.geometry("520x460")  # 初始大小
-        self.minsize(450, 400)  # 最小尺寸
+        self.geometry("560x550")  # 初始大小
+        self.minsize(480, 420)  # 最小尺寸
         self.resizable(True, True)  # 允许调整大小
         self.configure(bg="#ffffff")  # 白色背景
 
     def _build_ui(self):
-        """构建标签页UI
-
-        使用ttk.Notebook创建两个标签页：
-        1. "服务器配置" - 配置WebDAV服务器连接参数
-        2. "备份 & 恢复" - 执行备份和恢复操作
+        """构建标签页UI（可滚动）
+        使用Canvas+Scrollbar包裹Notebook，防止窗口过小时内容溢出
         """
-        nb = ttk.Notebook(self)  # 创建Notebook标签页容器
-        nb.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)  # 填充窗口，留边距
+        # 可滚动画布
+        canvas = tk.Canvas(self, bg="#ffffff", highlightthickness=0)
+        scrollbar = tk.Scrollbar(self, orient=tk.VERTICAL, command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # Notebook 放入 Canvas
+        nb = ttk.Notebook(canvas)
+        canvas.create_window((0, 0), window=nb, anchor="nw", tags="nb_win")
+
+        # 页面大小变化时更新滚动区域和窗口宽度
+        def _on_nb_configure(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            canvas.itemconfig("nb_win", width=canvas.winfo_width() - 4)
+        nb.bind("<Configure>", _on_nb_configure)
+        canvas.bind("<Configure>", lambda e: canvas.itemconfig("nb_win", width=e.width - 4))
+
+        # 鼠标滚轮滚动
+        canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-e.delta/120), "units"))
+
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # ---- 标签页1：服务器配置 ----
-        self._config_frame = tk.Frame(nb, bg="#ffffff")  # 配置页容器
-        nb.add(self._config_frame, text="  服务器配置  ")  # 添加标签页
-        self._build_config_tab()  # 构建配置页内容
+        self._config_frame = tk.Frame(nb, bg="#ffffff")
+        nb.add(self._config_frame, text="  服务器配置  ")
+        self._build_config_tab()
 
         # ---- 标签页2：备份恢复 ----
-        self._action_frame = tk.Frame(nb, bg="#ffffff")  # 操作页容器
-        nb.add(self._action_frame, text="  备份 & 恢复  ")  # 添加标签页
-        self._build_action_tab()  # 构建操作页内容
+        self._action_frame = tk.Frame(nb, bg="#ffffff")
+        nb.add(self._action_frame, text="  备份 & 恢复  ")
+        self._build_action_tab()
 
     # ==================== 配置标签页 ====================
 
