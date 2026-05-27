@@ -65,7 +65,7 @@ class DetailDialog(tk.Toplevel):
         - 操作日志摘要（最近5条）
         - 操作按钮（阶段移动、编辑、删除、关闭）
         """
-        main = tk.Frame(self, bg="#ffffff", padx=20, pady=15)  # 主容器
+        main = tk.Frame(self, bg="#ffffff", padx=24, pady=18)  # 主容器
         main.pack(fill=tk.BOTH, expand=True)
 
         # 标题行 - 显示项目名称
