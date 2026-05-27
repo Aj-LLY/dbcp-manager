@@ -13,8 +13,31 @@ import json  # JSON序列化模块（备用）
 import base64  # Base64编码模块，用于HTTP Basic认证的凭证编码
 import urllib.request  # HTTP请求模块，用于向WebDAV服务器发送标准HTTP请求
 import urllib.error  # HTTP错误处理模块，用于捕获HTTP和URL异常
-from datetime import datetime  # 日期时间模块，用于生成备份文件名的时间戳
+from datetime import datetime, timezone, timedelta  # 日期时间模块，用于时间戳和时区转换
+from email.utils import parsedate_to_datetime  # 解析RFC 2822格式的HTTP日期头
 from utils.webdav_config import WebDAVConfig  # 导入WebDAV配置类
+
+# 中国标准时间 (UTC+8)
+CST = timezone(timedelta(hours=8))
+
+
+def _gmt_to_cst(gmt_str: str) -> str:
+    """将 GMT 时间字符串转换为中国时间 (UTC+8) 格式
+
+    Args:
+        gmt_str: WebDAV PROPFIND 返回的 GMT 时间字符串
+
+    Returns:
+        中国时间字符串 (YYYY-MM-DD HH:MM:SS)，解析失败返回原字符串
+    """
+    if not gmt_str:
+        return ""
+    try:
+        dt = parsedate_to_datetime(gmt_str)  # 解析 RFC 2822 格式
+        cst_dt = dt.astimezone(CST)  # 转换到中国时区
+        return cst_dt.strftime("%Y-%m-%d %H:%M:%S")  # 格式化输出
+    except (ValueError, TypeError, LookupError):
+        return gmt_str  # 解析失败保留原值
 
 
 class BackupService:
@@ -177,7 +200,7 @@ class BackupService:
                         size = cl.text  # 提取大小
                     lm = props.find("d:getlastmodified", ns)  # 获取最后修改时间
                     if lm is not None and lm.text:  # 时间信息存在
-                        modified = lm.text  # 提取修改时间
+                        modified = _gmt_to_cst(lm.text)  # 提取并转换为中国时区
                 fname = href_text.rstrip("/").split("/")[-1]  # 从路径末尾提取文件名
                 # 使用相对路径（remote_path + filename），避免 PROPFIND 绝对路径与 URL 拼接时重复
                 rel_path = self._cfg.remote_path.rstrip("/") + "/" + fname

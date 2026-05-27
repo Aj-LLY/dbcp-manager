@@ -231,11 +231,16 @@ class BackupDialog(tk.Toplevel):
         self._file_tree.column("modified", width=160, anchor="w")  # 时间列宽160
 
         # 垂直滚动条
-        scrollbar = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL,
-                                  command=self._file_tree.yview)
-        self._file_tree.configure(yscrollcommand=scrollbar.set)
+        scrollbar_y = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL,
+                                    command=self._file_tree.yview)
+        # 水平滚动条（文件名过长时出现）
+        scrollbar_x = ttk.Scrollbar(tree_frame, orient=tk.HORIZONTAL,
+                                    command=self._file_tree.xview)
+        self._file_tree.configure(yscrollcommand=scrollbar_y.set,
+                                  xscrollcommand=scrollbar_x.set)
         self._file_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        scrollbar_y.pack(side=tk.RIGHT, fill=tk.Y)
+        scrollbar_x.pack(side=tk.BOTTOM, fill=tk.X)
 
         # 恢复 / 删除操作按钮行
         op_row = tk.Frame(f, bg="#ffffff")
