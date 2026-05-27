@@ -115,21 +115,19 @@ class BackupDialog(tk.Toplevel):
         # 测试连接 + 保存配置按钮行
         btn_row = tk.Frame(f, bg="#ffffff")
         btn_row.pack(fill=tk.X, padx=px)
-        # 测试连接按钮 - 白色底深色字，灰色边框
+        # 测试连接按钮 - 绿底白字
         tk.Button(btn_row, text="测试连接", command=self._test_connection,
-                  bg="#ffffff", fg="#2c3e50", cursor="hand2",
-                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                  bg="#27ae60", fg="white", cursor="hand2",
+                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
                   relief="flat", padx=14, pady=5,
-                  highlightbackground="#d0d5dd", highlightthickness=1,
-                  activebackground="#f0f2f5", activeforeground="#2c3e50",
+                  activebackground="#219a52", activeforeground="white",
                   ).pack(side=tk.LEFT)
-        # 保存配置按钮 - 白色底蓝色字，灰色边框
+        # 保存配置按钮 - 蓝底白字
         tk.Button(btn_row, text="保存配置", command=self._save_config,
-                  bg="#ffffff", fg="#3498db", cursor="hand2",
-                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                  bg="#3498db", fg="white", cursor="hand2",
+                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
                   relief="flat", padx=14, pady=5,
-                  highlightbackground="#d0d5dd", highlightthickness=1,
-                  activebackground="#f0f2f5", activeforeground="#3498db",
+                  activebackground="#2980b9", activeforeground="white",
                   ).pack(side=tk.LEFT, padx=(8, 0))
 
         # 连接状态提示标签
@@ -194,13 +192,12 @@ class BackupDialog(tk.Toplevel):
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
                  fg="#2c3e50").pack(anchor="w", padx=px, pady=(15, 8))
 
-        # 立即备份按钮 - 白色底绿色字，灰色边框
+        # 立即备份按钮 - 绿底白字
         tk.Button(f, text="立即备份", command=self._do_backup,
-                  bg="#ffffff", fg="#27ae60", cursor="hand2",
-                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                  bg="#27ae60", fg="white", cursor="hand2",
+                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
                   relief="flat", padx=14, pady=5,
-                  highlightbackground="#d0d5dd", highlightthickness=1,
-                  activebackground="#f0f2f5", activeforeground="#27ae60",
+                  activebackground="#219a52", activeforeground="white",
                   ).pack(anchor="w", padx=15, pady=(0, 4))
 
         # 备份操作状态提示
@@ -220,11 +217,10 @@ class BackupDialog(tk.Toplevel):
         btn_row = tk.Frame(f, bg="#ffffff")
         btn_row.pack(fill=tk.X, padx=15, pady=(0, 5))
         tk.Button(btn_row, text="刷新列表", command=self._refresh_file_list,
-                  bg="#ffffff", fg="#2c3e50", cursor="hand2",
-                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-                  relief="flat", padx=10, pady=3,
-                  highlightbackground="#d0d5dd", highlightthickness=1,
-                  activebackground="#f0f2f5", activeforeground="#2c3e50",
+                  bg="#3498db", fg="white", cursor="hand2",
+                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
+                  relief="flat", padx=14, pady=5,
+                  activebackground="#2980b9", activeforeground="white",
                   ).pack(side=tk.LEFT)  # 左侧放置
 
         # Treeview文件列表 - 显示远端备份文件
@@ -261,22 +257,20 @@ class BackupDialog(tk.Toplevel):
         op_row = tk.Frame(f, bg="#ffffff")
         op_row.pack(fill=tk.X, padx=15, pady=(0, 15))
 
-        # 恢复选中按钮 - 白色底蓝色字，灰色边框
+        # 恢复选中按钮 - 蓝底白字
         tk.Button(op_row, text="恢复选中", command=self._do_restore,
-                  bg="#ffffff", fg="#3498db", cursor="hand2",
-                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                  bg="#3498db", fg="white", cursor="hand2",
+                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
                   relief="flat", padx=14, pady=5,
-                  highlightbackground="#d0d5dd", highlightthickness=1,
-                  activebackground="#f0f2f5", activeforeground="#3498db",
+                  activebackground="#2980b9", activeforeground="white",
                   ).pack(side=tk.LEFT, padx=(0, 8))
 
-        # 删除选中按钮 - 白色底红色字，灰色边框
+        # 删除选中按钮 - 红底白字
         tk.Button(op_row, text="删除选中", command=self._do_delete_backup,
-                  bg="#ffffff", fg="#e74c3c", cursor="hand2",
-                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                  bg="#e74c3c", fg="white", cursor="hand2",
+                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
                   relief="flat", padx=14, pady=5,
-                  highlightbackground="#d0d5dd", highlightthickness=1,
-                  activebackground="#f0f2f5", activeforeground="#e74c3c",
+                  activebackground="#c0392b", activeforeground="white",
                   ).pack(side=tk.LEFT)
 
         # 关闭按钮 - 灰色底深色字
