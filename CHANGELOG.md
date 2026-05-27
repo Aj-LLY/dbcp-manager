@@ -1,5 +1,14 @@
 # 版本更新记录
 
+## v2.0.4 (2026-05-27)
+
+### 修复
+- **WebDAV 远端备份删除失败** — 修复 DELETE 请求路径重复拼接问题：
+  - PROPFIND 返回绝对路径，直接拼接到 URL 导致路径重复（如 `/remote.php/dav/remote.php/dav/...`）
+  - 改为使用相对路径（`remote_path + filename`）进行 GET/DELETE 操作
+
+---
+
 ## v2.0.3 (2026-05-27)
 
 ### 修复

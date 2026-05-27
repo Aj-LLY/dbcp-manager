@@ -179,9 +179,11 @@ class BackupService:
                     if lm is not None and lm.text:  # 时间信息存在
                         modified = lm.text  # 提取修改时间
                 fname = href_text.rstrip("/").split("/")[-1]  # 从路径末尾提取文件名
+                # 使用相对路径（remote_path + filename），避免 PROPFIND 绝对路径与 URL 拼接时重复
+                rel_path = self._cfg.remote_path.rstrip("/") + "/" + fname
                 files.append({  # 将解析结果加入列表
                     "name": fname,        # 文件名
-                    "path": href_text,    # 完整路径
+                    "path": rel_path,     # 相对路径（用于PUT/DELETE/GET操作）
                     "size": size,         # 文件大小
                     "modified": modified, # 修改时间
                 })
@@ -194,21 +196,24 @@ class BackupService:
         """下载指定备份文件内容（用于数据恢复）
 
         Args:
-            remote_path: 远端备份文件的完整路径
+            remote_path: 远端备份文件的相对路径
 
         Returns:
             (是否成功, 消息, 文件内容字节数据)
         """
-        ok, msg, body = self._make_request("GET", remote_path)  # 用GET方法下载文件
-        return ok, msg, body  # 返回下载结果
+        # 确保路径以 / 开头但不含重复前缀
+        path = "/" + remote_path.lstrip("/")
+        ok, msg, body = self._make_request("GET", path)
+        return ok, msg, body
 
     def delete_backup(self, remote_path: str) -> tuple[bool, str]:
         """删除远端备份文件
 
         Args:
-            remote_path: 要删除的远端文件完整路径
+            remote_path: 要删除的远端文件相对路径
 
         Returns:
             (是否成功, 消息)
         """
-        return self._make_request("DELETE", remote_path)  # 用DELETE方法删除文件
+        path = "/" + remote_path.lstrip("/")
+        return self._make_request("DELETE", path)
