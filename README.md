@@ -1,0 +1,44 @@
+等保测评进度管理系统/              版本: 2.0.0
+│
+├── main.py                          # 程序入口，初始化路径并启动主窗口
+├── build_exe.py                     # 打包脚本，自动读取版本号生成带版本信息的EXE
+│
+├── models/                          # 数据实体层 —— 定义核心数据结构
+│   ├── __init__.py                  #   包初始化
+│   ├── project.py                   #   项目实体（公司名称、系统名称、备案号、截止日期、阶段等）
+│   ├── workflow.py                  #   流程阶段实体（名称、排序、颜色）
+│   └── log_entry.py                 #   操作日志实体（操作类型常量、时间戳、关联项目）
+│
+├── services/                        # 业务服务层 —— 封装数据操作逻辑
+│   ├── __init__.py                  #   包初始化
+│   ├── data_service.py              #   JSON数据持久化（单例模式、原子写入）
+│   ├── project_service.py           #   项目CRUD业务（创建、更新、删除、阶段移动、日志回调）
+│   ├── workflow_service.py          #   流程配置管理（阶段增删改查、排序、重置默认）
+│   ├── log_service.py               #   日志追踪服务（记录、查询、回调工厂）
+│   └── backup_service.py            #   WebDAV备份服务（HTTP Basic认证，PUT/GET/PROPFIND/DELETE）
+│
+├── ui/                              # 用户界面层 —— Tkinter桌面GUI组件
+│   ├── __init__.py                  #   包初始化
+│   ├── main_window.py               #   主窗口控制器（MVC协调层，初始化服务、绑定事件）
+│   ├── toolbar.py                   #   顶部工具栏（新增/编辑流程/删除/刷新/备份/日志按钮）
+│   ├── kanban_board.py              #   看板主组件（列容器、横向/纵向滚动、列高约束）
+│   ├── kanban_column.py             #   看板列组件（阶段标题+计数、卡片列表、滚轮翻页）
+│   ├── project_card.py              #   项目卡片（状态色条、左右箭头、详情/编辑按钮）
+│   ├── project_dialog.py            #   新增/编辑项目对话框（公司名/系统名/备案号/日期/备注）
+│   ├── workflow_dialog.py           #   流程配置对话框（增删改查、排序、颜色、重置默认）
+│   ├── detail_dialog.py             #   项目详情对话框（信息展示、阶段移动、编辑/删除）
+│   ├── log_dialog.py                #   操作日志查看器（表格展示、按项目筛选）
+│   ├── backup_dialog.py             #   WebDAV备份对话框（服务器配置、备份/恢复/删除）
+│   └── calendar_picker.py           #   日历日期选择器（月份翻页、今天高亮、点击选日期）
+│
+├── utils/                           # 工具模块 —— 基础设施和通用函数
+│   ├── __init__.py                  #   包初始化
+│   ├── config.py                    #   全局配置（版本号、默认流程、UI颜色/字体/尺寸常量）
+│   ├── helpers.py                   #   通用辅助函数（ID生成、日期计算、名称验证、边框输入框）
+│   ├── logger.py                    #   操作日志记录器（内存+文件双写、增删查）
+│   └── webdav_config.py             #   WebDAV配置管理（服务器地址/用户名/密码、JSON持久化）
+│
+└── data/                            # 运行时数据目录（程序自动生成和管理）
+    ├── dap_data.json                 #   主数据文件（项目列表 + 流程阶段配置）
+    ├── operation_log.json            #   操作日志文件（所有增删改操作的记录）
+    └── webdav_config.json            #   WebDAV连接配置文件
