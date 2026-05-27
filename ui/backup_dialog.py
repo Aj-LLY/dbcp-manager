@@ -227,20 +227,25 @@ class BackupDialog(tk.Toplevel):
                                        selectmode="browse")  # 单选
         self._file_tree.heading("name", text="文件名", anchor="w")
         self._file_tree.heading("modified", text="修改时间", anchor="w")
-        self._file_tree.column("name", width=280, anchor="w")  # 文件名列宽280
-        self._file_tree.column("modified", width=160, anchor="w")  # 时间列宽160
+        self._file_tree.column("name", width=320, anchor="w", stretch=False)  # 文件名列宽320
+        self._file_tree.column("modified", width=180, anchor="w", stretch=False)  # 时间列宽180
+
+        # 使用 grid 布局确保滚动条精准定位
+        tree_frame.grid_rowconfigure(0, weight=1)  # tree 行可扩展
+        tree_frame.grid_columnconfigure(0, weight=1)  # tree 列可扩展
 
         # 垂直滚动条
         scrollbar_y = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL,
                                     command=self._file_tree.yview)
-        # 水平滚动条（文件名过长时出现）
+        # 水平滚动条
         scrollbar_x = ttk.Scrollbar(tree_frame, orient=tk.HORIZONTAL,
                                     command=self._file_tree.xview)
         self._file_tree.configure(yscrollcommand=scrollbar_y.set,
                                   xscrollcommand=scrollbar_x.set)
-        self._file_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar_y.pack(side=tk.RIGHT, fill=tk.Y)
-        scrollbar_x.pack(side=tk.BOTTOM, fill=tk.X)
+        # 布局：Tree(0,0) | VScroll(0,1), HScroll(1,0) 横跨两列
+        self._file_tree.grid(row=0, column=0, sticky="nsew")
+        scrollbar_y.grid(row=0, column=1, sticky="ns")
+        scrollbar_x.grid(row=1, column=0, sticky="ew", columnspan=2)
 
         # 恢复 / 删除操作按钮行
         op_row = tk.Frame(f, bg="#ffffff")
