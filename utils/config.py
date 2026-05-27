@@ -19,20 +19,29 @@ class Config:
 
     # ==================== 应用程序元数据 ====================
     APP_NAME = "等保测评进度管理系统"  # 应用程序显示名称
-    APP_VERSION = "2.0.1"               # 当前版本号
+    APP_VERSION = "2.0.2"               # 当前版本号
     APP_AUTHOR = "网络安全测评团队"       # 开发/维护团队名称
 
     # ==================== 文件路径配置 ====================
     @staticmethod
     def get_data_dir():
         """获取数据文件存储目录
-        优先使用程序所在目录下的data文件夹，确保数据与程序在同一位置
+        使用用户 AppData 目录，确保 EXE 更新后数据不丢失
         """
         if getattr(sys, 'frozen', False):  # 检查是否在 PyInstaller 等打包环境中运行
-            base_dir = os.path.dirname(sys.executable)  # 取可执行文件所在目录作为基础路径
+            # 优先使用 EXE 同目录的 data 文件夹（便携模式）
+            exe_dir = os.path.dirname(sys.executable)
+            portable_data = os.path.join(exe_dir, "data")
+            if os.path.exists(portable_data):
+                return exe_dir
+            # 回退到用户 AppData 目录（EXE 更新也不会丢失）
+            appdata = os.environ.get("APPDATA", os.path.expanduser("~"))
+            base_dir = os.path.join(appdata, "等保测评进度管理系统")
+            return base_dir
         else:
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 取当前源码文件所在项目的根目录路径
-        return base_dir  # 返回程序根目录路径
+            # 源码运行：使用项目根目录
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            return base_dir
 
     @classmethod
     def get_data_file_path(cls):
