@@ -420,24 +420,14 @@ class StageEditDialog(tk.Toplevel):
         self.title(title)
         self.result = None  # 结果数据
 
-        self.geometry("380x310")  # 窗口大小（加宽加高以适应列宽字段）
-        self.minsize(340, 280)  # 最小尺寸
+        self.geometry("400x340")  # 窗口大小
+        self.minsize(340, 300)  # 最小尺寸
         self.resizable(True, True)  # 允许调整大小
         self.configure(bg="#ffffff")
         self.grab_set()  # 模态
 
-        # 可滚动画布包裹全部内容，防止窗口缩小时按钮不可见
-        canvas = tk.Canvas(self, bg="#ffffff", highlightthickness=0)
-        scrollbar = tk.Scrollbar(self, orient=tk.VERTICAL, command=canvas.yview)
-        canvas.configure(yscrollcommand=scrollbar.set)
-
-        main = tk.Frame(canvas, bg="#ffffff", padx=15, pady=15)  # 主容器
-        main.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=main, anchor="nw", tags="main_win")
-        canvas.bind("<Configure>", lambda e: canvas.itemconfig("main_win", width=e.width - 4))
-
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        main = tk.Frame(self, bg="#ffffff", padx=15, pady=15)  # 主容器
+        main.pack(fill=tk.BOTH, expand=True)
 
         # 阶段名称输入
         tk.Label(main, text="阶段名称", bg="#ffffff",
@@ -495,23 +485,29 @@ class StageEditDialog(tk.Toplevel):
         _, width_outer = bordered_entry(main, textvariable=self._width_var, width=40)
         width_outer.pack(fill=tk.X, pady=(2, 8))
 
-        # 底部按钮（取消 + 确认）
-        btn_frame = tk.Frame(main, bg="#f0f2f5")
-        btn_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=(8, 0))
-        tk.Frame(btn_frame, bg="#d0d5dd", height=1).pack(fill=tk.X, pady=(0, 6))
+        # 底部按钮（取消 + 确认）—— 固定在最底部
+        btn_frame = tk.Frame(self, bg="#f0f2f5")
+        btn_frame.pack(fill=tk.X, side=tk.BOTTOM)
+        tk.Frame(btn_frame, bg="#d0d5dd", height=1).pack(fill=tk.X)
         btn_inner = tk.Frame(btn_frame, bg="#f0f2f5")
-        btn_inner.pack(fill=tk.X)
+        btn_inner.pack(fill=tk.X, padx=16, pady=8)
         tk.Button(btn_inner, text="取消", command=self.destroy,
                   bg="#ffffff", fg="#2c3e50", relief="flat", cursor="hand2",
                   font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-                  padx=16, pady=5,
+                  padx=18, pady=5,
                   highlightbackground="#d0d5dd", highlightthickness=1,
-                  ).pack(side=tk.RIGHT, padx=(6, 0))
+                  activebackground="#f0f2f5",
+                  ).pack(side=tk.RIGHT, padx=(8, 0))
         tk.Button(btn_inner, text="确认", command=self._on_confirm,
                   bg="#3498db", fg="white", relief="flat", cursor="hand2",
-                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL, "bold"),
-                  padx=16, pady=5,
+                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
+                  padx=18, pady=5,
+                  activebackground="#2980b9",
                   ).pack(side=tk.RIGHT)
+
+        # 键盘快捷键
+        self.bind("<Return>", lambda e: self._on_confirm())  # 回车确认
+        self.bind("<Escape>", lambda e: self.destroy())  # Esc取消
 
         self._center(parent)  # 居中于父窗口
 
