@@ -1,7 +1,9 @@
 """
 打包脚本 - 读取程序版本号，生成带版本信息的 EXE 文件
 
-用法：python build_exe.py
+用法：
+    python build_exe.py              # 仅构建 EXE
+    python build_exe.py --release    # 构建 EXE 并创建 GitHub Release
 """
 
 import sys
@@ -71,3 +73,10 @@ cmd = (
 os.system(cmd)
 
 print(f"\n打包完成！输出: dist/{APP_NAME}.exe")
+
+# 如果指定了 --release，自动链式调用 release.py
+if "--release" in sys.argv:
+    print("\n>>> 自动进入发布流程...")
+    import subprocess
+    release_script = os.path.join(os.path.dirname(__file__), "release.py")
+    subprocess.run([sys.executable, release_script, "--skip-build"])
