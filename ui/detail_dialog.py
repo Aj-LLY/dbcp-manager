@@ -84,26 +84,26 @@ class DetailDialog(tk.Toplevel):
         tk.Button(btn_inner, text="编辑", command=self._edit_project,
                   bg="#3498db", fg="white", cursor="hand2",
                   font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
-                  relief="flat", padx=14, pady=5,
+                  relief="flat", padx=16, pady=6,
                   activebackground="#2980b9",
-                  ).pack(side=tk.RIGHT, padx=(5, 0))
+                  ).pack(side=tk.RIGHT, padx=(8, 0))
 
-        # 删除按钮 - 红底白字粗体
+        # 删除项目按钮 - 红底白字粗体
         tk.Button(btn_inner, text="删除项目", command=self._delete_project,
                   bg="#e74c3c", fg="white", cursor="hand2",
                   font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
-                  relief="flat", padx=14, pady=5,
+                  relief="flat", padx=16, pady=6,
                   activebackground="#c0392b",
-                  ).pack(side=tk.RIGHT)
+                  ).pack(side=tk.RIGHT, padx=(8, 0))
 
         # 关闭按钮 - 白底深字灰边框
         tk.Button(btn_inner, text="关闭", command=self.destroy,
                   bg="#ffffff", fg="#2c3e50", cursor="hand2",
                   font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
-                  relief="flat", padx=16, pady=5,
+                  relief="flat", padx=18, pady=6,
                   highlightbackground="#d0d5dd", highlightthickness=1,
                   activebackground="#f0f2f5",
-                  ).pack(side=tk.RIGHT, padx=(5, 0))
+                  ).pack(side=tk.RIGHT, padx=(8, 0))
 
         # ---- 可滚动内容区域 ----
         canvas = tk.Canvas(self, bg="#ffffff", highlightthickness=0)
