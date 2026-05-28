@@ -161,7 +161,7 @@ class KanbanBoard(tk.Frame):
             col.on_card_click = self._handle_card_click  # 设置卡片单击回调
             col.on_card_double_click = self._handle_card_double_click  # 设置卡片双击回调
             col.on_column_click = self._handle_column_click  # 设置列空白点击回调
-            col.pack(side=tk.LEFT, fill=tk.BOTH, padx=5, pady=5)  # 左排列，双向填充
+            col.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)  # 左排列，垂直填充（宽度由列自身决定）
             self.columns.append(col)  # 加入列列表
 
         # 将项目分配到对应的列中

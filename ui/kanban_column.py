@@ -48,8 +48,14 @@ class KanbanColumn(tk.Frame):
         self.on_card_double_click = None  # 卡片双击回调
         self.on_column_click = None  # 列空白区域点击回调
 
+        # 计算列宽：阶段自定义值或系统默认值
+        self._col_w = self.stage.column_width or Config.COLUMN_WIDTH
+
         self._build_header()  # 构建列标题栏
         self._build_cards_area()  # 构建卡片可滚动区域
+
+        # 固定列宽（含滚动条宽度，防止 pack fill 拉伸覆盖自定义宽度）
+        self.configure(width=self._col_w + 22)
 
     def _build_header(self):
         """构建列标题栏
@@ -84,10 +90,9 @@ class KanbanColumn(tk.Frame):
         Canvas作为滚动容器，Frame容纳所有卡片，Scrollbar控制滚动。
         """
         # 创建Canvas画布作为滚动容器
-        col_w = self.stage.column_width or Config.COLUMN_WIDTH  # 阶段自定义列宽或系统默认
         self._canvas = tk.Canvas(
             self, bg=Config.COLUMN_BG,
-            highlightthickness=0, width=col_w,
+            highlightthickness=0, width=self._col_w,
             height=Config.CARD_MIN_HEIGHT + 20,
         )
         # 创建垂直滚动条
@@ -105,7 +110,7 @@ class KanbanColumn(tk.Frame):
         # 在Canvas中创建窗口对象，放置卡片容器Frame
         self._canvas_window = self._canvas.create_window(
             (0, 0), window=self._cards_frame, anchor="nw",  # 锚定左上角
-            width=col_w - 20,  # 宽度减20像素（为滚动条留空间）
+            width=self._col_w - 20,  # 宽度减20像素（为滚动条留空间）
         )
 
         # 配置Canvas接收滚动条的scroll命令
