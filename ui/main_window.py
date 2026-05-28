@@ -259,16 +259,29 @@ class MainWindow(tk.Tk):
         Args:
             card: 被点击详情的卡片组件
         """
-        stages = self._workflow_service.get_all_stages()  # 获取流程阶段列表
-        logs = self._log_service.get_project_logs(card.project.id)  # 获取该项目的历史日志
+        stages = self._workflow_service.get_all_stages()
+        logs = self._log_service.get_project_logs(card.project.id)
 
-        result = show_detail_dialog(self, card.project, stages, logs)  # 打开详情对话框
+        def _handle_move(target_stage_id, dialog):
+            """移动项目并刷新对话框"""
+            success, msg = self._project_service.move_project(
+                card.project.id, target_stage_id)
+            if success:
+                self._refresh_kanban()
+                upd = self._project_service.get_project_by_id(card.project.id)
+                dialog.refresh_data(upd,
+                    self._workflow_service.get_all_stages(),
+                    self._log_service.get_project_logs(card.project.id))
+            else:
+                messagebox.showerror("错误", msg)
+
+        result = show_detail_dialog(self, card.project, stages, logs,
+                                   on_move=_handle_move)
         if not result:
-            return  # 用户取消
+            return
 
-        action, data = result  # 解析操作类型和数据
+        action, data = result
         if action == "edit":
-            # 编辑操作：调用项目服务更新项目
             success, msg = self._project_service.update_project(
                 card.project.id,
                 company_name=data.get("company_name"),
@@ -279,28 +292,16 @@ class MainWindow(tk.Tk):
                 stage_id=data.get("stage_id"),
             )
             if success:
-                self._refresh_kanban()  # 更新后刷新看板
+                self._refresh_kanban()
             else:
                 messagebox.showerror("错误", msg)
 
         elif action == "delete":
-            # 删除操作：调用项目服务删除项目
             success, msg = self._project_service.delete_project(card.project.id)
             if success:
                 self._refresh_kanban()
             else:
                 messagebox.showerror("错误", msg)
-
-        elif action == "move":
-            # 移动操作：调用项目服务将项目移到目标阶段
-            success, msg = self._project_service.move_project(
-                card.project.id, data,  # data为目标阶段ID
-            )
-            if success:
-                self._refresh_kanban()
-            else:
-                messagebox.showerror("错误", msg)
-
     def _on_card_edit(self, card: ProjectCard):
         """编辑按钮 / 双击卡片 -- 直接打开编辑对话框
 
