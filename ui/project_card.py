@@ -52,6 +52,7 @@ class ProjectCard(tk.Frame):
         self.on_double_click = None  # 双击回调函数，由外部设置
         self.on_detail = None  # 查看详情回调函数，由外部设置
         self.on_edit = None  # 编辑回调函数，由外部设置
+        self.on_copy = None  # 复制项目回调函数，由外部设置
         self.on_move_prev = None  # 左箭头移动回调函数，由外部设置
         self.on_move_next = None  # 右箭头移动回调函数，由外部设置
 
@@ -175,6 +176,17 @@ class ProjectCard(tk.Frame):
         )
         self._edit_btn.pack(side=tk.LEFT)
 
+        # 复制按钮 - 克隆当前项目创建副本
+        self._copy_btn = tk.Button(
+            btn_frame, text="\u590d\u5236", command=self._on_copy_click,
+            bg="#27ae60", fg="white",
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+            relief="flat", borderwidth=0,
+            cursor="hand2", padx=8, pady=1,
+            activebackground="#1e8449",
+        )
+        self._copy_btn.pack(side=tk.LEFT, padx=(4, 0))
+
         tk.Frame(btn_frame, bg=Config.CARD_BG).pack(side=tk.LEFT, expand=True)  # 右侧弹性空间
 
         # ---- 右箭头按钮 ----
@@ -229,6 +241,11 @@ class ProjectCard(tk.Frame):
         if self.on_edit:
             self.on_edit(self)
 
+    def _on_copy_click(self):
+        """复制按钮点击处理：调用on_copy回调复制当前项目"""
+        if self.on_copy:
+            self.on_copy(self)
+
     def _bind_events(self):
         """绑定鼠标事件到卡片内部所有组件（排除按钮组件，因为它们有独立的command）
 
@@ -236,7 +253,7 @@ class ProjectCard(tk.Frame):
         但排除左右箭头和详情/编辑按钮，避免干扰按钮自身的点击事件。
         """
         btn_widgets = {self._prev_btn, self._next_btn,
-                       self._detail_btn, self._edit_btn}  # 需要排除的按钮组件集合
+                       self._detail_btn, self._edit_btn, self._copy_btn}  # 需要排除的按钮组件集合
 
         # 先给Frame自身绑定事件
         self.bind("<Button-1>", self._on_click)  # 鼠标左键单击
@@ -332,6 +349,7 @@ class ProjectCard(tk.Frame):
             "on_double_click": self.on_double_click,
             "on_detail": self.on_detail,
             "on_edit": self.on_edit,
+            "on_copy": self.on_copy,
             "on_move_prev": self.on_move_prev,
             "on_move_next": self.on_move_next,
         }
