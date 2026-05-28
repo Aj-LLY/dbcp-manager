@@ -90,31 +90,30 @@ class ProjectCard(tk.Frame):
         # 填充剩余空间，左右各有4像素内边距，上方6px下方2px
         self._content.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=6, pady=(8, 4))
 
-        # 公司名称（居中，粗体）
-        # 显示优先级：公司名称 > 系统名称 > "无名称"
-        company_display = self.project.company_name or self.project.system_name or "\u65e0\u540d\u79f0"
-        if len(company_display) > 12:
-            company_display = company_display[:11] + "\u2026"  # 超过12字符截断并加省略号
-        self._company_label = tk.Label(
-            self._content, text=company_display, bg=Config.CARD_BG,
+        # 系统名称（居中，粗体）—— 主标题
+        sys_display = self.project.system_name or self.project.company_name or "\u65e0\u540d\u79f0"
+        if len(sys_display) > 12:
+            sys_display = sys_display[:11] + "\u2026"
+        self._sys_label = tk.Label(
+            self._content, text=sys_display, bg=Config.CARD_BG,
             font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
-            anchor="center", fg="#2c3e50",  # 居中对齐，深色文字
+            anchor="center", fg="#2c3e50",
         )
-        self._company_label.pack(fill=tk.X)  # 水平填充
+        self._sys_label.pack(fill=tk.X)
 
-        # 系统名称（居中）- 仅当同时有公司名称和系统名称时显示
-        if self.project.company_name and self.project.system_name:
-            system_display = self.project.system_name
-            if len(system_display) > 14:
-                system_display = system_display[:13] + "\u2026"
-            self._system_label = tk.Label(
-                self._content, text=system_display, bg=Config.CARD_BG,
+        # 公司名称（居中）—— 仅当同时有系统名称和公司名称时显示为副标题
+        if self.project.system_name and self.project.company_name:
+            company_display = self.project.company_name
+            if len(company_display) > 14:
+                company_display = company_display[:13] + "\u2026"
+            self._company_label = tk.Label(
+                self._content, text=company_display, bg=Config.CARD_BG,
                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
                 anchor="center", fg="#5d6d7e",
             )
-            self._system_label.pack(fill=tk.X)
+            self._company_label.pack(fill=tk.X)
         else:
-            self._system_label = None  # 无系统名称时置空
+            self._company_label = None
 
         # 证书编号（居中，灰色小字，显示备案状态）
         if self.project.cert_number:
