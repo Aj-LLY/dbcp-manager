@@ -15,7 +15,7 @@ class Project:
         id: 项目唯一标识（基于时间戳自动生成，格式如 proj_1234567890123）
         company_name: 被测评单位名称
         system_name: 被测评信息系统名称
-        filing_number: 系统备案号（公安机关备案编号）
+        cert_number: 系统备案号（公安机关备案编号）
         deadline: 项目截止日期（YYYY-MM-DD格式）
         notes: 备注信息（多行文本，用于记录额外事项）
         stage_id: 当前所处流程阶段的ID（对应 WorkflowStage 的 id）
@@ -24,7 +24,7 @@ class Project:
     """
 
     def __init__(self, company_name: str = "", system_name: str = "",
-                 filing_number: str = "", deadline: str = "",
+                 cert_number: str = "", deadline: str = "",
                  notes: str = "", stage_id: str = "",
                  project_id: str = "", created_at: str = "",
                  updated_at: str = ""):
@@ -34,7 +34,7 @@ class Project:
         self.id = project_id or generate_id("proj")  # 使用传入的ID或自动生成以 "proj" 为前缀的新ID
         self.company_name = company_name  # 公司名称
         self.system_name = system_name    # 系统名称
-        self.filing_number = filing_number  # 备案号
+        self.cert_number = cert_number  # 备案号
         self.deadline = deadline  # 截止日期
         self.notes = notes  # 备注信息
         self.stage_id = stage_id  # 当前阶段ID
@@ -56,7 +56,7 @@ class Project:
             "id": self.id,                       # 项目ID
             "company_name": self.company_name,   # 公司名称
             "system_name": self.system_name,     # 系统名称
-            "filing_number": self.filing_number, # 备案号
+            "cert_number": self.cert_number, # 备案号
             "deadline": self.deadline,           # 截止日期
             "notes": self.notes,                 # 备注
             "stage_id": self.stage_id,           # 当前阶段ID
@@ -89,7 +89,7 @@ class Project:
         return cls(  # 使用解析后的数据创建Project实例
             company_name=company,
             system_name=system,
-            filing_number=data.get("filing_number", ""),  # 提取备案号，不存在则为空
+            cert_number=data.get("cert_number") or data.get("filing_number", ""),  # 兼容旧字段
             deadline=data.get("deadline", ""),  # 提取截止日期
             notes=data.get("notes", ""),  # 提取备注
             stage_id=data.get("stage_id", ""),  # 提取阶段ID
@@ -99,7 +99,7 @@ class Project:
         )
 
     def update(self, company_name: str = None, system_name: str = None,
-               filing_number: str = None,
+               cert_number: str = None,
                deadline: str = None, notes: str = None, stage_id: str = None):
         """更新项目属性，只更新传入的非None字段
         使用None作为默认值可区分"不更新"和"更新为空"两种情况
@@ -108,8 +108,8 @@ class Project:
             self.company_name = company_name
         if system_name is not None:  # 传入系统名称参数则更新
             self.system_name = system_name
-        if filing_number is not None:  # 传入备案号参数则更新
-            self.filing_number = filing_number
+        if cert_number is not None:  # 传入备案号参数则更新
+            self.cert_number = cert_number
         if deadline is not None:  # 传入截止日期参数则更新
             self.deadline = deadline
         if notes is not None:  # 传入备注参数则更新

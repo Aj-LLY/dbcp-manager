@@ -11,7 +11,7 @@
 from typing import Optional, Callable  # 类型提示：Optional表示可空值，Callable表示可调用对象
 from models.project import Project  # 导入项目实体类
 from services.data_service import DataService  # 导入数据持久化服务
-from utils.helpers import validate_project_fields  # 导入项目字段验证函数
+from utils.helpers import validate_project_fields, validate_cert_number  # 导入项目字段验证函数
 
 
 class ProjectService:
@@ -68,7 +68,7 @@ class ProjectService:
     # ==================== 增删改操作 ====================
 
     def create_project(self, company_name: str, system_name: str,
-                       filing_number: str, deadline: str, notes: str,
+                       cert_number: str, deadline: str, notes: str,
                        stage_id: str) -> tuple[bool, str, Optional[Project]]:
         """创建新项目
         先验证输入数据的合法性，再创建Project对象并持久化
@@ -76,7 +76,7 @@ class ProjectService:
         Args:
             company_name: 公司名称
             system_name: 系统名称
-            filing_number: 备案号
+            cert_number: 备案号
             deadline: 截止日期
             notes: 备注
             stage_id: 初始阶段ID
@@ -88,10 +88,14 @@ class ProjectService:
         if not valid:  # 验证不通过
             return False, msg, None  # 返回失败及原因
 
+        valid, msg = validate_cert_number(cert_number)  # 验证证书编号格式
+        if not valid:
+            return False, msg, None
+
         project = Project(  # 创建Project对象
             company_name=(company_name or "").strip(),  # 去除首尾空白
             system_name=(system_name or "").strip(),    # 去除首尾空白
-            filing_number=(filing_number or "").strip(), # 去除首尾空白
+            cert_number=(cert_number or "").strip(), # 去除首尾空白
             deadline=deadline,  # 截止日期
             notes=notes,        # 备注
             stage_id=stage_id,  # 初始阶段
@@ -107,7 +111,7 @@ class ProjectService:
         return True, "项目创建成功", project  # 返回成功及创建的Project对象
 
     def update_project(self, project_id: str, company_name: str = None,
-                       system_name: str = None, filing_number: str = None,
+                       system_name: str = None, cert_number: str = None,
                        deadline: str = None, notes: str = None,
                        stage_id: str = None) -> tuple[bool, str]:
         """更新项目信息
@@ -117,7 +121,7 @@ class ProjectService:
             project_id: 要更新的项目ID
             company_name: 新公司名称（None表示不更新）
             system_name: 新系统名称（None表示不更新）
-            filing_number: 新备案号（None表示不更新）
+            cert_number: 新备案号（None表示不更新）
             deadline: 新截止日期（None表示不更新）
             notes: 新备注（None表示不更新）
             stage_id: 新阶段ID（None表示不更新）
@@ -130,15 +134,20 @@ class ProjectService:
             return False, "项目不存在"
 
         if company_name is not None or system_name is not None:  # 如果修改了名称字段
-            c = company_name if company_name is not None else project.company_name  # 取新值或原值
-            s = system_name if system_name is not None else project.system_name    # 取新值或原值
-            valid, msg = validate_project_fields(c, s)  # 重新验证名称字段合法性
-            if not valid:  # 验证不通过
+            c = company_name if company_name is not None else project.company_name
+            s = system_name if system_name is not None else project.system_name
+            valid, msg = validate_project_fields(c, s)
+            if not valid:
+                return False, msg
+
+        if cert_number is not None:
+            valid, msg = validate_cert_number(cert_number)
+            if not valid:
                 return False, msg
 
         old_stage = self._get_stage_name(project.stage_id)  # 记录变更前的阶段名称（用于日志）
         project.update(company_name=company_name, system_name=system_name,
-                       filing_number=filing_number,
+                       cert_number=cert_number,
                        deadline=deadline, notes=notes, stage_id=stage_id)  # 执行字段更新
         self._ds.update_project(project_id, project.to_dict())  # 将更新后的项目持久化
 

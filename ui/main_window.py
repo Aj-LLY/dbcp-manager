@@ -143,7 +143,7 @@ class MainWindow(tk.Tk):
             success, msg, project = self._project_service.create_project(
                 company_name=result["company_name"],  # 公司名称
                 system_name=result["system_name"],  # 系统名称
-                filing_number=result["filing_number"],  # 备案号
+                cert_number=result["cert_number"],  # 备案号
                 deadline=result["deadline"],  # 截止日期
                 notes=result["notes"],  # 备注
                 stage_id=result["stage_id"],  # 初始阶段ID
@@ -273,7 +273,7 @@ class MainWindow(tk.Tk):
                 card.project.id,
                 company_name=data.get("company_name"),
                 system_name=data.get("system_name"),
-                filing_number=data.get("filing_number"),
+                cert_number=data.get("cert_number"),
                 deadline=data.get("deadline"),
                 notes=data.get("notes"),
                 stage_id=data.get("stage_id"),
@@ -317,7 +317,7 @@ class MainWindow(tk.Tk):
                 card.project.id,
                 company_name=result.get("company_name"),
                 system_name=result.get("system_name"),
-                filing_number=result.get("filing_number"),
+                cert_number=result.get("cert_number"),
                 deadline=result.get("deadline"),
                 notes=result.get("notes"),
                 stage_id=result.get("stage_id"),

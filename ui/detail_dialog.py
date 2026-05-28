@@ -89,9 +89,9 @@ class DetailDialog(tk.Toplevel):
         # 系统名称
         self._add_info_row(info_frame, "系统名称",
                            self._project.system_name or "-")
-        # 备案号
-        self._add_info_row(info_frame, "备案号",
-                           self._project.filing_number or "-")
+        # 证书编号
+        self._add_info_row(info_frame, "证书编号",
+                           self._project.cert_number or "未备案")
         # 当前阶段
         stage_name = self._get_stage_name(self._project.stage_id)  # 通过stage_id查找阶段名称
         self._add_info_row(info_frame, "当前阶段", stage_name)

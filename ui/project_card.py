@@ -115,19 +115,26 @@ class ProjectCard(tk.Frame):
         else:
             self._system_label = None  # 无系统名称时置空
 
-        # 备案号（居中，灰色小字）
-        if self.project.filing_number:
-            filing_display = self.project.filing_number
-            if len(filing_display) > 18:
-                filing_display = filing_display[:17] + "\u2026"
-            self._filing_label = tk.Label(
-                self._content, text=filing_display, bg=Config.CARD_BG,
+        # 证书编号（居中，灰色小字，显示备案状态）
+        if self.project.cert_number:
+            cert_display = self.project.cert_number
+            if len(cert_display) > 18:
+                cert_display = cert_display[:17] + "\u2026"
+            self._cert_label = tk.Label(
+                self._content, text="\U0001f4dc \u5df2\u5907\u6848 " + cert_display,
+                bg=Config.CARD_BG,
                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
-                anchor="center", fg="#95a5a6",  # 灰色小字
+                anchor="center", fg="#27ae60",
             )
-            self._filing_label.pack(fill=tk.X)
+            self._cert_label.pack(fill=tk.X)
         else:
-            self._filing_label = None
+            self._cert_label = tk.Label(
+                self._content, text="\U0001f4dc \u672a\u5907\u6848",
+                bg=Config.CARD_BG,
+                font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
+                anchor="center", fg="#e67e22",
+            )
+            self._cert_label.pack(fill=tk.X)
 
         # 截止日期（居中）
         deadline_text = self._format_deadline()  # 获取格式化后的日期文本
