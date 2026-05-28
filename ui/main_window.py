@@ -124,6 +124,7 @@ class MainWindow(tk.Tk):
         self._kanban.on_card_edit = self._on_card_edit  # 编辑按钮（打开编辑对话框）
         self._kanban.on_card_move_stage = self._on_card_move_stage  # 箭头按钮移动阶段
         self._kanban.on_card_copy = self._on_card_copy  # 复制按钮
+        self._kanban.on_column_resize = self._on_column_resize  # 列宽拖拽
 
     # ==================== 工具栏事件处理 ====================
 
@@ -376,6 +377,15 @@ class MainWindow(tk.Tk):
             self._refresh_kanban()
         else:
             messagebox.showerror("错误", msg)
+
+    def _on_column_resize(self, stage_id: str, new_width: int):
+        """列宽拖拽完成 —— 将新宽度保存到工作流数据
+
+        Args:
+            stage_id: 被调整的阶段ID
+            new_width: 新的列宽（像素）
+        """
+        self._workflow_service.update_stage_width(stage_id, new_width)
 
     # ==================== 窗口事件 ====================
 

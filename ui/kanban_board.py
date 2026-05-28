@@ -51,6 +51,7 @@ class KanbanBoard(tk.Frame):
         self.on_card_edit = None  # 编辑按钮回调 - 打开编辑对话框
         self.on_card_copy = None  # 复制按钮回调 - 复制项目
         self.on_card_move_stage = None  # 卡片箭头按钮移动阶段回调
+        self.on_column_resize = None  # 列宽拖拽调整回调 - 保存新宽度
 
         self._build_ui()  # 构建看板的UI结构
 
@@ -161,6 +162,7 @@ class KanbanBoard(tk.Frame):
             col.on_card_click = self._handle_card_click  # 设置卡片单击回调
             col.on_card_double_click = self._handle_card_double_click  # 设置卡片双击回调
             col.on_column_click = self._handle_column_click  # 设置列空白点击回调
+            col.on_resize = self._handle_column_resize  # 设置列宽拖拽回调
             col.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)  # 左排列，垂直填充（宽度由列自身决定）
             self.columns.append(col)  # 加入列列表
 
@@ -318,6 +320,16 @@ class KanbanBoard(tk.Frame):
         self.selected_card = None  # 清除选中状态引用
         if self.on_card_click:
             self.on_card_click(None)  # 通知外部选中状态已清除
+
+    def _handle_column_resize(self, column: KanbanColumn, new_width: int):
+        """列宽拖拽完成 —— 通知外部保存新宽度到数据
+
+        Args:
+            column: 被调整宽度的KanbanColumn列组件
+            new_width: 新的列宽（像素值）
+        """
+        if self.on_column_resize:
+            self.on_column_resize(column.stage.id, new_width)
 
     def _deselect_all(self):
         """取消所有卡片（所有列）的选中状态"""
