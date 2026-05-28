@@ -44,9 +44,9 @@ class WorkflowDialog(tk.Toplevel):
 
     def _setup_window(self):
         """配置窗口属性：大小、最小尺寸、可调整性和背景色"""
-        self.geometry("550x500")  # 设置初始窗口大小
+        self.geometry("580x550")  # 设置初始窗口大小（加宽加高以适应新增列宽列）
         self.resizable(True, True)  # 允许调整大小
-        self.minsize(450, 350)  # 设置最小尺寸
+        self.minsize(450, 400)  # 设置最小尺寸
         self.configure(bg="#ffffff")  # 白色背景
 
     def _build_ui(self):
