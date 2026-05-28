@@ -42,12 +42,18 @@ class DetailDialog(tk.Toplevel):
         self._stages = stages  # 保存阶段列表引用
         self._logs = project_logs  # 保存日志列表引用
 
-        self.result = None  # 结果数据：("edit", data) / ("delete", None) / ("move", stage_id) / None
+        self.result = None
+        self._move_callback = None  # 外部设置：移动阶段回调
+        self._edit_callback = None  # 外部设置：编辑项目回调
+        self._delete_callback = None  # 外部设置：删除项目回调
 
         self._setup_window()  # 配置窗口属性
         self._build_ui()  # 构建详情界面
         self._center_window()  # 窗口居中
-        self.grab_set()  # 设置为模态窗口
+        # 不设 grab_set()，允许点击外部关闭
+
+        # 点击外部关闭
+        self.bind("<FocusOut>", lambda e: self.destroy())
 
     def _setup_window(self):
         """配置窗口属性"""
@@ -115,6 +121,10 @@ class DetailDialog(tk.Toplevel):
 
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # 鼠标滚轮支持（同时绑定canvas和对话框，确保始终响应）
+        self._canvas = canvas
+        self.bind("<MouseWheel>", lambda e: self._canvas.yview_scroll(int(-e.delta/120), "units"))
 
         # 标题行 - 显示项目名称
         header = tk.Frame(main, bg="#ffffff")
@@ -253,9 +263,19 @@ class DetailDialog(tk.Toplevel):
         idx = self._get_stage_index(self._project.stage_id)
         if idx > 0:  # 不是第一个阶段
             self.result = ("move", self._stages[idx - 1].id)  # 移动到前一阶段
-            self.destroy()
         else:
             messagebox.showinfo("提示", "已经是第一个阶段", parent=self)
+
+    def refresh_data(self, project, stages, logs):
+        """刷新窗口数据（移动阶段后调用，不关闭窗口）"""
+        self._project = project
+        self._stages = stages
+        self._logs = logs
+        self.title(f"项目详情 - {project.name}")
+        for w in self.winfo_children():
+            w.destroy()
+        self._build_ui()
+        self.result = None
 
     def _move_next(self):
         """移到下一阶段按钮处理
@@ -266,7 +286,6 @@ class DetailDialog(tk.Toplevel):
         idx = self._get_stage_index(self._project.stage_id)
         if idx < len(self._stages) - 1:  # 不是最后一个阶段
             self.result = ("move", self._stages[idx + 1].id)  # 移动到后一阶段
-            self.destroy()
         else:
             messagebox.showinfo("提示", "已经是最后一个阶段", parent=self)
 
@@ -314,21 +333,22 @@ class DetailDialog(tk.Toplevel):
 
 def show_detail_dialog(parent, project: Project,
                        stages: list[WorkflowStage],
-                       logs: list[dict]) -> tuple | None:
-    """显示项目详情对话框的便捷函数
-
-    创建DetailDialog实例并等待用户操作完成后返回结果。
-
-    Args:
-        parent: 父级窗口
-        project: 项目实体
-        stages: 流程阶段列表
-        logs: 项目操作日志列表
-
-    Returns:
-        tuple | None: (action, data) 格式的结果元组，取消返回None
-            action可能的值："edit"（编辑）, "delete"（删除）, "move"（移动阶段）
-    """
+                       logs: list[dict],
+                       on_move=None) -> tuple | None:
+    """显示详情对话框，move通过回调处理（不关闭窗口）"""
     dialog = DetailDialog(parent, project, stages, logs)
-    parent.wait_window(dialog)  # 阻塞等待对话框关闭
-    return dialog.result
+    while dialog.winfo_exists():
+        dialog.update()
+        if dialog.result:
+            action, data = dialog.result
+            dialog.result = None
+            if action == "move" and on_move:
+                on_move(data, dialog)
+            else:
+                dialog.destroy()
+                return (action, data)
+        try:
+            dialog.update_idletasks()
+        except Exception:
+            break
+    return None
