@@ -306,9 +306,7 @@ class WorkflowDialog(tk.Toplevel):
             self._stages.remove(target)  # 从列表中移除
             for i, s in enumerate(self._stages):
                 s.order = i  # 重新编号所有阶段的order值
-            self._refresh_list()  # 刷新显示
-            # 删除后清除Treeview选中状态
-            self._tree.selection_remove(stage_id)
+            self._refresh_list()  # 刷新显示（同时清除了选中状态）
 
     def _move_up(self):
         """上移选中阶段（调整排序）
