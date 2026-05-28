@@ -145,18 +145,18 @@ class ProjectService:
             if not valid:
                 return False, msg
 
-        old_stage = self._get_stage_name(project.stage_id)  # 记录变更前的阶段名称（用于日志）
+        old_stage_id = project.stage_id  # 保存变更前的阶段ID（用于日志判断）
+        old_stage = self._get_stage_name(old_stage_id)  # 变更前的阶段名称
         project.update(company_name=company_name, system_name=system_name,
                        cert_number=cert_number,
                        deadline=deadline, notes=notes, stage_id=stage_id)  # 执行字段更新
         self._ds.update_project(project_id, project.to_dict())  # 将更新后的项目持久化
 
-        new_stage = self._get_stage_name(stage_id) if stage_id else old_stage  # 获取新阶段名称
-
-        if stage_id and stage_id != project.stage_id:  # 阶段发生了变化（拖拽操作）
-            self._log(  # 记录拖拽变更日志
-                action="拖拽变更",
-                detail=f"「{project.name}」从「{old_stage}」移至「{new_stage}」",
+        if stage_id is not None and stage_id != old_stage_id:  # 阶段发生了变化
+            new_stage = self._get_stage_name(stage_id)
+            self._log(  # 记录阶段变更日志
+                action="阶段变更",
+                detail=f"{project.name}：{old_stage} → {new_stage}",
                 project_id=project.id,
                 project_name=project.name,
                 from_stage=old_stage,

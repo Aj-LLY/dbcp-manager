@@ -26,7 +26,7 @@ class LogEntry:
     ACTION_CREATE = "新增项目"           # 创建新项目时的操作类型
     ACTION_EDIT = "编辑项目"             # 编辑项目信息时的操作类型
     ACTION_DELETE = "删除项目"           # 删除项目时的操作类型
-    ACTION_MOVE = "拖拽变更"             # 拖拽项目卡片到其他阶段时的操作类型
+    ACTION_MOVE = "阶段变更"             # 项目阶段变更时的操作类型（拖拽/箭头/详情移动）
     ACTION_WORKFLOW_UPDATE = "编辑流程"  # 修改流程阶段配置时的操作类型
     ACTION_STAGE_ADD = "新增阶段"        # 添加新流程阶段时的操作类型
     ACTION_STAGE_DELETE = "删除阶段"     # 删除流程阶段时的操作类型
