@@ -123,6 +123,7 @@ class MainWindow(tk.Tk):
         self._kanban.on_card_detail = self._on_card_detail  # 详情按钮（打开详情窗口）
         self._kanban.on_card_edit = self._on_card_edit  # 编辑按钮（打开编辑对话框）
         self._kanban.on_card_move_stage = self._on_card_move_stage  # 箭头按钮移动阶段
+        self._kanban.on_card_copy = self._on_card_copy  # 复制按钮
 
     # ==================== 工具栏事件处理 ====================
 
@@ -349,6 +350,30 @@ class MainWindow(tk.Tk):
         )
         if success:
             self._kanban.move_card_to_column(card, target_stage_id)  # 在UI上执行卡片移动（即时更新，无需全量刷新）
+        else:
+            messagebox.showerror("错误", msg)
+
+    def _on_card_copy(self, card: ProjectCard):
+        """复制项目按钮的事件处理
+
+        读取当前项目的所有字段，创建一份完整副本。
+        副本公司名称在原名称后追加" - 副本"后缀，与其他字段保持一致。
+
+        Args:
+            card: 被点击复制的卡片组件
+        """
+        p = card.project  # 源项目
+        copy_name = f"{p.company_name} - \u526f\u672c"  # 公司名称 + " - 副本"
+        success, msg, _ = self._project_service.create_project(
+            company_name=copy_name,
+            system_name=p.system_name,
+            cert_number=p.cert_number,
+            deadline=p.deadline,
+            notes=p.notes,
+            stage_id=p.stage_id,  # 保持相同阶段
+        )
+        if success:
+            self._refresh_kanban()
         else:
             messagebox.showerror("错误", msg)
 

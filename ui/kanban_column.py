@@ -84,9 +84,10 @@ class KanbanColumn(tk.Frame):
         Canvas作为滚动容器，Frame容纳所有卡片，Scrollbar控制滚动。
         """
         # 创建Canvas画布作为滚动容器
+        col_w = self.stage.column_width or Config.COLUMN_WIDTH  # 阶段自定义列宽或系统默认
         self._canvas = tk.Canvas(
             self, bg=Config.COLUMN_BG,
-            highlightthickness=0, width=Config.COLUMN_WIDTH,
+            highlightthickness=0, width=col_w,
             height=Config.CARD_MIN_HEIGHT + 20,
         )
         # 创建垂直滚动条
@@ -104,7 +105,7 @@ class KanbanColumn(tk.Frame):
         # 在Canvas中创建窗口对象，放置卡片容器Frame
         self._canvas_window = self._canvas.create_window(
             (0, 0), window=self._cards_frame, anchor="nw",  # 锚定左上角
-            width=Config.COLUMN_WIDTH - 20,  # 宽度减20像素（为滚动条留空间）
+            width=col_w - 20,  # 宽度减20像素（为滚动条留空间）
         )
 
         # 配置Canvas接收滚动条的scroll命令

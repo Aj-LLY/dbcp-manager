@@ -49,6 +49,7 @@ class KanbanBoard(tk.Frame):
         self.on_card_double_click = None  # 卡片双击回调
         self.on_card_detail = None  # 详情按钮回调 - 打开项目详情窗口
         self.on_card_edit = None  # 编辑按钮回调 - 打开编辑对话框
+        self.on_card_copy = None  # 复制按钮回调 - 复制项目
         self.on_card_move_stage = None  # 卡片箭头按钮移动阶段回调
 
         self._build_ui()  # 构建看板的UI结构
@@ -198,6 +199,7 @@ class KanbanBoard(tk.Frame):
         card.on_move_next = self._handle_move_next  # 右箭头：移至下一阶段
         card.on_detail = self._handle_card_detail  # 详情按钮
         card.on_edit = self._handle_card_edit  # 编辑按钮
+        card.on_copy = self._handle_card_copy  # 复制按钮
 
     def _handle_move_prev(self, card: ProjectCard):
         """卡片左箭头点击：将项目移至上一阶段
@@ -294,6 +296,15 @@ class KanbanBoard(tk.Frame):
         """
         if self.on_card_edit:
             self.on_card_edit(card)
+
+    def _handle_card_copy(self, card: ProjectCard):
+        """复制按钮 -- 复制项目创建副本
+
+        Args:
+            card: 被点击复制的ProjectCard卡片组件
+        """
+        if self.on_card_copy:
+            self.on_card_copy(card)
 
     def _handle_column_click(self, column: KanbanColumn):
         """点击列空白区域取消所有选中

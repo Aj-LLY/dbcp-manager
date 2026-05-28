@@ -76,16 +76,18 @@ class WorkflowDialog(tk.Toplevel):
         list_frame = tk.Frame(main, bg="#ffffff")
         list_frame.pack(fill=tk.BOTH, expand=True)  # 双向填充，可扩展
 
-        # Treeview表格 - 显示阶段列表（名称 + 颜色）
-        columns = ("name", "color")  # 定义表格列名
+        # Treeview表格 - 显示阶段列表（名称 + 颜色 + 列宽）
+        columns = ("name", "color", "width")  # 定义表格列名
         self._tree = ttk.Treeview(
             list_frame, columns=columns, show="headings",  # show="headings"只显示表头，不显示树形图标列
             height=8, selectmode="browse",  # 8行可见，单选模式
         )
         self._tree.heading("name", text="阶段名称", anchor="w")  # 名称列表头，左对齐
         self._tree.heading("color", text="颜色", anchor="center")  # 颜色列表头，居中
-        self._tree.column("name", width=250, anchor="w")  # 名称列宽250，左对齐
-        self._tree.column("color", width=100, anchor="center")  # 颜色列宽100，居中
+        self._tree.heading("width", text="列宽(px)", anchor="center")  # 列宽表头，居中
+        self._tree.column("name", width=200, anchor="w")  # 名称列宽200，左对齐
+        self._tree.column("color", width=80, anchor="center")  # 颜色列宽80，居中
+        self._tree.column("width", width=80, anchor="center")  # 列宽列宽80，居中
 
         self._tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)  # Treeview填充左侧
 
@@ -194,8 +196,9 @@ class WorkflowDialog(tk.Toplevel):
 
         for stage in self._stages:
             # 插入新行，以阶段ID作为行标识符(iid)
+            width_display = str(stage.column_width) if stage.column_width else str(Config.COLUMN_WIDTH)
             self._tree.insert("", tk.END, iid=stage.id,
-                              values=(stage.name, stage.color),  # 显示名称和颜色
+                              values=(stage.name, stage.color, width_display),  # 显示名称、颜色和列宽
                               tags=(stage.color,))  # 用颜色值作为标签（用于设置行背景色）
             # 配置标签样式：将颜色值设置为行背景色
             self._tree.tag_configure(stage.color, background=stage.color)
@@ -245,6 +248,7 @@ class WorkflowDialog(tk.Toplevel):
                 name=dialog.result["name"],
                 color=dialog.result["color"],
                 order=max_order + 1,  # 新阶段的order = 最大order + 1
+                column_width=dialog.result.get("column_width"),  # 列宽
             )
             self._stages.append(new_stage)  # 添加到阶段列表
             self._refresh_list()  # 刷新Treeview显示
@@ -261,10 +265,12 @@ class WorkflowDialog(tk.Toplevel):
             return
 
         dialog = StageEditDialog(self, title="编辑阶段",
-                                 name=stage.name, color=stage.color)  # 预填现有名称和颜色
+                                 name=stage.name, color=stage.color,
+                                 column_width=stage.column_width)  # 预填现有名称、颜色和列宽
         if dialog.result:  # 用户点击确认
             stage.name = dialog.result["name"]  # 更新阶段名称
             stage.color = dialog.result["color"]  # 更新阶段颜色
+            stage.column_width = dialog.result.get("column_width")  # 更新列宽
             self._refresh_list()  # 刷新显示
 
     def _delete_stage(self):
@@ -401,7 +407,8 @@ class StageEditDialog(tk.Toplevel):
     """
 
     def __init__(self, parent, title: str = "编辑阶段",
-                 name: str = "", color: str = "#3498db"):
+                 name: str = "", color: str = "#3498db",
+                 column_width: int = None):
         """初始化阶段编辑对话框
 
         Args:
@@ -409,12 +416,13 @@ class StageEditDialog(tk.Toplevel):
             title: 对话框标题
             name: 初始阶段名称（编辑模式预填）
             color: 初始颜色值（编辑模式预填）
+            column_width: 初始列宽（None表示使用默认值）
         """
         super().__init__(parent)  # 调用父类Toplevel初始化
         self.title(title)
         self.result = None  # 结果数据
 
-        self.geometry("350x180")  # 固定大小
+        self.geometry("350x260")  # 固定大小
         self.resizable(False, False)  # 禁止调整大小
         self.configure(bg="#ffffff")
         self.grab_set()  # 模态
@@ -468,6 +476,15 @@ class StageEditDialog(tk.Toplevel):
             btn.bind("<Button-1>",
                      lambda e, clr=c: self._set_color(clr))
 
+        # 列宽输入
+        tk.Label(main, text="列宽（像素，留空使用默认）", bg="#ffffff",
+                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
+                 ).pack(anchor="w")
+        width_val = str(column_width) if column_width else ""
+        self._width_var = tk.StringVar(value=width_val)
+        _, width_outer = bordered_entry(main, textvariable=self._width_var, width=40)
+        width_outer.pack(fill=tk.X, pady=(2, 10))
+
         # 底部按钮（取消 + 确认）
         btn_frame = tk.Frame(main, bg="#ffffff")
         btn_frame.pack(fill=tk.X, pady=(5, 0))
@@ -514,8 +531,20 @@ class StageEditDialog(tk.Toplevel):
         self.result = {
             "name": name,
             "color": self._color_var.get(),
+            "column_width": self._parse_width(),  # 解析列宽（None=使用默认）
         }
         self.destroy()  # 关闭对话框
+
+    def _parse_width(self):
+        """解析列宽输入值：空返回None（使用默认），非空返回整数值"""
+        val = self._width_var.get().strip()
+        if not val:
+            return None
+        try:
+            w = int(val)
+            return w if w > 0 else None  # 正数有效，非正数返回None
+        except ValueError:
+            return None
 
     def _center(self, parent):
         """居中于父窗口
