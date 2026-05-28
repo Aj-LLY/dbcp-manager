@@ -242,6 +242,7 @@ class WorkflowDialog(tk.Toplevel):
         自动计算order值为当前最大order+1，添加到列表末尾。
         """
         dialog = StageEditDialog(self, title="添加阶段")  # 打开添加阶段的编辑对话框
+        self.wait_window(dialog)  # 等待对话框关闭
         if dialog.result:  # 用户点击确认
             max_order = max((s.order for s in self._stages), default=-1)  # 获取当前最大order值
             new_stage = WorkflowStage(
@@ -267,6 +268,7 @@ class WorkflowDialog(tk.Toplevel):
         dialog = StageEditDialog(self, title="编辑阶段",
                                  name=stage.name, color=stage.color,
                                  column_width=stage.column_width)  # 预填现有名称、颜色和列宽
+        self.wait_window(dialog)  # 等待对话框关闭
         if dialog.result:  # 用户点击确认
             stage.name = dialog.result["name"]  # 更新阶段名称
             stage.color = dialog.result["color"]  # 更新阶段颜色
