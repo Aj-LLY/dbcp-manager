@@ -50,12 +50,7 @@ class DetailDialog(tk.Toplevel):
         self._setup_window()  # 配置窗口属性
         self._build_ui()  # 构建详情界面
         self._center_window()  # 窗口居中
-        self._opening_child = False  # 打开子窗口时忽略FocusOut
-        self.focus_set()  # 将焦点拉回详情窗口
         self.grab_set()  # 模态窗口
-
-        # 点击外部关闭（延迟检查，跳过打开子窗口的情况）
-        self.bind("<FocusOut>", self._on_focus_out)
 
     def _setup_window(self):
         """配置窗口属性"""
@@ -238,7 +233,6 @@ class DetailDialog(tk.Toplevel):
         打开项目编辑对话框，编辑成功后保存结果到self.result
         并关闭详情窗口（外部MainWindow会捕获result并执行更新操作）。
         """
-        self._opening_child = True  # 防止FocusOut关闭详情窗口
         result = show_project_dialog(
             self, "编辑项目", self._project, self._stages,
         )
@@ -272,7 +266,6 @@ class DetailDialog(tk.Toplevel):
 
     def refresh_data(self, project, stages, logs):
         """刷新窗口数据（移动阶段后调用，不关闭窗口）"""
-        self._opening_child = True  # 防止重建UI时FocusOut误关闭
         self._project = project
         self._stages = stages
         self._logs = logs
@@ -341,8 +334,6 @@ class DetailDialog(tk.Toplevel):
     def _on_focus_out(self, event):
         """焦点离开时延迟检查，跳过打开子窗口的情况"""
         if self._opening_child:
-            self._opening_child = False
-            self.focus_set()  # 将焦点拉回详情窗口
             return
         self.after(100, self._check_focus)
 
