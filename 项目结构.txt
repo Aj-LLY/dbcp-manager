@@ -2,6 +2,7 @@
 │
 ├── main.py                          # 程序入口，初始化路径并启动主窗口
 ├── build_exe.py                     # 打包脚本，自动读取版本号生成带版本信息的EXE
+├── release.py                       # 发布脚本，构建EXE并可自动创建GitHub Release
 │
 ├── models/                          # 数据实体层 —— 定义核心数据结构
 │   ├── __init__.py                  #   包初始化
