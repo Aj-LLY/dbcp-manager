@@ -17,7 +17,7 @@ from models.project import Project  # 导入Project模型类，表示一个等�
 from models.workflow import WorkflowStage  # 导入WorkflowStage模型类，表示一个流程阶段实体
 from ui.calendar_picker import pick_date  # 导入日历选择器函数，弹出日历面板选择日期
 from utils.config import Config  # 导入Config配置类，获取字体等UI配置常量
-from utils.helpers import get_today_str, bordered_entry  # 导入辅助函数：获取今天字符串、带边框输入框
+from utils.helpers import get_today_str, bordered_entry, validate_cert_number
 
 
 class ProjectDialog(tk.Toplevel):
@@ -158,9 +158,9 @@ class ProjectDialog(tk.Toplevel):
         tk.Label(main_frame, text="证书编号", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
                  ).pack(anchor="w")
-        self._filing_var = tk.StringVar()  # 备案号的StringVar变量
-        self._filing_entry, f_outer = bordered_entry(
-            main_frame, textvariable=self._filing_var,
+        self._cert_var = tk.StringVar()  # 备案号的StringVar变量
+        self._cert_entry, f_outer = bordered_entry(
+            main_frame, textvariable=self._cert_var,
         )
         f_outer.pack(fill=tk.X, pady=(2, 10))
 
@@ -267,7 +267,7 @@ class ProjectDialog(tk.Toplevel):
             # 编辑模式：将现有项目的值填入对应表单字段
             self._company_var.set(self._project.company_name)
             self._system_var.set(self._project.system_name)
-            self._filing_var.set(self._project.cert_number)
+            self._cert_var.set(self._project.cert_number)
             self._deadline_var.set(self._project.deadline)
 
             # 根据项目的stage_id匹配并选中对应的阶段下拉项
@@ -335,6 +335,13 @@ class ProjectDialog(tk.Toplevel):
                                        parent=self)
                 return
 
+        # 验证证书编号格式（非空时必须为 11位数字-5位数字）
+        cert_number = self._cert_var.get().strip()
+        valid_cert, cert_msg = validate_cert_number(cert_number)
+        if not valid_cert:
+            messagebox.showwarning("输入提示", cert_msg, parent=self)
+            return
+
         # 获取阶段ID（通过名称匹配阶段列表中的对应ID）
         stage_name = self._stage_var.get()
         stage_id = ""
@@ -347,7 +354,7 @@ class ProjectDialog(tk.Toplevel):
         self.result = {
             "company_name": company_name,
             "system_name": system_name,
-            "cert_number": self._filing_var.get().strip(),  # 备案号
+            "cert_number": cert_number,  # 证书编号
             "deadline": deadline,  # 截止日期
             "notes": self._notes_text.get("1.0", "end-1c").strip(),  # 备注内容（从第1行0列到末尾-1字符，去掉末尾换行符）
             "stage_id": stage_id,  # 阶段ID
