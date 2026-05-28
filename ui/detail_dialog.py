@@ -51,22 +51,70 @@ class DetailDialog(tk.Toplevel):
 
     def _setup_window(self):
         """配置窗口属性"""
-        self.geometry("500x500")  # 固定大小 500x500
-        self.resizable(False, False)  # 不可调整大小
+        self.geometry("520x550")  # 初始大小
+        self.minsize(420, 400)  # 最小尺寸
+        self.resizable(True, True)  # 可调整大小
         self.configure(bg="#ffffff")  # 白色背景
 
     def _build_ui(self):
-        """构建详情界面的UI布局
+        """构建详情界面（可滚动内容 + 底部固定按钮，与项目编辑对话框风格一致）"""
+        # ---- 底部关闭按钮（先pack，确保窗口缩小时不被挤出） ----
+        bottom_frame = tk.Frame(self, bg="#f0f2f5")
+        bottom_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        tk.Frame(bottom_frame, bg="#d0d5dd", height=1).pack(fill=tk.X)
 
-        从上到下包含：
-        - 标题行（项目名称）
-        - 信息区域（公司名、系统名、备案号、阶段、截止日期、创建时间、更新时间）
-        - 备注内容
-        - 操作日志摘要（最近5条）
-        - 操作按钮（阶段移动、编辑、删除、关闭）
-        """
-        main = tk.Frame(self, bg="#ffffff", padx=24, pady=18)  # 主容器
-        main.pack(fill=tk.BOTH, expand=True)
+        btn_inner = tk.Frame(bottom_frame, bg="#f0f2f5")
+        btn_inner.pack(fill=tk.X, padx=16, pady=8)
+
+        # 进度移动按钮 - 左箭头：移至上一阶段
+        tk.Button(btn_inner, text="\u25c0 上一阶段", command=self._move_prev,
+                  bg="#ecf0f1", fg="#2c3e50", cursor="hand2",
+                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                  relief="flat", padx=12, pady=5,
+                  ).pack(side=tk.LEFT, padx=(0, 5))
+
+        # 进度移动按钮 - 右箭头：移至下一阶段
+        tk.Button(btn_inner, text="下一阶段 \u25b6", command=self._move_next,
+                  bg="#ecf0f1", fg="#2c3e50", cursor="hand2",
+                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                  relief="flat", padx=12, pady=5,
+                  ).pack(side=tk.LEFT)
+
+        # 编辑按钮 - 蓝色
+        tk.Button(btn_inner, text="编辑", command=self._edit_project,
+                  bg="#3498db", fg="white", cursor="hand2",
+                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                  relief="flat", padx=12, pady=5,
+                  ).pack(side=tk.RIGHT, padx=(5, 0))
+
+        # 删除项目按钮 - 红色
+        tk.Button(btn_inner, text="删除项目", command=self._delete_project,
+                  bg="#e74c3c", fg="white", cursor="hand2",
+                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                  relief="flat", padx=12, pady=5,
+                  ).pack(side=tk.RIGHT)
+
+        # 关闭按钮 - 灰色
+        tk.Button(btn_inner, text="关闭", command=self.destroy,
+                  bg="#ecf0f1", fg="#2c3e50", cursor="hand2",
+                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
+                  relief="flat", padx=16, pady=4,
+                  ).pack(side=tk.RIGHT, padx=(5, 0))
+
+        # ---- 可滚动内容区域 ----
+        canvas = tk.Canvas(self, bg="#ffffff", highlightthickness=0)
+        scrollbar = tk.Scrollbar(self, orient=tk.VERTICAL, command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        main = tk.Frame(canvas, bg="#ffffff", padx=24, pady=18)
+        main.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+        canvas.create_window((0, 0), window=main, anchor="nw", tags="content")
+        canvas.bind("<Configure>", lambda e: canvas.itemconfig("content", width=e.width - 4))
+        canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-e.delta/120), "units"))
+
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # 标题行 - 显示项目名称
         header = tk.Frame(main, bg="#ffffff")
@@ -149,46 +197,6 @@ class DetailDialog(tk.Toplevel):
             tk.Label(log_frame, text="暂无操作记录", bg="#f8f9fa",
                      font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
                      fg="#95a5a6").pack(pady=8)  # 无日志时的占位文字
-
-        # 操作按钮区域
-        btn_frame = tk.Frame(main, bg="#ffffff")
-        btn_frame.pack(fill=tk.X, pady=(10, 0))
-
-        # 进度移动按钮 - 左箭头：移至上一阶段
-        tk.Button(btn_frame, text="\u25c0 上一阶段", command=self._move_prev,
-                  bg="#ecf0f1", fg="#2c3e50", cursor="hand2",
-                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-                  relief="flat", padx=12, pady=5,
-                  ).pack(side=tk.LEFT, padx=(0, 5))
-
-        # 进度移动按钮 - 右箭头：移至下一阶段
-        tk.Button(btn_frame, text="下一阶段 \u25b6", command=self._move_next,
-                  bg="#ecf0f1", fg="#2c3e50", cursor="hand2",
-                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-                  relief="flat", padx=12, pady=5,
-                  ).pack(side=tk.LEFT)
-
-        # 右侧操作按钮
-        # 编辑按钮 - 蓝色
-        tk.Button(btn_frame, text="编辑", command=self._edit_project,
-                  bg="#3498db", fg="white", cursor="hand2",
-                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-                  relief="flat", padx=12, pady=5,
-                  ).pack(side=tk.RIGHT, padx=(5, 0))
-
-        # 删除项目按钮 - 红色（有二次确认）
-        tk.Button(btn_frame, text="删除项目", command=self._delete_project,
-                  bg="#e74c3c", fg="white", cursor="hand2",
-                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-                  relief="flat", padx=12, pady=5,
-                  ).pack(side=tk.RIGHT)
-
-        # 关闭按钮 - 灰色
-        tk.Button(main, text="关闭", command=self.destroy,
-                  bg="#ecf0f1", fg="#2c3e50", cursor="hand2",
-                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
-                  relief="flat", padx=16, pady=4,
-                  ).pack(pady=(10, 0))
 
     def _add_info_row(self, parent, label: str, value: str):
         """在信息区域添加一行 "标签: 值" 格式的信息
