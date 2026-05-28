@@ -99,9 +99,11 @@ class LogDialog(tk.Toplevel):
                   font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
                   padx=8).pack(side=tk.RIGHT, padx=(0, 8))
 
-        # 日志列表区域（Treeview表格 + 双滚动条）
+        # 日志列表区域（Treeview表格 + 双滚动条，grid 布局）
         tree_frame = tk.Frame(main, bg="#ffffff")
         tree_frame.pack(fill=tk.BOTH, expand=True)  # 双向填充，占用主空间
+        tree_frame.grid_rowconfigure(0, weight=1)
+        tree_frame.grid_columnconfigure(0, weight=1)
 
         # 定义表格列
         columns = ("time", "action", "detail", "project")
@@ -115,25 +117,24 @@ class LogDialog(tk.Toplevel):
         self._tree.heading("detail", text="操作描述", anchor="w")
         self._tree.heading("project", text="关联项目", anchor="w")
 
-        # 设置各列宽度和对齐方式
-        self._tree.column("time", width=150, anchor="w")
-        self._tree.column("action", width=100, anchor="center")
-        self._tree.column("detail", width=350, anchor="w")
-        self._tree.column("project", width=150, anchor="w")
+        # 设置各列宽度（stretch=False 确保溢出时触发水平滚动）
+        self._tree.column("time", width=150, anchor="w", stretch=False)
+        self._tree.column("action", width=100, anchor="center", stretch=False)
+        self._tree.column("detail", width=400, anchor="w", stretch=False)
+        self._tree.column("project", width=180, anchor="w", stretch=False)
 
         # 创建垂直和水平滚动条
         scrollbar_y = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL,
                                     command=self._tree.yview)
         scrollbar_x = ttk.Scrollbar(tree_frame, orient=tk.HORIZONTAL,
                                     command=self._tree.xview)
-        # Treeview与滚动条联动
         self._tree.configure(yscrollcommand=scrollbar_y.set,
                              xscrollcommand=scrollbar_x.set)
 
-        # 布局Treeview和滚动条
-        self._tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)  # Treeview填充左侧主区域
-        scrollbar_y.pack(side=tk.RIGHT, fill=tk.Y)  # 垂直滚动条：右侧
-        scrollbar_x.pack(side=tk.BOTTOM, fill=tk.X)  # 水平滚动条：底部
+        # Grid 布局（避免 pack 布局下两滚动条交叉角留空）
+        self._tree.grid(row=0, column=0, sticky="nsew")
+        scrollbar_y.grid(row=0, column=1, sticky="ns")
+        scrollbar_x.grid(row=1, column=0, sticky="ew")
 
         # 关闭按钮 - 底部居中
         tk.Button(main, text="关闭", command=self.destroy,
