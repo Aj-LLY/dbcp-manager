@@ -51,6 +51,7 @@ class DetailDialog(tk.Toplevel):
         self._build_ui()  # 构建详情界面
         self._center_window()  # 窗口居中
         self._opening_child = False  # 打开子窗口时忽略FocusOut
+        self.focus_set()  # 将焦点拉回详情窗口
         self.grab_set()  # 模态窗口
 
         # 点击外部关闭（延迟检查，跳过打开子窗口的情况）
@@ -341,6 +342,7 @@ class DetailDialog(tk.Toplevel):
         """焦点离开时延迟检查，跳过打开子窗口的情况"""
         if self._opening_child:
             self._opening_child = False
+            self.focus_set()  # 将焦点拉回详情窗口
             return
         self.after(100, self._check_focus)
 
