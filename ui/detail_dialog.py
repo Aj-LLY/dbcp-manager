@@ -73,39 +73,40 @@ class DetailDialog(tk.Toplevel):
         btn_inner = tk.Frame(bottom_frame, bg="#f0f2f5")
         btn_inner.pack(fill=tk.X, padx=16, pady=8)
 
-        # 进度移动按钮 - 左箭头：移至上一阶段
+        # 进度移动按钮 - 白底深字灰边框
+        btn_style = {"cursor": "hand2", "relief": "flat", "padx": 12, "pady": 5,
+                     "font": (Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                     "highlightbackground": "#d0d5dd", "highlightthickness": 1}
         tk.Button(btn_inner, text="\u25c0 上一阶段", command=self._move_prev,
-                  bg="#ecf0f1", fg="#2c3e50", cursor="hand2",
-                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-                  relief="flat", padx=12, pady=5,
-                  ).pack(side=tk.LEFT, padx=(0, 5))
-
-        # 进度移动按钮 - 右箭头：移至下一阶段
+                  bg="#ffffff", fg="#2c3e50", activebackground="#f0f2f5",
+                  **btn_style).pack(side=tk.LEFT, padx=(0, 5))
         tk.Button(btn_inner, text="下一阶段 \u25b6", command=self._move_next,
-                  bg="#ecf0f1", fg="#2c3e50", cursor="hand2",
-                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-                  relief="flat", padx=12, pady=5,
-                  ).pack(side=tk.LEFT)
+                  bg="#ffffff", fg="#2c3e50", activebackground="#f0f2f5",
+                  **btn_style).pack(side=tk.LEFT)
 
-        # 编辑按钮 - 蓝色
+        # 编辑按钮 - 蓝底白字粗体
         tk.Button(btn_inner, text="编辑", command=self._edit_project,
                   bg="#3498db", fg="white", cursor="hand2",
-                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-                  relief="flat", padx=12, pady=5,
+                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
+                  relief="flat", padx=14, pady=5,
+                  activebackground="#2980b9",
                   ).pack(side=tk.RIGHT, padx=(5, 0))
 
-        # 删除项目按钮 - 红色
+        # 删除按钮 - 红底白字粗体
         tk.Button(btn_inner, text="删除项目", command=self._delete_project,
                   bg="#e74c3c", fg="white", cursor="hand2",
-                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-                  relief="flat", padx=12, pady=5,
+                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
+                  relief="flat", padx=14, pady=5,
+                  activebackground="#c0392b",
                   ).pack(side=tk.RIGHT)
 
-        # 关闭按钮 - 灰色
+        # 关闭按钮 - 白底深字灰边框
         tk.Button(btn_inner, text="关闭", command=self.destroy,
-                  bg="#ecf0f1", fg="#2c3e50", cursor="hand2",
+                  bg="#ffffff", fg="#2c3e50", cursor="hand2",
                   font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
-                  relief="flat", padx=16, pady=4,
+                  relief="flat", padx=16, pady=5,
+                  highlightbackground="#d0d5dd", highlightthickness=1,
+                  activebackground="#f0f2f5",
                   ).pack(side=tk.RIGHT, padx=(5, 0))
 
         # ---- 可滚动内容区域 ----
@@ -270,6 +271,7 @@ class DetailDialog(tk.Toplevel):
 
     def refresh_data(self, project, stages, logs):
         """刷新窗口数据（移动阶段后调用，不关闭窗口）"""
+        self._opening_child = True  # 防止重建UI时FocusOut误关闭
         self._project = project
         self._stages = stages
         self._logs = logs
@@ -278,6 +280,7 @@ class DetailDialog(tk.Toplevel):
             w.destroy()
         self._build_ui()
         self.result = None
+        self.after(200, lambda: setattr(self, '_opening_child', False))
 
     def _move_next(self):
         """移到下一阶段按钮处理
