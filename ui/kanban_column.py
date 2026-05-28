@@ -47,12 +47,17 @@ class KanbanColumn(tk.Frame):
         self.on_card_click = None  # 卡片单击回调
         self.on_card_double_click = None  # 卡片双击回调
         self.on_column_click = None  # 列空白区域点击回调
+        self.on_resize = None  # 拖拽调整列宽完成后的回调 (col, new_width)
 
         # 计算列宽：阶段自定义值或系统默认值
         self._col_w = self.stage.column_width or Config.COLUMN_WIDTH
+        self._resize_start_x = 0  # 拖拽起始X坐标
+        self._resize_start_w = 0  # 拖拽起始列宽
+        self._resizing = False  # 是否正在拖拽调整宽度
 
         self._build_header()  # 构建列标题栏
         self._build_cards_area()  # 构建卡片可滚动区域
+        self._build_resize_grip()  # 构建拖拽调整宽度手柄
 
         # 固定列宽（含滚动条宽度，防止 pack fill 拉伸覆盖自定义宽度）
         self.configure(width=self._col_w + 22)
@@ -128,6 +133,50 @@ class KanbanColumn(tk.Frame):
         # 点击空白区域的事件 - 用于取消卡片选中
         self._canvas.bind("<Button-1>", self._on_bg_click)
         self._cards_frame.bind("<Button-1>", self._on_bg_click)
+
+    def _build_resize_grip(self):
+        """构建右侧列宽拖拽手柄 —— 4px 宽的拖拽条，用于鼠标拖拽调整列宽"""
+        self._grip = tk.Frame(self, bg="#c0c4cc", width=4, cursor="sb_h_double_arrow")
+        self._grip.pack(side=tk.RIGHT, fill=tk.Y, padx=0, pady=0)
+
+        # 绑定拖拽事件
+        self._grip.bind("<Button-1>", self._on_grip_press)
+        self._grip.bind("<B1-Motion>", self._on_grip_drag)
+        self._grip.bind("<ButtonRelease-1>", self._on_grip_release)
+
+    def _on_grip_press(self, event):
+        """拖拽手柄按下：记录起始位置和宽度"""
+        self._resizing = True
+        self._resize_start_x = event.x_root  # 屏幕坐标X
+        self._resize_start_w = self._col_w  # 当前列宽
+        self._grip.configure(bg="#3498db")  # 高亮手柄
+
+    def _on_grip_drag(self, event):
+        """拖拽手柄移动：实时调整列宽"""
+        if not self._resizing:
+            return
+        dx = event.x_root - self._resize_start_x  # 鼠标移动量
+        new_w = max(120, self._resize_start_w + dx)  # 最小列宽120px
+        self._apply_width(new_w)
+
+    def _on_grip_release(self, event):
+        """拖拽手柄释放：保存新宽度"""
+        if not self._resizing:
+            return
+        self._resizing = False
+        self._grip.configure(bg="#c0c4cc")  # 恢复手柄颜色
+        # 同步到 stage 数据
+        self.stage.column_width = self._col_w
+        # 通知外部保存
+        if self.on_resize:
+            self.on_resize(self, self._col_w)
+
+    def _apply_width(self, new_w):
+        """应用列宽 —— 更新所有相关组件宽度"""
+        self._col_w = new_w
+        self.configure(width=new_w + 22)
+        self._canvas.configure(width=new_w)
+        self._canvas.itemconfig(self._canvas_window, width=new_w - 20)
 
     def _on_column_resize(self, event):
         """列宽度变化时调整卡片区域宽度

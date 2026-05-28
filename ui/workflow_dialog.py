@@ -422,13 +422,24 @@ class StageEditDialog(tk.Toplevel):
         self.title(title)
         self.result = None  # 结果数据
 
-        self.geometry("350x260")  # 固定大小
-        self.resizable(False, False)  # 禁止调整大小
+        self.geometry("380x310")  # 窗口大小（加宽加高以适应列宽字段）
+        self.minsize(340, 280)  # 最小尺寸
+        self.resizable(True, True)  # 允许调整大小
         self.configure(bg="#ffffff")
         self.grab_set()  # 模态
 
-        main = tk.Frame(self, bg="#ffffff", padx=15, pady=15)  # 主容器
-        main.pack(fill=tk.BOTH, expand=True)
+        # 可滚动画布包裹全部内容，防止窗口缩小时按钮不可见
+        canvas = tk.Canvas(self, bg="#ffffff", highlightthickness=0)
+        scrollbar = tk.Scrollbar(self, orient=tk.VERTICAL, command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        main = tk.Frame(canvas, bg="#ffffff", padx=15, pady=15)  # 主容器
+        main.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=main, anchor="nw", tags="main_win")
+        canvas.bind("<Configure>", lambda e: canvas.itemconfig("main_win", width=e.width - 4))
+
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # 阶段名称输入
         tk.Label(main, text="阶段名称", bg="#ffffff",
@@ -436,14 +447,14 @@ class StageEditDialog(tk.Toplevel):
                  ).pack(anchor="w")  # 左对齐
         self._name_var = tk.StringVar(value=name)  # 绑定名称的StringVar，初始值为传入的name
         _, name_outer = bordered_entry(main, textvariable=self._name_var, width=40)
-        name_outer.pack(fill=tk.X, pady=(2, 10))  # 水平填充
+        name_outer.pack(fill=tk.X, pady=(2, 8))  # 水平填充
 
         # 标识颜色选择
         tk.Label(main, text="标识颜色", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
                  ).pack(anchor="w")
         color_frame = tk.Frame(main, bg="#ffffff")  # 颜色选择行
-        color_frame.pack(fill=tk.X, pady=(2, 10))
+        color_frame.pack(fill=tk.X, pady=(2, 8))
 
         self._color_var = tk.StringVar(value=color)  # 绑定颜色的StringVar
         # 颜色预览块 - 显示当前选中的颜色
@@ -457,6 +468,7 @@ class StageEditDialog(tk.Toplevel):
         tk.Button(color_frame, text="选择颜色", command=self._pick_color,
                   bg="#ecf0f1", relief="flat", cursor="hand2",
                   font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                  padx=8, pady=3,
                   ).pack(side=tk.LEFT)
 
         # 预设颜色块 - 提供一组常用颜色供快速选择
@@ -466,7 +478,7 @@ class StageEditDialog(tk.Toplevel):
             "#34495e", "#e91e63",
         ]
         preset_frame = tk.Frame(main, bg="#ffffff")
-        preset_frame.pack(fill=tk.X, pady=(0, 5))
+        preset_frame.pack(fill=tk.X, pady=(0, 8))
         for c in preset_colors:
             # 每个预设颜色为一个可点击的Label
             btn = tk.Label(preset_frame, text=" ", bg=c, width=2, height=1,
@@ -477,25 +489,31 @@ class StageEditDialog(tk.Toplevel):
                      lambda e, clr=c: self._set_color(clr))
 
         # 列宽输入
-        tk.Label(main, text="列宽（像素，留空使用默认）", bg="#ffffff",
+        tk.Label(main, text="列宽（像素，留空使用默认220）", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
                  ).pack(anchor="w")
         width_val = str(column_width) if column_width else ""
         self._width_var = tk.StringVar(value=width_val)
         _, width_outer = bordered_entry(main, textvariable=self._width_var, width=40)
-        width_outer.pack(fill=tk.X, pady=(2, 10))
+        width_outer.pack(fill=tk.X, pady=(2, 8))
 
         # 底部按钮（取消 + 确认）
-        btn_frame = tk.Frame(main, bg="#ffffff")
-        btn_frame.pack(fill=tk.X, pady=(5, 0))
-        tk.Button(btn_frame, text="取消", command=self.destroy,
-                  bg="#ecf0f1", relief="flat", cursor="hand2",
+        btn_frame = tk.Frame(main, bg="#f0f2f5")
+        btn_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=(8, 0))
+        tk.Frame(btn_frame, bg="#d0d5dd", height=1).pack(fill=tk.X, pady=(0, 6))
+        btn_inner = tk.Frame(btn_frame, bg="#f0f2f5")
+        btn_inner.pack(fill=tk.X)
+        tk.Button(btn_inner, text="取消", command=self.destroy,
+                  bg="#ffffff", fg="#2c3e50", relief="flat", cursor="hand2",
                   font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-                  padx=10, pady=3).pack(side=tk.RIGHT, padx=(5, 0))
-        tk.Button(btn_frame, text="确认", command=self._on_confirm,
+                  padx=16, pady=5,
+                  highlightbackground="#d0d5dd", highlightthickness=1,
+                  ).pack(side=tk.RIGHT, padx=(6, 0))
+        tk.Button(btn_inner, text="确认", command=self._on_confirm,
                   bg="#3498db", fg="white", relief="flat", cursor="hand2",
-                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-                  padx=10, pady=3).pack(side=tk.RIGHT)
+                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL, "bold"),
+                  padx=16, pady=5,
+                  ).pack(side=tk.RIGHT)
 
         self._center(parent)  # 居中于父窗口
 

@@ -94,6 +94,15 @@ class WorkflowService:
         )
         return True, f"阶段「{stage.name}」已添加", stage  # 返回成功信息和新创建的对象
 
+    def update_stage_width(self, stage_id: str, column_width: int):
+        """更新阶段列宽（便捷方法，直接写入数据层）
+
+        Args:
+            stage_id: 目标阶段ID
+            column_width: 新的列宽值（像素）
+        """
+        self._ds.update_stage(stage_id, {"column_width": column_width})
+
     def update_stage(self, stage_id: str, name: str = None,
                      color: str = None) -> tuple[bool, str]:
         """更新阶段信息
