@@ -28,7 +28,7 @@ class ProjectDialog(tk.Toplevel):
 
     Attributes:
         result: 对话框结果数据字典（确认后设置，取消为None）
-            包含字段：company_name, system_name, filing_number, deadline, notes, stage_id
+            包含字段：company_name, system_name, cert_number, deadline, notes, stage_id
     """
 
     def __init__(self, parent, title: str = "新增项目",
@@ -154,8 +154,8 @@ class ProjectDialog(tk.Toplevel):
         )
         s_outer.pack(fill=tk.X, pady=(2, 5))
 
-        # 备案号输入 - 选填字段
-        tk.Label(main_frame, text="系统备案号", bg="#ffffff",
+        # 证书编号 - 选填字段（格式：11位数字-5位数字）
+        tk.Label(main_frame, text="证书编号", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
                  ).pack(anchor="w")
         self._filing_var = tk.StringVar()  # 备案号的StringVar变量
@@ -267,7 +267,7 @@ class ProjectDialog(tk.Toplevel):
             # 编辑模式：将现有项目的值填入对应表单字段
             self._company_var.set(self._project.company_name)
             self._system_var.set(self._project.system_name)
-            self._filing_var.set(self._project.filing_number)
+            self._filing_var.set(self._project.cert_number)
             self._deadline_var.set(self._project.deadline)
 
             # 根据项目的stage_id匹配并选中对应的阶段下拉项
@@ -347,7 +347,7 @@ class ProjectDialog(tk.Toplevel):
         self.result = {
             "company_name": company_name,
             "system_name": system_name,
-            "filing_number": self._filing_var.get().strip(),  # 备案号
+            "cert_number": self._filing_var.get().strip(),  # 备案号
             "deadline": deadline,  # 截止日期
             "notes": self._notes_text.get("1.0", "end-1c").strip(),  # 备注内容（从第1行0列到末尾-1字符，去掉末尾换行符）
             "stage_id": stage_id,  # 阶段ID

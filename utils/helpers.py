@@ -135,6 +135,18 @@ def validate_project_fields(company_name: str, system_name: str) -> tuple[bool, 
     return True, ""  # 所有验证通过
 
 
+def validate_cert_number(number: str) -> tuple[bool, str]:
+    """验证证书编号格式：11位数字 + '-' + 5位数字"""
+    if not number or not number.strip():
+        return True, ""  # 空值允许，表示未备案
+    n = number.strip()
+    if len(n) != 17:
+        return False, "证书编号应为17位（11位数字-5位数字）"
+    if not re.match(r'^\d{11}-\d{5}$', n):
+        return False, "证书编号格式错误：应为11位数字-5位数字，如 12345678901-00001"
+    return True, ""
+
+
 def bordered_entry(parent, font=None, **entry_kwargs):
     """创建带四边 1px 灰色边框的输入框，返回 (entry, outer_frame)
     通过嵌套Frame实现边框效果，适用于需要统一边框样式的输入组件
