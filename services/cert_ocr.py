@@ -98,10 +98,10 @@ class CertOCRService:
                 return f.read()
 
     def _ocr_texts(self, img_bytes: bytes) -> list[str]:
-        """对图片执行 OCR，返回识别文本列表（按置信度过滤）"""
+        """对图片执行 OCR，返回识别文本列表"""
         reader = self._get_reader()
         results = reader.readtext(img_bytes)
-        return [text for _, text, conf in results if conf > 0.3]
+        return [text for _, text, conf in results if conf > 0.2]
 
     def _extract_fields(self, texts: list[str]) -> dict:
         """从 OCR 文本列表中提取结构化字段"""
@@ -152,15 +152,34 @@ class CertOCRService:
         return ""
 
     def _extract_level(self, text: str) -> str:
-        """提取系统等级：第X级"""
-        m = re.search(r"第[一二三四五\d]\s*级", text)
+        """提取系统等级：第X级 或 等保X级 等模式"""
+        # 直接匹配"第X级"
+        m = re.search(r"第\s*[一二三四五1-5]\s*级", text)
         if m:
-            return m.group(0).replace(" ", "")
+            return re.sub(r"\s+", "", m.group(0))
+        # 匹配"X级"前面有"等保"或"安全"的上下文
+        m = re.search(r"(?:等保|安全|保护)\s*[一二三四五1-5]\s*级", text)
+        if m:
+            level = re.search(r"[一二三四五1-5]\s*级", m.group(0))
+            if level:
+                val = level.group(0).replace(" ", "")
+                return "第" + val if not val.startswith("第") else val
+        # 匹配独立出现的"第二级"/"三级"等（前后有空格的等级文本）
+        for t in text.split():
+            m = re.match(r"^第?\s*[一二三四五1-5]\s*级$", t)
+            if m:
+                return re.sub(r"\s+", "", m.group(0))
         return ""
 
     def _extract_date(self, text: str) -> str:
         """提取证书下发时间：YYYY年MM月DD日，转为 YYYY-MM-DD"""
+        # 优先匹配完整中文日期
         m = re.search(r"(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日", text)
+        if m:
+            y, mo, d = m.groups()
+            return f"{y}-{int(mo):02d}-{int(d):02d}"
+        # 备用：匹配 YYYY-MM-DD 或 YYYY/MM/DD
+        m = re.search(r"(\d{4})[-/](\d{1,2})[-/](\d{1,2})", text)
         if m:
             y, mo, d = m.groups()
             return f"{y}-{int(mo):02d}-{int(d):02d}"
