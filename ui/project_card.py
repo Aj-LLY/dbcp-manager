@@ -90,7 +90,7 @@ class ProjectCard(tk.Frame):
         # 填充剩余空间，左右各有4像素内边距，上方6px下方2px
         self._content.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=6, pady=(8, 4))
 
-        # 系统名称（居中，粗体）—— 主标题
+        # 1. 系统名称（居中，粗体）—— 主标题
         sys_display = self.project.system_name or self.project.company_name or "\u65e0\u540d\u79f0"
         if len(sys_display) > 12:
             sys_display = sys_display[:11] + "\u2026"
@@ -101,7 +101,7 @@ class ProjectCard(tk.Frame):
         )
         self._sys_label.pack(fill=tk.X)
 
-        # 公司名称（居中）—— 仅当同时有系统名称和公司名称时显示为副标题
+        # 2. 公司名称（居中）—— 仅当两者都有时显示为副标题
         if self.project.system_name and self.project.company_name:
             company_display = self.project.company_name
             if len(company_display) > 14:
@@ -115,7 +115,19 @@ class ProjectCard(tk.Frame):
         else:
             self._company_label = None
 
-        # 证书编号（居中，灰色小字，显示备案状态）
+        # 3. 系统等级（居中，小字）
+        if self.project.level:
+            self._level_label = tk.Label(
+                self._content, text=self.project.level,
+                bg=Config.CARD_BG,
+                font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
+                anchor="center", fg="#8e44ad",
+            )
+            self._level_label.pack(fill=tk.X)
+        else:
+            self._level_label = None
+
+        # 4. 证书编号（居中，显示备案状态）
         if self.project.cert_number:
             cert_display = self.project.cert_number
             if len(cert_display) > 18:
@@ -136,31 +148,7 @@ class ProjectCard(tk.Frame):
             )
             self._cert_label.pack(fill=tk.X)
 
-        # 下证日期（居中，小字）
-        if self.project.issue_date:
-            self._issue_label = tk.Label(
-                self._content, text="下证 " + self.project.issue_date,
-                bg=Config.CARD_BG,
-                font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
-                anchor="center", fg="#27ae60",
-            )
-            self._issue_label.pack(fill=tk.X)
-        else:
-            self._issue_label = None
-
-        # 系统等级（居中，小字）
-        if self.project.level:
-            self._level_label = tk.Label(
-                self._content, text=self.project.level,
-                bg=Config.CARD_BG,
-                font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
-                anchor="center", fg="#8e44ad",
-            )
-            self._level_label.pack(fill=tk.X)
-        else:
-            self._level_label = None
-
-        # 项目预计交付日期（居中）
+        # 5. 交付日期（居中）
         deadline_text = self._format_deadline()
         fg_color = self._get_deadline_color()
         self._deadline_label = tk.Label(

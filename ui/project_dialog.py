@@ -135,129 +135,127 @@ class ProjectDialog(tk.Toplevel):
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_HEADER, "bold"),
                  ).pack(anchor="w", pady=(0, 15))  # 左对齐，下方15px间距
 
-        # 公司名称输入 - 必填字段（带星号标记）
+        # 1. 公司名称 *（必填）
         tk.Label(main_frame, text="公司名称 *", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
-                 ).pack(anchor="w")  # 标签左对齐
-        self._company_var = tk.StringVar()  # 创建StringVar变量，用于双向绑定输入框值
+                 ).pack(anchor="w")
+        self._company_var = tk.StringVar()
         self._company_entry, c_outer = bordered_entry(
-            main_frame, textvariable=self._company_var,  # bordered_entry返回(输入框, 外边框Frame)
+            main_frame, textvariable=self._company_var,
         )
-        c_outer.pack(fill=tk.X, pady=(2, 5))  # 水平填充，上下间距
+        c_outer.pack(fill=tk.X, pady=(2, 5))
 
-        # 系统名称输入 - 选填字段
+        # 2. 系统名称
         tk.Label(main_frame, text="系统名称", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
                  ).pack(anchor="w")
-        self._system_var = tk.StringVar()  # 系统名称的StringVar变量
+        self._system_var = tk.StringVar()
         self._system_entry, s_outer = bordered_entry(
             main_frame, textvariable=self._system_var,
         )
         s_outer.pack(fill=tk.X, pady=(2, 5))
 
-        # 证书编号 - 选填字段（格式：11位数字-5位数字）
+        # 3. 系统等级（下拉选择）
+        tk.Label(main_frame, text="系统等级", bg="#ffffff",
+                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
+                 ).pack(anchor="w")
+        self._level_var = tk.StringVar()
+        level_values = ["", "第一级", "第二级", "第三级", "第四级", "第五级"]
+        self._level_combo = ttk.Combobox(
+            main_frame, textvariable=self._level_var,
+            values=level_values, state="readonly",
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
+        )
+        self._level_combo.pack(fill=tk.X, pady=(2, 5))
+
+        # 4. 证书编号
         tk.Label(main_frame, text="证书编号", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
                  ).pack(anchor="w")
-        self._cert_var = tk.StringVar()  # 备案号的StringVar变量
-        cert_row = tk.Frame(main_frame, bg="#ffffff")  # 证书编号 + 上传按钮行
-        cert_row.pack(fill=tk.X, pady=(2, 5))
-        self._cert_entry, c_outer = bordered_entry(
-            cert_row, textvariable=self._cert_var,
+        self._cert_var = tk.StringVar()
+        self._cert_entry, f_outer = bordered_entry(
+            main_frame, textvariable=self._cert_var,
         )
-        c_outer.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        f_outer.pack(fill=tk.X, pady=(2, 5))
+
+        # 5. 下证日期（带日历选择器）
+        tk.Label(main_frame, text="下证日期", bg="#ffffff",
+                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
+                 ).pack(anchor="w")
+        issue_row = tk.Frame(main_frame, bg="#ffffff")
+        issue_row.pack(fill=tk.X, pady=(2, 5))
+        self._issue_date_var = tk.StringVar()
+        self._issue_date_entry, id_outer = bordered_entry(
+            issue_row, textvariable=self._issue_date_var, width=24,
+        )
+        id_outer.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        tk.Button(
+            issue_row, text="\U0001f4c5", command=self._open_issue_calendar,
+            bg="#ffffff", fg="#3498db", relief="flat",
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_LARGE),
+            cursor="hand2", padx=4, pady=0,
+            activebackground="#ecf0f1",
+        ).pack(side=tk.LEFT, padx=(4, 0))
 
         # 上传备案证识别按钮
+        upload_row = tk.Frame(main_frame, bg="#ffffff")
+        upload_row.pack(fill=tk.X, pady=(0, 5))
         self._upload_btn = tk.Button(
-            cert_row, text="上传备案证识别", command=self._on_upload_cert,
+            upload_row, text="上传备案证识别", command=self._on_upload_cert,
             bg="#27ae60", fg="white", cursor="hand2",
             font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
             relief="flat", padx=10, pady=3,
             activebackground="#219a52",
         )
-        self._upload_btn.pack(side=tk.LEFT, padx=(6, 0))
-
-        # OCR 状态提示
-        self._ocr_status = tk.Label(main_frame, text="", bg="#ffffff",
+        self._upload_btn.pack(side=tk.LEFT)
+        self._ocr_status = tk.Label(upload_row, text="", bg="#ffffff",
                                      font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
                                      fg="#7f8c8d")
-        self._ocr_status.pack(anchor="w", pady=(0, 5))
+        self._ocr_status.pack(side=tk.LEFT, padx=(10, 0))
 
-        # 下证日期输入
-        tk.Label(main_frame, text="下证日期", bg="#ffffff",
+        # 6. 交付日期（带日历选择器 + 快捷按钮）
+        tk.Label(main_frame, text="交付日期", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
                  ).pack(anchor="w")
-        self._issue_date_var = tk.StringVar()
-        self._issue_date_entry, id_outer = bordered_entry(
-            main_frame, textvariable=self._issue_date_var,
-        )
-        id_outer.pack(fill=tk.X, pady=(2, 5))
-
-        # 系统等级输入
-        tk.Label(main_frame, text="系统等级", bg="#ffffff",
-                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
-                 ).pack(anchor="w")
-        self._level_var = tk.StringVar()
-        self._level_entry, lv_outer = bordered_entry(
-            main_frame, textvariable=self._level_var,
-        )
-        lv_outer.pack(fill=tk.X, pady=(2, 5))
-
-        # 项目预计交付日期 - 带日历选择器
-        tk.Label(main_frame, text="项目预计交付日期", bg="#ffffff",
-                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
-                 ).pack(anchor="w")
-        date_frame = tk.Frame(main_frame, bg="#ffffff")  # 日期输入行容器
+        date_frame = tk.Frame(main_frame, bg="#ffffff")
         date_frame.pack(fill=tk.X, pady=(2, 5))
-
-        self._deadline_var = tk.StringVar()  # 截止日期的StringVar变量
+        self._deadline_var = tk.StringVar()
         self._deadline_entry, dl_outer = bordered_entry(
-            date_frame, textvariable=self._deadline_var,
-            width=24,  # 输入框宽度24字符
+            date_frame, textvariable=self._deadline_var, width=24,
         )
-        dl_outer.pack(side=tk.LEFT)  # 左侧放置输入框
-
-        # 日历选择按钮 - 点击弹出日历面板可视化选择日期
+        dl_outer.pack(side=tk.LEFT)
         tk.Button(
-            date_frame, text="\U0001f4c5", command=self._open_calendar,  # 日历图标
+            date_frame, text="\U0001f4c5", command=self._open_calendar,
             bg="#ffffff", fg="#3498db", relief="flat",
             font=(Config.FONT_FAMILY, Config.FONT_SIZE_LARGE),
             cursor="hand2", padx=4, pady=0,
             activebackground="#ecf0f1",
-        ).pack(side=tk.LEFT, padx=(4, 0))  # 紧挨输入框，左间距4px
-
-        # 日期格式提示
+        ).pack(side=tk.LEFT, padx=(4, 0))
         tk.Label(date_frame, text=" (YYYY-MM-DD)", bg="#ffffff",
                  fg="#95a5a6",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
                  ).pack(side=tk.LEFT)
 
-        # 快捷日期按钮行 - 提供"今天"、"一周后"、"一月后"、"清除"快捷操作
         quick_frame = tk.Frame(main_frame, bg="#ffffff")
-        quick_frame.pack(fill=tk.X, pady=(0, 10))  # 下方10px间距
-
-        # "今天"按钮 - 填入当天日期
+        quick_frame.pack(fill=tk.X, pady=(0, 10))
         tk.Button(quick_frame, text="今天", bg="#ecf0f1", relief="flat",
                   font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
                   command=lambda: self._deadline_var.set(get_today_str()),
                   cursor="hand2").pack(side=tk.LEFT, padx=(0, 5))
-        # "一周后"按钮 - 填入7天后的日期
         tk.Button(quick_frame, text="一周后", bg="#ecf0f1", relief="flat",
                   font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
                   command=self._set_one_week_later,
                   cursor="hand2").pack(side=tk.LEFT, padx=(0, 5))
-        # "一月后"按钮 - 填入30天后的日期
         tk.Button(quick_frame, text="一月后", bg="#ecf0f1", relief="flat",
                   font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
                   command=self._set_one_month_later,
                   cursor="hand2").pack(side=tk.LEFT, padx=(0, 5))
-        # "清除"按钮 - 清空日期输入
         tk.Button(quick_frame, text="清除", bg="#ecf0f1", relief="flat",
                   font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
                   command=lambda: self._deadline_var.set(""),
                   cursor="hand2").pack(side=tk.LEFT)
 
-        # 所属阶段下拉选择
+        # 7. 所属阶段下拉选择
         tk.Label(main_frame, text="所属阶段", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
                  ).pack(anchor="w")
@@ -308,7 +306,8 @@ class ProjectDialog(tk.Toplevel):
             self._system_var.set(self._project.system_name)
             self._cert_var.set(self._project.cert_number)
             self._issue_date_var.set(self._project.issue_date)
-            self._level_var.set(self._project.level)
+            if self._project.level:
+                self._level_var.set(self._project.level)
             self._deadline_var.set(self._project.deadline)
 
             # 根据项目的stage_id匹配并选中对应的阶段下拉项
@@ -330,10 +329,16 @@ class ProjectDialog(tk.Toplevel):
         self._company_entry.focus_set()  # 将输入焦点设置到公司名称输入框（方便用户立刻输入）
 
     def _open_calendar(self):
-        """打开日历选择器，将选中日期填入输入框"""
-        result = pick_date(self, self._deadline_var.get())  # 弹出日历面板，传入当前日期作为初始值
-        if result is not None:  # 用户选择了日期（非取消）
-            self._deadline_var.set(result)  # 将选中的日期字符串填入输入框
+        """打开日历选择器，将选中日期填入交付日期输入框"""
+        result = pick_date(self, self._deadline_var.get())
+        if result is not None:
+            self._deadline_var.set(result)
+
+    def _open_issue_calendar(self):
+        """打开日历选择器，将选中日期填入下证日期输入框"""
+        result = pick_date(self, self._issue_date_var.get())
+        if result is not None:
+            self._issue_date_var.set(result)
 
     def _set_one_week_later(self):
         """设置截止日期为一周后（当前日期+7天）"""
