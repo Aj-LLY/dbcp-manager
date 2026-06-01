@@ -11,8 +11,9 @@
 """
 
 import tkinter as tk  # 导入Tkinter GUI库，用于构建桌面应用界面组件
-from tkinter import ttk, messagebox  # ttk提供增强组件(Combobox等)，messagebox用于弹窗提示
+from tkinter import ttk, messagebox, filedialog  # ttk增强组件，messagebox弹窗，filedialog文件选择
 from datetime import date  # 导入date类，用于日期格式验证
+import threading  # 线程模块，后台OCR避免阻塞UI
 from models.project import Project  # 导入Project模型类，表示一个等保测评项目实体
 from models.workflow import WorkflowStage  # 导入WorkflowStage模型类，表示一个流程阶段实体
 from ui.calendar_picker import pick_date  # 导入日历选择器函数，弹出日历面板选择日期
@@ -159,10 +160,28 @@ class ProjectDialog(tk.Toplevel):
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
                  ).pack(anchor="w")
         self._cert_var = tk.StringVar()  # 备案号的StringVar变量
-        self._cert_entry, f_outer = bordered_entry(
-            main_frame, textvariable=self._cert_var,
+        cert_row = tk.Frame(main_frame, bg="#ffffff")  # 证书编号 + 上传按钮行
+        cert_row.pack(fill=tk.X, pady=(2, 5))
+        self._cert_entry, c_outer = bordered_entry(
+            cert_row, textvariable=self._cert_var,
         )
-        f_outer.pack(fill=tk.X, pady=(2, 10))
+        c_outer.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        # 上传备案证识别按钮
+        self._upload_btn = tk.Button(
+            cert_row, text="上传备案证识别", command=self._on_upload_cert,
+            bg="#27ae60", fg="white", cursor="hand2",
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+            relief="flat", padx=10, pady=3,
+            activebackground="#219a52",
+        )
+        self._upload_btn.pack(side=tk.LEFT, padx=(6, 0))
+
+        # OCR 状态提示
+        self._ocr_status = tk.Label(main_frame, text="", bg="#ffffff",
+                                     font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
+                                     fg="#7f8c8d")
+        self._ocr_status.pack(anchor="w", pady=(0, 5))
 
         # 截止日期输入 - 带日历选择器
         tk.Label(main_frame, text="截止日期", bg="#ffffff",
@@ -360,6 +379,58 @@ class ProjectDialog(tk.Toplevel):
             "stage_id": stage_id,  # 阶段ID
         }
         self.destroy()  # 关闭对话框
+
+    def _on_upload_cert(self):
+        """上传备案证并自动识别填充表单字段"""
+        file_path = filedialog.askopenfilename(
+            parent=self,
+            title="选择备案证文件",
+            filetypes=[
+                ("图片和PDF文件", "*.pdf *.png *.jpg *.jpeg *.bmp"),
+                ("PDF文件", "*.pdf"),
+                ("图片文件", "*.png *.jpg *.jpeg *.bmp"),
+            ],
+        )
+        if not file_path:
+            return
+
+        self._upload_btn.configure(state="disabled", text="识别中...")
+        self._ocr_status.configure(text="正在识别备案证，请稍候...", fg="#f39c12")
+
+        def _run():
+            try:
+                from services.cert_ocr import CertOCRService
+                result = CertOCRService().recognize(file_path)
+                self.after(0, lambda: self._fill_cert_result(result))
+            except Exception as e:
+                self.after(0, lambda: self._ocr_failed(str(e)))
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _fill_cert_result(self, result: dict):
+        """将 OCR 识别结果填入表单字段"""
+        self._upload_btn.configure(state="normal", text="上传备案证识别")
+        if not any(result.values()):
+            self._ocr_status.configure(text="未识别到有效信息，请手动填写", fg="#e74c3c")
+            return
+        filled = []
+        if result.get("company_name"):
+            self._company_var.set(result["company_name"]); filled.append("公司名称")
+        if result.get("system_name"):
+            self._system_var.set(result["system_name"]); filled.append("系统名称")
+        if result.get("cert_number"):
+            self._cert_var.set(result["cert_number"]); filled.append("证书编号")
+        if result.get("deadline"):
+            self._deadline_var.set(result["deadline"]); filled.append("下发时间")
+        self._ocr_status.configure(
+            text=f"已识别：{'、'.join(filled)}（请核对）" if filled else "识别结果不完整",
+            fg="#27ae60" if filled else "#e67e22",
+        )
+
+    def _ocr_failed(self, error: str):
+        """OCR 识别失败处理"""
+        self._upload_btn.configure(state="normal", text="上传备案证识别")
+        self._ocr_status.configure(text=f"识别失败：{error}", fg="#e74c3c")
 
     def _center_window(self):
         """窗口居中显示 - 相对于父窗口计算居中位置"""
