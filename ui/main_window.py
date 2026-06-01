@@ -143,17 +143,20 @@ class MainWindow(tk.Tk):
         if result:  # 用户确认填写
             # 调用项目服务创建项目
             success, msg, project = self._project_service.create_project(
-                company_name=result["company_name"],  # 公司名称
-                system_name=result["system_name"],  # 系统名称
-                cert_number=result["cert_number"],  # 备案号
-                deadline=result["deadline"],  # 截止日期
-                notes=result["notes"],  # 备注
-                stage_id=result["stage_id"],  # 初始阶段ID
+                company_name=result["company_name"],
+                system_name=result["system_name"],
+                cert_number=result["cert_number"],
+                issue_date=result.get("issue_date", ""),
+                level=result.get("level", ""),
+                deadline=result["deadline"],
+                notes=result["notes"],
+                stage_id=result["stage_id"],
             )
             if success:
-                self._refresh_kanban()  # 创建成功后刷新看板
+                self._create_project_folder(project)  # 创建项目文件夹
+                self._refresh_kanban()
             else:
-                messagebox.showerror("错误", msg)  # 显示错误信息
+                messagebox.showerror("错误", msg)
 
     def _on_edit_workflow(self):
         """编辑流程按钮的事件处理
@@ -289,6 +292,8 @@ class MainWindow(tk.Tk):
                 company_name=data.get("company_name"),
                 system_name=data.get("system_name"),
                 cert_number=data.get("cert_number"),
+                issue_date=data.get("issue_date"),
+                level=data.get("level"),
                 deadline=data.get("deadline"),
                 notes=data.get("notes"),
                 stage_id=data.get("stage_id"),
@@ -321,6 +326,8 @@ class MainWindow(tk.Tk):
                 company_name=result.get("company_name"),
                 system_name=result.get("system_name"),
                 cert_number=result.get("cert_number"),
+                issue_date=result.get("issue_date"),
+                level=result.get("level"),
                 deadline=result.get("deadline"),
                 notes=result.get("notes"),
                 stage_id=result.get("stage_id"),
@@ -369,9 +376,11 @@ class MainWindow(tk.Tk):
             company_name=copy_name,
             system_name=p.system_name,
             cert_number=p.cert_number,
+            issue_date=p.issue_date,
+            level=p.level,
             deadline=p.deadline,
             notes=p.notes,
-            stage_id=p.stage_id,  # 保持相同阶段
+            stage_id=p.stage_id,
         )
         if success:
             self._refresh_kanban()
@@ -386,6 +395,29 @@ class MainWindow(tk.Tk):
             new_width: 新的列宽（像素）
         """
         self._workflow_service.update_stage_width(stage_id, new_width)
+
+    def _create_project_folder(self, project):
+        """为新建项目创建数据文件夹
+
+        在 data/projects/ 下创建文件夹，命名规则：
+        序号-公司名称-系统名称-创建日期(YYMMDD)
+        """
+        import os
+        from datetime import date
+        try:
+            base = os.path.join(
+                os.path.dirname(Config.get_data_file_path()), "projects"
+            )
+            os.makedirs(base, exist_ok=True)
+            count = len(self._project_service.get_all_projects())
+            date_str = date.today().strftime("%y%m%d")
+            cname = (project.company_name or "未命名").replace("/", "_").replace("\\", "_")
+            sname = (project.system_name or "").replace("/", "_").replace("\\", "_")
+            folder_name = f"{count:03d}-{cname}-{sname}-{date_str}"
+            folder_path = os.path.join(base, folder_name)
+            os.makedirs(folder_path, exist_ok=True)
+        except OSError:
+            pass  # 文件夹创建失败不影响主流程
 
     # ==================== 窗口事件 ====================
 

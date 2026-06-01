@@ -136,15 +136,39 @@ class ProjectCard(tk.Frame):
             )
             self._cert_label.pack(fill=tk.X)
 
-        # 截止日期（居中）
-        deadline_text = self._format_deadline()  # 获取格式化后的日期文本
-        fg_color = self._get_deadline_color()  # 根据紧急程度获取日期文字颜色
+        # 下证日期（居中，小字）
+        if self.project.issue_date:
+            self._issue_label = tk.Label(
+                self._content, text="下证 " + self.project.issue_date,
+                bg=Config.CARD_BG,
+                font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
+                anchor="center", fg="#27ae60",
+            )
+            self._issue_label.pack(fill=tk.X)
+        else:
+            self._issue_label = None
+
+        # 系统等级（居中，小字）
+        if self.project.level:
+            self._level_label = tk.Label(
+                self._content, text=self.project.level,
+                bg=Config.CARD_BG,
+                font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
+                anchor="center", fg="#8e44ad",
+            )
+            self._level_label.pack(fill=tk.X)
+        else:
+            self._level_label = None
+
+        # 项目预计交付日期（居中）
+        deadline_text = self._format_deadline()
+        fg_color = self._get_deadline_color()
         self._deadline_label = tk.Label(
             self._content, text=deadline_text, bg=Config.CARD_BG,
             font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
             anchor="center", fg=fg_color,
         )
-        self._deadline_label.pack(fill=tk.X, pady=(2, 0))  # 上方2像素间距
+        self._deadline_label.pack(fill=tk.X, pady=(2, 0))
 
         # ---- 底部按钮栏（居中） ----
         btn_frame = tk.Frame(self._content, bg=Config.CARD_BG)

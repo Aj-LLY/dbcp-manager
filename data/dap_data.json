@@ -1,0 +1,46 @@
+{
+  "projects": [
+    {
+      "id": "proj_1779874915309",
+      "company_name": "12121",
+      "system_name": "",
+      "filing_number": "",
+      "deadline": "",
+      "notes": "",
+      "stage_id": "stage_2",
+      "created_at": "2026-05-27 17:41:55",
+      "updated_at": "2026-05-28 19:33:33",
+      "cert_number": ""
+    }
+  ],
+  "workflow_stages": [
+    {
+      "id": "stage_1",
+      "name": "项目启动",
+      "order": 0,
+      "color": "#3498db",
+      "column_width": null
+    },
+    {
+      "id": "stage_2",
+      "name": "现状调研",
+      "order": 1,
+      "color": "#2ecc71",
+      "column_width": null
+    },
+    {
+      "id": "stage_3",
+      "name": "差距评估",
+      "order": 2,
+      "color": "#e67e22",
+      "column_width": null
+    },
+    {
+      "id": "stage_8",
+      "name": "项目归档",
+      "order": 3,
+      "color": "#95a5a6",
+      "column_width": null
+    }
+  ]
+}

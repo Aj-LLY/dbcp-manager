@@ -111,7 +111,7 @@ class CertOCRService:
             "company_name": self._extract_company(texts),
             "system_name": self._extract_system_name(texts),
             "cert_number": self._extract_cert_number(full_text),
-            "deadline": self._extract_date(full_text),
+            "issue_date": self._extract_date(full_text),
             "level": self._extract_level(full_text),
         }
 
@@ -171,6 +171,6 @@ class CertOCRService:
             "company_name": "",
             "system_name": "",
             "cert_number": "",
-            "deadline": "",
+            "issue_date": "",
             "level": "",
         }
