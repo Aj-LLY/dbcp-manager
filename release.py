@@ -24,7 +24,7 @@ from utils.config import Config
 
 APP_NAME = "项目进度管理系统"
 VERSION = Config.APP_VERSION
-EXE_NAME = f"{APP_NAME}.exe"
+EXE_NAME = f"{APP_NAME}_v{VERSION}.exe"
 RELEASE_EXE_NAME = f"{APP_NAME}_v{VERSION}.exe"
 # gh CLI 在 Windows 下处理中文文件名会截断字符，使用 ASCII 临时文件名
 ASCII_EXE_NAME = f"dap_v{VERSION}.exe"

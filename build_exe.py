@@ -64,7 +64,7 @@ print("开始打包...")
 # 执行 PyInstaller（包含 OCR 依赖，EXE 约 250MB，仅作 Release 资产上传）
 cmd = (
     f'python -m PyInstaller --onefile --windowed'
-    f' --name "{APP_NAME}"'
+    f' --name "{APP_NAME}_v{VERSION}"'
     f' --version-file "{ver_path}"'
     f' --distpath "./dist"'
     f' --hidden-import easyocr'
@@ -80,7 +80,7 @@ cmd = (
 )
 os.system(cmd)
 
-print(f"\n打包完成！输出: dist/{APP_NAME}.exe")
+print(f"\n打包完成！输出: dist/{APP_NAME}_v{VERSION}.exe")
 
 # 如果指定了 --release，自动链式调用 release.py
 if "--release" in sys.argv:

@@ -198,7 +198,19 @@ class ProjectCard(tk.Frame):
         )
         self._copy_btn.pack(side=tk.LEFT, padx=(4, 0))
 
-        tk.Frame(btn_frame, bg=Config.CARD_BG).pack(side=tk.LEFT, expand=True)  # 右侧弹性空间
+        # 右侧弹性空间
+        tk.Frame(btn_frame, bg=Config.CARD_BG).pack(side=tk.LEFT, expand=True)
+
+        # 打开项目文件夹按钮
+        self._folder_btn = tk.Button(
+            btn_frame, text="\U0001f4c2", command=self._on_folder_click,
+            bg="#ecf0f1", fg="#2c3e50",
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+            relief="flat", borderwidth=0,
+            cursor="hand2", padx=6, pady=1,
+            activebackground="#d5dbdb",
+        )
+        self._folder_btn.pack(side=tk.LEFT, padx=(0, 0))
 
         # ---- 右箭头按钮 ----
         # Unicode \u25b6 为 ▶ 字符，点击可将项目移至下一阶段
@@ -257,6 +269,31 @@ class ProjectCard(tk.Frame):
         if self.on_copy:
             self.on_copy(self)
 
+    def _on_folder_click(self):
+        """文件夹按钮点击处理：打开项目的本地文件夹"""
+        import os, glob as _glob
+        try:
+            base = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "data", "projects"
+            )
+            if not os.path.exists(base):
+                return
+            cname = (self.project.company_name or "").replace("/", "_").replace("\\", "_")
+            sname = (self.project.system_name or "").replace("/", "_").replace("\\", "_")
+            if self.project.created_at:
+                date_str = self.project.created_at[:10].replace("-", "")[2:]
+            else:
+                date_str = ""
+            pattern = f"*-{cname}-{sname}-{date_str}"
+            matches = _glob.glob(os.path.join(base, pattern))
+            if matches:
+                os.startfile(matches[0])
+            elif os.path.exists(base):
+                os.startfile(base)
+        except Exception:
+            pass
+
     def _bind_events(self):
         """绑定鼠标事件到卡片内部所有组件（排除按钮组件，因为它们有独立的command）
 
@@ -264,7 +301,8 @@ class ProjectCard(tk.Frame):
         但排除左右箭头和详情/编辑按钮，避免干扰按钮自身的点击事件。
         """
         btn_widgets = {self._prev_btn, self._next_btn,
-                       self._detail_btn, self._edit_btn, self._copy_btn}  # 需要排除的按钮组件集合
+                       self._detail_btn, self._edit_btn, self._copy_btn,
+                       self._folder_btn}  # 需要排除的按钮组件集合
 
         # 先给Frame自身绑定事件
         self.bind("<Button-1>", self._on_click)  # 鼠标左键单击
