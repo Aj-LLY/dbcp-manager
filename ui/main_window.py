@@ -211,8 +211,9 @@ class MainWindow(tk.Tk):
 
         打开WebDAV备份管理对话框，传入当前数据文件路径。
         """
-        dialog = BackupDialog(self, Config.get_data_file_path())  # 创建备份对话框
-        self.wait_window(dialog)  # 等待对话框关闭
+        dialog = BackupDialog(self, Config.get_data_file_path())
+        dialog.on_restore = lambda: (self._data_service.reload(), self._refresh_kanban())
+        self.wait_window(dialog)
 
     def _on_delete_selected(self):
         """删除选中项目按钮的事件处理

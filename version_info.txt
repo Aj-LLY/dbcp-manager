@@ -1,7 +1,7 @@
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(2, 6, 3, 0),
-    prodvers=(2, 6, 3, 0),
+    filevers=(2, 6, 5, 0),
+    prodvers=(2, 6, 5, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -16,12 +16,12 @@ VSVersionInfo(
         [
           StringStruct(u'CompanyName', u'网络安全测评团队'),
           StringStruct(u'FileDescription', u'项目进度管理系统'),
-          StringStruct(u'FileVersion', u'2.6.3'),
+          StringStruct(u'FileVersion', u'2.6.5'),
           StringStruct(u'InternalName', u'DAPManager'),
           StringStruct(u'LegalCopyright', u'Copyright (c) 2026'),
           StringStruct(u'OriginalFilename', u'项目进度管理系统.exe'),
           StringStruct(u'ProductName', u'项目进度管理系统'),
-          StringStruct(u'ProductVersion', u'2.6.3'),
+          StringStruct(u'ProductVersion', u'2.6.5'),
         ])
     ]),
     VarFileInfo([VarStruct(u'Translation', [2052, 1200])]),

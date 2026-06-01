@@ -40,6 +40,8 @@ class BackupDialog(tk.Toplevel):
         self._cfg = WebDAVConfig.load()  # 加载已保存的WebDAV配置
         self._svc = BackupService(self._cfg)  # 使用配置创建备份服务实例
 
+        self.on_restore = None  # 恢复数据后的回调，由 MainWindow 设置
+
         self._setup_window()  # 配置窗口属性
         self._build_ui()  # 构建标签页UI
         self._load_config()  # 加载配置到表单
@@ -362,7 +364,10 @@ class BackupDialog(tk.Toplevel):
             # 将下载的备份数据写入本地文件
             with open(self._data_file, "wb") as f:
                 f.write(body)
-            messagebox.showinfo("成功", f"数据已从\u300c{fname}\u300d恢复，\n请重新启动程序以加载新数据。",
+            # 通知主窗口重新加载数据
+            if self.on_restore:
+                self.on_restore()
+            messagebox.showinfo("成功", f"数据已从\u300c{fname}\u300d恢复并自动刷新。",
                                 parent=self)
         else:
             messagebox.showerror("恢复失败", msg, parent=self)
