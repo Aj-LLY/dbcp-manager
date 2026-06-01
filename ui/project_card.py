@@ -274,7 +274,7 @@ class ProjectCard(tk.Frame):
         import os, glob as _glob, subprocess, sys
         try:
             from utils.config import Config
-            base = os.path.join(Config.get_data_dir(), "projects")
+            base = Config.get_data_dir()
             if not os.path.exists(base):
                 os.makedirs(base, exist_ok=True)
             cname = (self.project.company_name or "未命名").replace("/", "_").replace("\\", "_")
