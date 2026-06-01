@@ -1,21 +1,6 @@
-# 打包输出
-build/
+releases/*.exe
 dist/
+build/
 *.spec
-
-# Python
 __pycache__/
 *.pyc
-*.pyo
-
-# 运行时数据（包含用户隐私信息，不上传）
-data/dap_data.json
-data/operation_log.json
-data/webdav_config.json
-
-# 打包辅助文件
-version_info.txt
-
-# IDE
-.vscode/
-.idea/

@@ -148,21 +148,27 @@ class DetailDialog(tk.Toplevel):
         # 证书编号
         self._add_info_row(info_frame, "证书编号",
                            self._project.cert_number or "未备案")
+        # 下证日期
+        self._add_info_row(info_frame, "下证日期",
+                           self._project.issue_date or "-")
+        # 系统等级
+        self._add_info_row(info_frame, "系统等级",
+                           self._project.level or "-")
         # 当前阶段
-        stage_name = self._get_stage_name(self._project.stage_id)  # 通过stage_id查找阶段名称
+        stage_name = self._get_stage_name(self._project.stage_id)
         self._add_info_row(info_frame, "当前阶段", stage_name)
 
-        # 截止日期 - 包含剩余天数提示
+        # 项目预计交付日期 - 包含剩余天数提示
         deadline = self._project.deadline or "未设置"
         days_left = days_until_deadline(self._project.deadline) if self._project.deadline else None
         if days_left is not None:
             if days_left < 0:
                 deadline += f"  ⚠️ 已超期 {abs(days_left)} 天"
             elif days_left <= Config.DEADLINE_WARNING_DAYS:
-                deadline += f"  ⚡ 剩余 {days_left} 天"  # 临近截止警告
+                deadline += f"  ⚡ 剩余 {days_left} 天"
             else:
                 deadline += f"  剩余 {days_left} 天"
-        self._add_info_row(info_frame, "截止日期", deadline)
+        self._add_info_row(info_frame, "项目预计交付日期", deadline)
 
         # 创建时间
         self._add_info_row(info_frame, "创建时间", self._project.created_at)

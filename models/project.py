@@ -4,120 +4,122 @@
 每个项目包含公司名称、系统名称、当前进度阶段、时间信息和备注
 """
 
-from datetime import datetime  # 日期时间模块（虽然未直接使用，但保留以备用）
-from utils.helpers import generate_id, get_now_str  # 导入ID生成函数和当前时间获取函数
+from datetime import datetime  # 日期时间模块
+from utils.helpers import generate_id, get_now_str  # ID生成和当前时间获取
 
 
 class Project:
     """等保测评项目实体
 
     Attributes:
-        id: 项目唯一标识（基于时间戳自动生成，格式如 proj_1234567890123）
+        id: 项目唯一标识（基于时间戳自动生成）
         company_name: 被测评单位名称
         system_name: 被测评信息系统名称
         cert_number: 系统备案号（公安机关备案编号）
-        deadline: 项目截止日期（YYYY-MM-DD格式）
-        notes: 备注信息（多行文本，用于记录额外事项）
-        stage_id: 当前所处流程阶段的ID（对应 WorkflowStage 的 id）
-        created_at: 项目创建时间（YYYY-MM-DD HH:MM:SS格式）
-        updated_at: 项目最后更新时间（YYYY-MM-DD HH:MM:SS格式）
+        issue_date: 下证日期（YYYY-MM-DD格式）
+        level: 系统等级（如"第二级"）
+        deadline: 项目预计交付日期（YYYY-MM-DD格式）
+        notes: 备注信息（多行文本）
+        stage_id: 当前所处流程阶段的ID
+        created_at: 项目创建时间
+        updated_at: 项目最后更新时间
     """
 
     def __init__(self, company_name: str = "", system_name: str = "",
-                 cert_number: str = "", deadline: str = "",
+                 cert_number: str = "", issue_date: str = "",
+                 level: str = "", deadline: str = "",
                  notes: str = "", stage_id: str = "",
                  project_id: str = "", created_at: str = "",
                  updated_at: str = ""):
-        """初始化项目对象
-        支持从现有数据重建（提供project_id时）或新建项目（不提供时自动生成）
-        """
-        self.id = project_id or generate_id("proj")  # 使用传入的ID或自动生成以 "proj" 为前缀的新ID
-        self.company_name = company_name  # 公司名称
-        self.system_name = system_name    # 系统名称
-        self.cert_number = cert_number  # 备案号
-        self.deadline = deadline  # 截止日期
-        self.notes = notes  # 备注信息
-        self.stage_id = stage_id  # 当前阶段ID
-        self.created_at = created_at or get_now_str()  # 创建时间（为空则取当前时间）
-        self.updated_at = updated_at or get_now_str()  # 更新时间（为空则取当前时间）
+        """初始化项目对象"""
+        self.id = project_id or generate_id("proj")
+        self.company_name = company_name
+        self.system_name = system_name
+        self.cert_number = cert_number
+        self.issue_date = issue_date  # 下证日期
+        self.level = level            # 系统等级
+        self.deadline = deadline      # 项目预计交付日期
+        self.notes = notes
+        self.stage_id = stage_id
+        self.created_at = created_at or get_now_str()
+        self.updated_at = updated_at or get_now_str()
 
     @property
     def name(self) -> str:
-        """组合显示名称：公司名称 + 系统名称
-        将公司名和系统名用短横线连接，便于在卡片和列表中展示项目身份
-        """
-        if self.company_name and self.system_name:  # 两者都有时
-            return f"{self.company_name}-{self.system_name}"  # 用短横线连接显示
-        return self.company_name or self.system_name or ""  # 只有一个时返回有值的那个，都没有返回空串
+        """组合显示名称：公司名称 + 系统名称"""
+        if self.company_name and self.system_name:
+            return f"{self.company_name}-{self.system_name}"
+        return self.company_name or self.system_name or ""
 
     def to_dict(self) -> dict:
-        """将项目对象序列化为字典，便于JSON存储"""
+        """将项目对象序列化为字典"""
         return {
-            "id": self.id,                       # 项目ID
-            "company_name": self.company_name,   # 公司名称
-            "system_name": self.system_name,     # 系统名称
-            "cert_number": self.cert_number, # 备案号
-            "deadline": self.deadline,           # 截止日期
-            "notes": self.notes,                 # 备注
-            "stage_id": self.stage_id,           # 当前阶段ID
-            "created_at": self.created_at,       # 创建时间
-            "updated_at": self.updated_at,       # 更新时间
+            "id": self.id,
+            "company_name": self.company_name,
+            "system_name": self.system_name,
+            "cert_number": self.cert_number,
+            "issue_date": self.issue_date,
+            "level": self.level,
+            "deadline": self.deadline,
+            "notes": self.notes,
+            "stage_id": self.stage_id,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> "Project":
-        """从字典反序列化创建项目对象
-        兼容旧数据格式：如果旧数据只有 name 字段而没有 company_name/system_name，
-        则尝试从 name 字段中按分隔符拆分出公司名和系统名
-        """
-        # 兼容旧数据：若缺少新字段则从 name 字段迁移
-        company = data.get("company_name", "")  # 尝试获取公司名称
-        system = data.get("system_name", "")    # 尝试获取系统名称
-        if not company and not system:  # 如果两个新字段都为空，说明可能是旧格式数据
-            old_name = data.get("name", "")  # 读取旧数据的 name 字段
-            if old_name:  # name字段有内容
-                # 尝试按常见分隔符拆分旧名称
-                for sep in ("-", "—", "—", "/"):  # 遍历常见的分隔符
-                    parts = old_name.split(sep, 1)  # 按分隔符拆分成两部分
-                    if len(parts) == 2 and parts[0].strip() and parts[1].strip():  # 拆分成功且两部分都非空
-                        company = parts[0].strip()  # 第一部分作为公司名
-                        system = parts[1].strip()   # 第二部分作为系统名
-                        break  # 找到合适的分隔符后退出循环
-                if not company:  # 所有分隔符都不匹配，整个name作为公司名
+        """从字典反序列化创建项目对象（兼容旧数据格式）"""
+        company = data.get("company_name", "")
+        system = data.get("system_name", "")
+        if not company and not system:
+            old_name = data.get("name", "")
+            if old_name:
+                for sep in ("-", "—", "—", "/"):
+                    parts = old_name.split(sep, 1)
+                    if len(parts) == 2 and parts[0].strip() and parts[1].strip():
+                        company = parts[0].strip()
+                        system = parts[1].strip()
+                        break
+                if not company:
                     company = old_name.strip()
 
-        return cls(  # 使用解析后的数据创建Project实例
+        return cls(
             company_name=company,
             system_name=system,
-            cert_number=data.get("cert_number") or data.get("filing_number", ""),  # 兼容旧字段
-            deadline=data.get("deadline", ""),  # 提取截止日期
-            notes=data.get("notes", ""),  # 提取备注
-            stage_id=data.get("stage_id", ""),  # 提取阶段ID
-            project_id=data.get("id", ""),  # 使用现有ID
-            created_at=data.get("created_at", ""),  # 提取创建时间
-            updated_at=data.get("updated_at", ""),  # 提取更新时间
+            cert_number=data.get("cert_number") or data.get("filing_number", ""),
+            issue_date=data.get("issue_date", ""),
+            level=data.get("level", ""),
+            deadline=data.get("deadline", ""),
+            notes=data.get("notes", ""),
+            stage_id=data.get("stage_id", ""),
+            project_id=data.get("id", ""),
+            created_at=data.get("created_at", ""),
+            updated_at=data.get("updated_at", ""),
         )
 
     def update(self, company_name: str = None, system_name: str = None,
-               cert_number: str = None,
-               deadline: str = None, notes: str = None, stage_id: str = None):
-        """更新项目属性，只更新传入的非None字段
-        使用None作为默认值可区分"不更新"和"更新为空"两种情况
-        """
-        if company_name is not None:  # 传入公司名称参数则更新
+               cert_number: str = None, issue_date: str = None,
+               level: str = None, deadline: str = None,
+               notes: str = None, stage_id: str = None):
+        """更新项目属性，只更新传入的非None字段"""
+        if company_name is not None:
             self.company_name = company_name
-        if system_name is not None:  # 传入系统名称参数则更新
+        if system_name is not None:
             self.system_name = system_name
-        if cert_number is not None:  # 传入备案号参数则更新
+        if cert_number is not None:
             self.cert_number = cert_number
-        if deadline is not None:  # 传入截止日期参数则更新
+        if issue_date is not None:
+            self.issue_date = issue_date
+        if level is not None:
+            self.level = level
+        if deadline is not None:
             self.deadline = deadline
-        if notes is not None:  # 传入备注参数则更新
+        if notes is not None:
             self.notes = notes
-        if stage_id is not None:  # 传入阶段ID参数则更新
+        if stage_id is not None:
             self.stage_id = stage_id
-        self.updated_at = get_now_str()  # 不管更新了哪些字段，都刷新更新时间戳
+        self.updated_at = get_now_str()
 
     def __repr__(self) -> str:
-        """对象的字符串表示，用于调试输出"""
         return f"Project(id={self.id}, name={self.name}, stage={self.stage_id})"

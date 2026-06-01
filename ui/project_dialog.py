@@ -58,8 +58,8 @@ class ProjectDialog(tk.Toplevel):
 
     def _setup_window(self):
         """配置窗口属性：大小、最小尺寸、可调整性和背景色"""
-        self.geometry("520x520")  # 设置窗口初始大小 520x520 像素
-        self.minsize(420, 400)  # 设置窗口最小尺寸（防止用户缩得太小导致UI变形）
+        self.geometry("540x620")  # 设置窗口初始大小（加高以容纳新增字段）
+        self.minsize(420, 480)  # 设置窗口最小尺寸（防止用户缩得太小导致UI变形）
         self.resizable(True, True)  # 允许用户调整窗口大小（水平和垂直都可调整）
         self.configure(bg="#ffffff")  # 设置窗口背景色为白色
 
@@ -183,8 +183,28 @@ class ProjectDialog(tk.Toplevel):
                                      fg="#7f8c8d")
         self._ocr_status.pack(anchor="w", pady=(0, 5))
 
-        # 截止日期输入 - 带日历选择器
-        tk.Label(main_frame, text="截止日期", bg="#ffffff",
+        # 下证日期输入
+        tk.Label(main_frame, text="下证日期", bg="#ffffff",
+                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
+                 ).pack(anchor="w")
+        self._issue_date_var = tk.StringVar()
+        self._issue_date_entry, id_outer = bordered_entry(
+            main_frame, textvariable=self._issue_date_var,
+        )
+        id_outer.pack(fill=tk.X, pady=(2, 5))
+
+        # 系统等级输入
+        tk.Label(main_frame, text="系统等级", bg="#ffffff",
+                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
+                 ).pack(anchor="w")
+        self._level_var = tk.StringVar()
+        self._level_entry, lv_outer = bordered_entry(
+            main_frame, textvariable=self._level_var,
+        )
+        lv_outer.pack(fill=tk.X, pady=(2, 5))
+
+        # 项目预计交付日期 - 带日历选择器
+        tk.Label(main_frame, text="项目预计交付日期", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
                  ).pack(anchor="w")
         date_frame = tk.Frame(main_frame, bg="#ffffff")  # 日期输入行容器
@@ -287,6 +307,8 @@ class ProjectDialog(tk.Toplevel):
             self._company_var.set(self._project.company_name)
             self._system_var.set(self._project.system_name)
             self._cert_var.set(self._project.cert_number)
+            self._issue_date_var.set(self._project.issue_date)
+            self._level_var.set(self._project.level)
             self._deadline_var.set(self._project.deadline)
 
             # 根据项目的stage_id匹配并选中对应的阶段下拉项
@@ -373,10 +395,12 @@ class ProjectDialog(tk.Toplevel):
         self.result = {
             "company_name": company_name,
             "system_name": system_name,
-            "cert_number": cert_number,  # 证书编号
-            "deadline": deadline,  # 截止日期
-            "notes": self._notes_text.get("1.0", "end-1c").strip(),  # 备注内容（从第1行0列到末尾-1字符，去掉末尾换行符）
-            "stage_id": stage_id,  # 阶段ID
+            "cert_number": cert_number,
+            "issue_date": self._issue_date_var.get().strip(),
+            "level": self._level_var.get().strip(),
+            "deadline": deadline,
+            "notes": self._notes_text.get("1.0", "end-1c").strip(),
+            "stage_id": stage_id,
         }
         self.destroy()  # 关闭对话框
 
@@ -420,8 +444,10 @@ class ProjectDialog(tk.Toplevel):
             self._system_var.set(result["system_name"]); filled.append("系统名称")
         if result.get("cert_number"):
             self._cert_var.set(result["cert_number"]); filled.append("证书编号")
-        if result.get("deadline"):
-            self._deadline_var.set(result["deadline"]); filled.append("下发时间")
+        if result.get("issue_date"):
+            self._issue_date_var.set(result["issue_date"]); filled.append("下证日期")
+        if result.get("level"):
+            self._level_var.set(result["level"]); filled.append("系统等级")
         self._ocr_status.configure(
             text=f"已识别：{'、'.join(filled)}（请核对）" if filled else "识别结果不完整",
             fg="#27ae60" if filled else "#e67e22",
