@@ -152,23 +152,15 @@ class CertOCRService:
         return ""
 
     def _extract_level(self, text: str) -> str:
-        """提取系统等级：第X级 或 等保X级 等模式"""
-        # 直接匹配"第X级"
-        m = re.search(r"第\s*[一二三四五1-5]\s*级", text)
+        """提取系统等级，统一归一化为 第X级 格式"""
+        # 数字到中文映射
+        num_map = {"1": "一", "2": "二", "3": "三", "4": "四", "5": "五"}
+        # 直接匹配"第X级"或"X级"
+        m = re.search(r"第?\s*([一二三四五1-5])\s*级", text)
         if m:
-            return re.sub(r"\s+", "", m.group(0))
-        # 匹配"X级"前面有"等保"或"安全"的上下文
-        m = re.search(r"(?:等保|安全|保护)\s*[一二三四五1-5]\s*级", text)
-        if m:
-            level = re.search(r"[一二三四五1-5]\s*级", m.group(0))
-            if level:
-                val = level.group(0).replace(" ", "")
-                return "第" + val if not val.startswith("第") else val
-        # 匹配独立出现的"第二级"/"三级"等（前后有空格的等级文本）
-        for t in text.split():
-            m = re.match(r"^第?\s*[一二三四五1-5]\s*级$", t)
-            if m:
-                return re.sub(r"\s+", "", m.group(0))
+            d = m.group(1)
+            num = num_map.get(d, d)
+            return f"第{num}级"
         return ""
 
     def _extract_date(self, text: str) -> str:

@@ -80,35 +80,55 @@ class CalendarPicker(tk.Toplevel):
 
         # 月份导航栏
         nav = tk.Frame(self._main, bg="#ffffff")
-        nav.pack(fill=tk.X, pady=(0, 4))  # 水平填充，下方4px间距
+        nav.pack(fill=tk.X, pady=(0, 4))
 
-        # 上一月按钮 - 左箭头图标
+        # 上一年按钮
+        self._prev_year_btn = tk.Button(
+            nav, text="\u25c0\u25c0", command=self._prev_year,
+            bg="#ffffff", fg="#7f8c8d", relief="flat",
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+            cursor="hand2", padx=3, pady=0,
+            activebackground="#ecf0f1",
+        )
+        self._prev_year_btn.pack(side=tk.LEFT)
+
+        # 上一月按钮
         self._prev_btn = tk.Button(
-            nav, text="\u25c0", command=self._prev_month,  # ◀ 字符
+            nav, text="\u25c0", command=self._prev_month,
             bg="#ffffff", fg="#2c3e50", relief="flat",
             font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
             cursor="hand2", padx=6, pady=0,
             activebackground="#ecf0f1",
         )
-        self._prev_btn.pack(side=tk.LEFT)  # 左侧放置
+        self._prev_btn.pack(side=tk.LEFT)
 
-        # 年月标题标签 - 居中显示 "2024年 1月"
+        # 年月标题标签
         self._month_label = tk.Label(
             nav, text="", bg="#ffffff", fg="#2c3e50",
             font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
-            width=12,  # 固定宽度确保标题居中
+            width=14,
         )
-        self._month_label.pack(side=tk.LEFT, expand=True)  # 左侧放置，可扩展
+        self._month_label.pack(side=tk.LEFT, expand=True)
 
-        # 下一月按钮 - 右箭头图标
+        # 下一月按钮
         self._next_btn = tk.Button(
-            nav, text="\u25b6", command=self._next_month,  # ▶ 字符
+            nav, text="\u25b6", command=self._next_month,
             bg="#ffffff", fg="#2c3e50", relief="flat",
             font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
             cursor="hand2", padx=6, pady=0,
             activebackground="#ecf0f1",
         )
-        self._next_btn.pack(side=tk.RIGHT)  # 右侧放置
+        self._next_btn.pack(side=tk.RIGHT)
+
+        # 下一年按钮
+        self._next_year_btn = tk.Button(
+            nav, text="\u25b6\u25b6", command=self._next_year,
+            bg="#ffffff", fg="#7f8c8d", relief="flat",
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+            cursor="hand2", padx=3, pady=0,
+            activebackground="#ecf0f1",
+        )
+        self._next_year_btn.pack(side=tk.RIGHT)
 
         # 星期标题行 - 显示"一"到"日"
         week_row = tk.Frame(self._main, bg="#f0f2f5")  # 浅灰背景
@@ -260,30 +280,30 @@ class CalendarPicker(tk.Toplevel):
         self.destroy()
 
     def _prev_month(self):
-        """翻到上一月
-
-        处理跨年情况：1月上一月为去年12月。
-        重新绘制日期网格。
-        """
+        """翻到上一月"""
         if self._view_month == 1:
-            self._view_month = 12  # 1月->12月
-            self._view_year -= 1  # 年份减1
+            self._view_month = 12; self._view_year -= 1
         else:
-            self._view_month -= 1  # 月份减1
-        self._draw_calendar()  # 重新绘制日历
+            self._view_month -= 1
+        self._draw_calendar()
 
     def _next_month(self):
-        """翻到下一月
-
-        处理跨年情况：12月下一月为次年1月。
-        重新绘制日期网格。
-        """
+        """翻到下一月"""
         if self._view_month == 12:
-            self._view_month = 1  # 12月->1月
-            self._view_year += 1  # 年份加1
+            self._view_month = 1; self._view_year += 1
         else:
-            self._view_month += 1  # 月份加1
-        self._draw_calendar()  # 重新绘制日历
+            self._view_month += 1
+        self._draw_calendar()
+
+    def _prev_year(self):
+        """翻到上一年（同月）"""
+        self._view_year -= 1
+        self._draw_calendar()
+
+    def _next_year(self):
+        """翻到下一年（同月）"""
+        self._view_year += 1
+        self._draw_calendar()
 
     def _position(self, parent):
         """定位在父窗口日期输入框下方附近

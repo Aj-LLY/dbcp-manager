@@ -227,11 +227,13 @@ class DetailDialog(tk.Toplevel):
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
                  fg="#7f8c8d", width=10, anchor="e",
                  ).pack(side=tk.LEFT)
-        # 值列 - 左对齐，深色文字
-        tk.Label(row, text=value, bg="#f8f9fa",
-                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-                 fg="#2c3e50", anchor="w",
-                 ).pack(side=tk.LEFT, padx=(5, 0))
+        # 值列 - 只读Entry（支持选择复制）
+        val_entry = tk.Entry(row, bg="#f8f9fa", fg="#2c3e50", relief="flat",
+                             font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                             readonlybackground="#f8f9fa")
+        val_entry.insert(0, value)
+        val_entry.configure(state="readonly")
+        val_entry.pack(side=tk.LEFT, padx=(5, 0), fill=tk.X, expand=True)
 
     def _edit_project(self):
         """编辑项目按钮处理

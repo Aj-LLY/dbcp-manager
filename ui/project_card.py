@@ -271,26 +271,33 @@ class ProjectCard(tk.Frame):
 
     def _on_folder_click(self):
         """文件夹按钮点击处理：打开项目的本地文件夹"""
-        import os, glob as _glob
+        import os, glob as _glob, subprocess, sys
         try:
-            base = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                "data", "projects"
-            )
+            from utils.config import Config
+            base = os.path.join(Config.get_data_dir(), "projects")
             if not os.path.exists(base):
-                return
-            cname = (self.project.company_name or "").replace("/", "_").replace("\\", "_")
+                os.makedirs(base, exist_ok=True)
+            cname = (self.project.company_name or "未命名").replace("/", "_").replace("\\", "_")
             sname = (self.project.system_name or "").replace("/", "_").replace("\\", "_")
             if self.project.created_at:
                 date_str = self.project.created_at[:10].replace("-", "")[2:]
             else:
                 date_str = ""
-            pattern = f"*-{cname}-{sname}-{date_str}"
-            matches = _glob.glob(os.path.join(base, pattern))
-            if matches:
-                os.startfile(matches[0])
-            elif os.path.exists(base):
-                os.startfile(base)
+            # 先精确匹配
+            folder_name = None
+            for name in os.listdir(base):
+                if cname in name and sname in name and date_str in name:
+                    folder_name = name
+                    break
+            if folder_name:
+                full_path = os.path.join(base, folder_name)
+            else:
+                full_path = base
+            # 打开文件夹
+            if sys.platform == "win32":
+                os.startfile(full_path)
+            else:
+                subprocess.run(["xdg-open", full_path])
         except Exception:
             pass
 

@@ -399,15 +399,13 @@ class MainWindow(tk.Tk):
     def _create_project_folder(self, project):
         """为新建项目创建数据文件夹
 
-        在 data/projects/ 下创建文件夹，命名规则：
+        在程序同目录 projects/ 下创建文件夹，命名规则：
         序号-公司名称-系统名称-创建日期(YYMMDD)
         """
         import os
         from datetime import date
         try:
-            base = os.path.join(
-                os.path.dirname(Config.get_data_file_path()), "projects"
-            )
+            base = os.path.join(Config.get_data_dir(), "projects")
             os.makedirs(base, exist_ok=True)
             count = len(self._project_service.get_all_projects())
             date_str = date.today().strftime("%y%m%d")
