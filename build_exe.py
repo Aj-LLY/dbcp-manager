@@ -61,12 +61,23 @@ print(f"版本: {VERSION}")
 print(f"文件版本: {VERSION_TUPLE}")
 print("开始打包...")
 
-# 执行 PyInstaller
+# 执行 PyInstaller（排除 OCR 重依赖以控制 EXE 体积）
 cmd = (
     f'python -m PyInstaller --onefile --windowed'
     f' --name "{APP_NAME}"'
     f' --version-file "{ver_path}"'
     f' --distpath "./dist"'
+    f' --exclude-module easyocr'
+    f' --exclude-module torch'
+    f' --exclude-module torchvision'
+    f' --exclude-module numpy'
+    f' --exclude-module scipy'
+    f' --exclude-module fitz'
+    f' --exclude-module PyMuPDF'
+    f' --exclude-module PIL'
+    f' --exclude-module Pillow'
+    f' --exclude-module cv2'
+    f' --exclude-module skimage'
     f' --clean'
     f' main.py'
 )
