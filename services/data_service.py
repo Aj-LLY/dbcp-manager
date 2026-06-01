@@ -57,10 +57,13 @@ class DataService:
 
     # ==================== 文件操作 ====================
 
+    def reload(self):
+        """重新从文件加载数据（WebDAV恢复后刷新）"""
+        self._load()
+
     def _load(self):
-        """从JSON文件加载数据，文件不存在则使用默认数据
-        如果数据文件路径未设置（由子类或不同用途导致），则跳过加载
-        """
+        """从JSON文件加载数据，文件不存在则使用默认数据"""
+
         if not self._data_file_path:  # 数据文件路径为空，不执行加载
             return
         if os.path.exists(self._data_file_path):  # 数据文件存在
