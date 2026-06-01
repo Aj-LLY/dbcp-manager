@@ -405,7 +405,7 @@ class MainWindow(tk.Tk):
         import os
         from datetime import date
         try:
-            base = os.path.join(Config.get_data_dir(), "projects")
+            base = Config.get_data_dir()
             os.makedirs(base, exist_ok=True)
             count = len(self._project_service.get_all_projects())
             date_str = date.today().strftime("%y%m%d")

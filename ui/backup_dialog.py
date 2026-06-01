@@ -10,6 +10,7 @@ WebDAV 备份对话框 - 配置服务器连接、执行备份和恢复操作
 - 删除远端备份文件
 """
 
+import json  # JSON序列化，用于验证备份文件格式
 import tkinter as tk  # 导入Tkinter GUI库，用于构建桌面应用界面组件
 from tkinter import ttk, messagebox  # ttk提供增强组件(Notebook等)，messagebox弹窗
 from utils.config import Config  # 导入Config配置类，获取字体等UI配置常量
