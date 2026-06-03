@@ -224,6 +224,17 @@ class ProjectCard(tk.Frame):
         )
         self._folder_btn.pack(side=tk.LEFT, padx=(0, 0))
 
+        # 文件重命名按钮
+        self._rename_btn = tk.Button(
+            btn_frame, text="\U0001f4dd", command=self._on_rename_click,
+            bg="#f0f2f5", fg="#2c3e50",
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+            relief="flat", borderwidth=0,
+            cursor="hand2", padx=6, pady=1,
+            activebackground="#d5dbdb",
+        )
+        self._rename_btn.pack(side=tk.LEFT, padx=(2, 0))
+
         # ---- 右箭头按钮 ----
         # Unicode \u25b6 为 ▶ 字符，点击可将项目移至下一阶段
         self._next_btn = tk.Button(
@@ -283,33 +294,91 @@ class ProjectCard(tk.Frame):
 
     def _on_folder_click(self):
         """文件夹按钮点击处理：打开项目的本地文件夹"""
-        import os, glob as _glob, subprocess, sys
+        import os, subprocess, sys
         try:
-            from utils.config import Config
-            base = Config.get_data_dir()
-            if not os.path.exists(base):
-                os.makedirs(base, exist_ok=True)
-            cname = (self.project.company_name or "未命名").replace("/", "_").replace("\\", "_")
-            sname = (self.project.system_name or "").replace("/", "_").replace("\\", "_")
-            if self.project.created_at:
-                date_str = self.project.created_at[:10].replace("-", "")[2:]
-            else:
-                date_str = ""
-            # 先精确匹配
-            folder_name = None
-            for name in os.listdir(base):
-                if cname in name and sname in name and date_str in name:
-                    folder_name = name
-                    break
-            if folder_name:
-                full_path = os.path.join(base, folder_name)
-            else:
-                full_path = base
-            # 打开文件夹
-            if sys.platform == "win32":
-                os.startfile(full_path)
-            else:
-                subprocess.run(["xdg-open", full_path])
+            path = self._find_project_folder()
+            if path:
+                if sys.platform == "win32":
+                    os.startfile(path)
+                else:
+                    subprocess.run(["xdg-open", path])
+        except Exception:
+            pass
+
+    def _find_project_folder(self) -> str:
+        """查找项目文件夹路径"""
+        import os
+        from utils.config import Config
+        base = Config.get_data_dir()
+        if not os.path.exists(base):
+            return ""
+        cname = (self.project.company_name or "未命名").replace("/", "_").replace("\\", "_")
+        sname = (self.project.system_name or "").replace("/", "_").replace("\\", "_")
+        if self.project.created_at:
+            date_str = self.project.created_at[:10].replace("-", "")[2:]
+        else:
+            date_str = ""
+        for name in os.listdir(base):
+            if cname in name and sname in name and date_str in name:
+                return os.path.join(base, name)
+        return base
+
+    def _on_rename_click(self):
+        """一键重命名：将项目文件夹中未规范命名的文件按规则重命名"""
+        import os, re
+        from tkinter import messagebox
+        try:
+            root = self._find_project_folder()
+            if not root or not os.path.isdir(root):
+                return
+            cname = self.project.company_name or "未命名"
+            sname = self.project.system_name or ""
+            prefix = f"{cname}-{sname}"
+
+            # 关键词→编号映射
+            key_map = {
+                "保密承诺书": "02",
+                "测评调研表": "03",
+                "测评授权书": "04",
+                "风险告知书": "05",
+                "项目计划书": "06",
+                "测评方案": "07",
+                "首次会议记录": "09",
+                "测评现场记录表": "10",
+                "问题汇总": "11",
+                "漏洞扫描报告": "12",
+                "项目文档移交清单": "14",
+                "末次会议记录": "15",
+                "测评报告-终稿": "16",
+                "服务情况评价表": "18",
+                "报备表": "19",
+                "过程文档": "过程文档",
+            }
+
+            renamed = 0
+            for fname in os.listdir(root):
+                fpath = os.path.join(root, fname)
+                if not os.path.isfile(fpath):
+                    continue
+                # 跳过已规范命名的文件
+                if re.match(r"^\d{2}-", fname):
+                    continue
+                name_no_ext, ext = os.path.splitext(fname)
+                for keyword, num in key_map.items():
+                    if keyword in name_no_ext:
+                        new_name = f"{num}-{prefix}-{keyword}{ext}"
+                        new_path = os.path.join(root, new_name)
+                        if not os.path.exists(new_path):
+                            os.rename(fpath, new_path)
+                            renamed += 1
+                        break
+
+            if renamed:
+                messagebox.showinfo("重命名完成", f"已重命名 {renamed} 个文件", parent=self)
+            elif messagebox.askyesno("未找到可重命名文件",
+                                      "未发现需要重命名的文件。\n是否打开文件夹手动处理？",
+                                      parent=self):
+                self._on_folder_click()
         except Exception:
             pass
 
@@ -321,7 +390,7 @@ class ProjectCard(tk.Frame):
         """
         btn_widgets = {self._prev_btn, self._next_btn,
                        self._detail_btn, self._edit_btn, self._copy_btn,
-                       self._folder_btn}  # 需要排除的按钮组件集合
+                       self._folder_btn, self._rename_btn}  # 排除的按钮组件
 
         # 先给Frame自身绑定事件
         self.bind("<Button-1>", self._on_click)  # 鼠标左键单击
