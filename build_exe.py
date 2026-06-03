@@ -74,6 +74,7 @@ cmd = (
     f' --hidden-import cv2'
     f' --hidden-import PIL'
     f' --hidden-import scipy'
+    f' --hidden-import openpyxl'
     f' --collect-all easyocr'
     f' --clean'
     f' main.py'
