@@ -223,13 +223,21 @@ class ProjectCard(tk.Frame):
         )
         self._rename_btn.pack(side=tk.LEFT, padx=(2, 0))
         self._zip_btn = tk.Button(
-            file_btn_frame, text="\U0001f4e6 \u6253\u5305", command=self._on_zip_click,
+            file_btn_frame, text="\U0001f4e6 \u6253\u5305\u8fc7\u7a0b\u6587\u6863", command=self._on_zip_click,
             bg="#f39c12", fg="white",
             font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
             relief="flat", borderwidth=0, cursor="hand2", padx=6, pady=1,
             activebackground="#e67e22",
         )
-        self._zip_btn.pack(side=tk.LEFT, padx=(2, 0))
+        self._zip_btn.pack(side=tk.LEFT, padx=(2, 2))
+        self._report_btn = tk.Button(
+            file_btn_frame, text="\U0001f4c4 \u62a5\u544a\u6253\u5370", command=self._on_report_print_click,
+            bg="#8e44ad", fg="white",
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
+            relief="flat", borderwidth=0, cursor="hand2", padx=6, pady=1,
+            activebackground="#7d3c98",
+        )
+        self._report_btn.pack(side=tk.LEFT, padx=(2, 0))
         tk.Frame(file_btn_frame, bg=Config.CARD_BG).pack(side=tk.LEFT, expand=True)
 
         # ---- 右箭头按钮 ----
@@ -465,6 +473,149 @@ class ProjectCard(tk.Frame):
         except Exception as e:
             messagebox.showerror("错误", f"打包失败: {e}")
 
+    def _on_report_print_click(self):
+        """报告打印：创建测评报告打印信息XLSX并复制相关文件到报告打印目录"""
+        import os, shutil
+        from tkinter import messagebox
+        try:
+            root = self._find_project_folder()
+            if not root or not os.path.isdir(root):
+                messagebox.showinfo("提示", "未找到项目文件夹")
+                return
+            cname = self.project.company_name or "未命名"
+            sname = self.project.system_name or ""
+            prefix = f"{cname}-{sname}"
+
+            # 找到报告打印目录
+            report_dir = None
+            for dname in os.listdir(root):
+                if "报告打印" in dname and os.path.isdir(os.path.join(root, dname)):
+                    report_dir = os.path.join(root, dname)
+                    break
+            if not report_dir:
+                report_dir = os.path.join(root, f"00-{prefix}-报告打印")
+                os.makedirs(report_dir, exist_ok=True)
+
+            # 创建 XLSX
+            xlsx_name = f"00-{prefix}-测评报告打印信息.xlsx"
+            xlsx_path = os.path.join(report_dir, xlsx_name)
+            self._create_report_xlsx(xlsx_path, cname, sname)
+
+            # 复制文件到报告打印目录
+            copied = 0
+            copy_keywords = {"测评授权书": "04", "风险告知书": "05"}
+            for fname in os.listdir(root):
+                fpath = os.path.join(root, fname)
+                if not os.path.isfile(fpath):
+                    continue
+                for kw in copy_keywords:
+                    if kw in fname:
+                        shutil.copy2(fpath, os.path.join(report_dir, fname))
+                        copied += 1
+                        break
+                # 复制测评报告终稿PDF
+                if "测评报告-终稿" in fname and fname.lower().endswith(".pdf"):
+                    shutil.copy2(fpath, os.path.join(report_dir, fname))
+                    copied += 1
+
+            # 复制过程文档zip（如果存在）
+            zip_name = f"{cname}-{sname}-过程文档.zip"
+            zip_src = os.path.join(root, zip_name)
+            if os.path.exists(zip_src):
+                shutil.copy2(zip_src, os.path.join(report_dir, zip_name))
+                copied += 1
+
+            messagebox.showinfo("报告打印完成",
+                f"已生成 {xlsx_name}\n已复制 {copied} 个文件到报告打印目录")
+        except Exception as e:
+            messagebox.showerror("错误", f"报告打印失败: {e}")
+
+    def _create_report_xlsx(self, path, cname, sname):
+        """创建测评报告打印信息XLSX文件"""
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+        from datetime import date
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Sheet1"
+
+        # 列宽
+        widths = {'A': 6, 'B': 30, 'C': 22, 'D': 10, 'E': 10, 'F': 18,
+                  'G': 12, 'H': 12, 'I': 12, 'J': 12, 'K': 10, 'L': 10,
+                  'M': 16, 'N': 10, 'O': 16, 'P': 16, 'Q': 14, 'R': 14,
+                  'S': 16, 'T': 10, 'U': 14}
+        for col, w in widths.items():
+            ws.column_dimensions[col].width = w
+
+        # 提示行
+        ws['G1'] = '（需要签入报告，请确认）'
+        ws['G1'].font = Font(color='FF0000', bold=True)
+
+        # 表头 (Row 2)
+        headers = ['序号', '合同编号或项目名称', '客户公司全称', '是否录入CRM', '所属地',
+                   '系统名称', '编制日期', '审核日期', '批准日期',
+                   '编制人（与联盟系统对应）', '审核人', '渗透人员',
+                   '测评结论及重大风险隐患数量', '盖章',
+                   '等级测评项目基本情况表附件', '授权书及风险告知书附件',
+                   '测评报告附件', '测评归档附件', '打印要求',
+                   '项目组长联系人', '实际报告编制人']
+        header_fill = PatternFill(start_color='D9E1F2', end_color='D9E1F2', fill_type='solid')
+        thin_border = Border(
+            left=Side(style='thin'), right=Side(style='thin'),
+            top=Side(style='thin'), bottom=Side(style='thin'))
+        for i, h in enumerate(headers, 1):
+            cell = ws.cell(row=2, column=i, value=h)
+            cell.font = Font(bold=True, size=10)
+            cell.fill = header_fill
+            cell.border = thin_border
+            cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        ws.row_dimensions[2].height = 35
+
+        # 数据行 (Row 6)
+        today = date.today()
+        date_val = today.strftime('%Y-%m-%d')
+        exc_date = openpyxl.utils.datetime.to_excel_datetime(today) if hasattr(
+            openpyxl.utils.datetime, 'to_excel_datetime') else today
+
+        data = {
+            'A6': 1,
+            'B6': f'{cname}网络安全等级保护测评服务项目',
+            'C6': cname,
+            'D6': '是',
+            'E6': (self.project.location or '').split('-')[0] if self.project.location else '',
+            'F6': sname,
+            'G6': self.project.deadline or date_val,
+            'H6': self.project.deadline or date_val,
+            'I6': self.project.deadline or date_val,
+        }
+        for cell_ref, val in data.items():
+            cell = ws[cell_ref]
+            cell.value = val
+            cell.border = thin_border
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+
+        # 附件列标注
+        ws['O6'] = '见附件'
+        ws['O6'].border = thin_border
+        ws['O6'].alignment = Alignment(horizontal='center', vertical='center')
+        ws['P6'] = '见附件'
+        ws['P6'].border = thin_border
+        ws['P6'].alignment = Alignment(horizontal='center', vertical='center')
+        ws['Q6'] = '见附件'
+        ws['Q6'].border = thin_border
+        ws['Q6'].alignment = Alignment(horizontal='center', vertical='center')
+        ws['R6'] = '见附件'
+        ws['R6'].border = thin_border
+        ws['R6'].alignment = Alignment(horizontal='center', vertical='center')
+
+        ws.row_dimensions[6].height = 25
+
+        # 合并单元格 G1-U1
+        ws.merge_cells('G1:U1')
+
+        wb.save(path)
+
     def _bind_events(self):
         """绑定鼠标事件到卡片内部所有组件（排除按钮组件，因为它们有独立的command）
 
@@ -473,7 +624,8 @@ class ProjectCard(tk.Frame):
         """
         btn_widgets = {self._prev_btn, self._next_btn,
                        self._detail_btn, self._edit_btn, self._copy_btn,
-                       self._folder_btn, self._rename_btn, self._zip_btn}
+                       self._folder_btn, self._rename_btn, self._zip_btn,
+                       self._report_btn}
 
         # 先给Frame自身绑定事件
         self.bind("<Button-1>", self._on_click)  # 鼠标左键单击
