@@ -350,11 +350,17 @@ class ProjectDialog(tk.Toplevel):
         )
         fp_outer.pack(side=tk.LEFT, fill=tk.X, expand=True)
         tk.Button(
-            folder_row, text="创建/刷新目录", command=self._on_create_folders,
+            folder_row, text="选择", command=self._on_browse_folder,
+            bg="#ecf0f1", fg="#2c3e50", relief="flat", cursor="hand2",
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+            padx=8, pady=2, activebackground="#d5dbdb",
+        ).pack(side=tk.LEFT, padx=(4, 0))
+        tk.Button(
+            folder_row, text="创建目录", command=self._on_create_folders,
             bg="#f0f2f5", fg="#2c3e50", relief="flat", cursor="hand2",
             font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
             padx=8, pady=2, activebackground="#d5dbdb",
-        ).pack(side=tk.LEFT, padx=(6, 0))
+        ).pack(side=tk.LEFT, padx=(4, 0))
 
         # 备注输入（带滚动条和外边框的多行文本框）
         tk.Label(main_frame, text="备注信息", bg="#ffffff",
@@ -513,6 +519,12 @@ class ProjectDialog(tk.Toplevel):
             "folder_path": self._folder_path_var.get().strip(),
         }
         self.destroy()  # 关闭对话框
+
+    def _on_browse_folder(self):
+        """打开文件夹选择对话框"""
+        path = filedialog.askdirectory(parent=self, title="选择项目文件夹")
+        if path:
+            self._folder_path_var.set(path)
 
     def _on_create_folders(self):
         """创建/刷新项目文件夹目录结构"""
