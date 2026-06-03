@@ -438,16 +438,23 @@ class ProjectCard(tk.Frame):
                             zf.write(fpath, fname)
                             count += 1
                             break
-                # 打包渗透测试报告目录
+                # 打包渗透测试报告目录（含目录内所有文件+空目录）
                 for dname in os.listdir(root):
                     dpath = os.path.join(root, dname)
                     if os.path.isdir(dpath) and "渗透测试报告" in dname:
+                        has_files = False
                         for dirpath, _, filenames in os.walk(dpath):
                             for fn in filenames:
                                 fp = os.path.join(dirpath, fn)
-                                arcname = os.path.relpath(fp, root)
+                                arcname = os.path.relpath(fp, root).replace("\\", "/")
                                 zf.write(fp, arcname)
                                 count += 1
+                                has_files = True
+                        # 空目录也加进去
+                        if not has_files:
+                            info = zipfile.ZipInfo(dname + "/")
+                            zf.writestr(info, "")
+                            count += 1
 
             if count > 0:
                 messagebox.showinfo("打包完成",
