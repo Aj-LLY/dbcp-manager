@@ -39,6 +39,101 @@ def _add_tooltip(widget, text):
     _ToolTip(widget, text)
 
 
+def _show_report_dialog(parent, cname="", sname="", location="", deadline=""):
+    """报告打印编辑确认对话框"""
+    dlg = tk.Toplevel(parent)
+    dlg.title("报告打印信息确认")
+    dlg.geometry("520x550")
+    dlg.minsize(420, 400)
+    dlg.configure(bg="#ffffff")
+    dlg.grab_set()
+
+    result = {"confirmed": False}
+
+    canvas = tk.Canvas(dlg, bg="#ffffff", highlightthickness=0)
+    scrollbar = tk.Scrollbar(dlg, orient=tk.VERTICAL, command=canvas.yview)
+    canvas.configure(yscrollcommand=scrollbar.set)
+    main = tk.Frame(canvas, bg="#ffffff", padx=20, pady=15)
+    main.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+    canvas.create_window((0, 0), window=main, anchor="nw", width=500)
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+    def _make_row(label, default="", width=40):
+        tk.Label(main, text=label, bg="#ffffff",
+                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL)).pack(anchor="w")
+        var = tk.StringVar(value=default)
+        from utils.helpers import bordered_entry
+        _, outer = bordered_entry(main, textvariable=var, width=width)
+        outer.pack(fill=tk.X, pady=(2, 5))
+        return var
+
+    tk.Label(main, text="报告打印信息确认", bg="#ffffff", fg="#2c3e50",
+             font=(Config.FONT_FAMILY, Config.FONT_SIZE_HEADER, "bold"),
+             ).pack(anchor="w", pady=(0, 12))
+
+    v_cname = _make_row("客户公司全称", cname)
+    v_contract = _make_row("合同编号或项目名称", f"{cname}网络安全等级保护测评服务项目")
+    v_location = _make_row("所属地", location)
+    v_sname = _make_row("系统名称", sname)
+    v_crm = _make_row("是否录入CRM", "是")
+    v_deadline = _make_row("编制/审核/批准日期", deadline)
+    v_author = _make_row("编制人")
+    v_reviewer = _make_row("审核人")
+    v_pentester = _make_row("渗透人员")
+    v_conclusion = _make_row("测评结论及重大风险隐患数量")
+    v_seal = _make_row("盖章")
+    v_print_req = _make_row("打印要求")
+    v_leader = _make_row("项目组长联系人")
+    v_actual = _make_row("实际报告编制人")
+
+    def _on_confirm():
+        result["confirmed"] = True
+        result["data"] = {
+            "cname": v_cname.get().strip(),
+            "contract": v_contract.get().strip(),
+            "location": v_location.get().strip(),
+            "sname": v_sname.get().strip(),
+            "crm": v_crm.get().strip(),
+            "deadline": v_deadline.get().strip(),
+            "author": v_author.get().strip(),
+            "reviewer": v_reviewer.get().strip(),
+            "pentester": v_pentester.get().strip(),
+            "conclusion": v_conclusion.get().strip(),
+            "seal": v_seal.get().strip(),
+            "print_req": v_print_req.get().strip(),
+            "leader": v_leader.get().strip(),
+            "actual_author": v_actual.get().strip(),
+        }
+        dlg.destroy()
+
+    # 底部按钮
+    btn_frame = tk.Frame(dlg, bg="#f0f2f5")
+    btn_frame.pack(fill=tk.X, side=tk.BOTTOM)
+    tk.Frame(btn_frame, bg="#d0d5dd", height=1).pack(fill=tk.X)
+    btn_inner = tk.Frame(btn_frame, bg="#f0f2f5")
+    btn_inner.pack(fill=tk.X, padx=16, pady=8)
+    tk.Button(btn_inner, text="取消", command=dlg.destroy,
+              bg="#ffffff", fg="#2c3e50", cursor="hand2",
+              font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+              relief="flat", padx=18, pady=5,
+              highlightbackground="#d0d5dd", highlightthickness=1,
+              ).pack(side=tk.RIGHT, padx=(8, 0))
+    tk.Button(btn_inner, text="确认", command=_on_confirm,
+              bg="#3498db", fg="white", cursor="hand2",
+              font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
+              relief="flat", padx=18, pady=5,
+              ).pack(side=tk.RIGHT)
+
+    dlg.bind("<Return>", lambda e: _on_confirm())
+    dlg.bind("<Escape>", lambda e: dlg.destroy())
+    parent.wait_window(dlg)
+
+    if result["confirmed"]:
+        return result["data"]
+    return None
+
+
 class ProjectCard(tk.Frame):
     """项目卡片组件 - 继承自tk.Frame，作为看板列中的项目展示卡片
 
@@ -567,38 +662,51 @@ class ProjectCard(tk.Frame):
             messagebox.showerror("错误", f"打包失败: {e}")
 
     def _on_report_print_click(self):
-        """报告打印：创建测评报告打印信息XLSX并复制相关文件到报告打印目录"""
+        """报告打印：弹出编辑框确认后创建XLSX并复制文件"""
         import os, shutil
         from tkinter import messagebox
+        from datetime import date
         try:
-            root = self._find_project_folder()
-            if not root or not os.path.isdir(root):
+            proot = self._find_project_folder()
+            if not proot or not os.path.isdir(proot):
                 messagebox.showinfo("提示", "未找到项目文件夹")
                 return
-            cname = self.project.company_name or "未命名"
-            sname = self.project.system_name or ""
+
+            # 弹出编辑确认框
+            data = _show_report_dialog(
+                self,
+                cname=self.project.company_name or "",
+                sname=self.project.system_name or "",
+                location=(self.project.location or "").split("-")[0] if self.project.location else "",
+                deadline=self.project.deadline or date.today().strftime("%Y-%m-%d"),
+            )
+            if not data:  # 用户取消
+                return
+
+            cname = data["cname"]
+            sname = data["sname"]
             prefix = f"{cname}-{sname}"
 
-            # 找到报告打印目录
+            # 找到/创建报告打印目录
             report_dir = None
-            for dname in os.listdir(root):
-                if "报告打印" in dname and os.path.isdir(os.path.join(root, dname)):
-                    report_dir = os.path.join(root, dname)
+            for dname in os.listdir(proot):
+                if "报告打印" in dname and os.path.isdir(os.path.join(proot, dname)):
+                    report_dir = os.path.join(proot, dname)
                     break
             if not report_dir:
-                report_dir = os.path.join(root, f"00-{prefix}-报告打印")
+                report_dir = os.path.join(proot, f"00-{prefix}-报告打印")
                 os.makedirs(report_dir, exist_ok=True)
 
             # 创建 XLSX
             xlsx_name = f"00-{prefix}-测评报告打印信息.xlsx"
             xlsx_path = os.path.join(report_dir, xlsx_name)
-            self._create_report_xlsx(xlsx_path, cname, sname, report_dir, root)
+            self._create_report_xlsx_data(xlsx_path, data, report_dir, proot)
 
             # 复制文件到报告打印目录
             copied = 0
-            copy_keywords = {"测评授权书": "04", "风险告知书": "05"}
-            for fname in os.listdir(root):
-                fpath = os.path.join(root, fname)
+            copy_keywords = ["测评授权书", "风险告知书"]
+            for fname in os.listdir(proot):
+                fpath = os.path.join(proot, fname)
                 if not os.path.isfile(fpath):
                     continue
                 for kw in copy_keywords:
@@ -606,14 +714,12 @@ class ProjectCard(tk.Frame):
                         shutil.copy2(fpath, os.path.join(report_dir, fname))
                         copied += 1
                         break
-                # 复制测评报告终稿PDF
                 if "测评报告-终稿" in fname and fname.lower().endswith(".pdf"):
                     shutil.copy2(fpath, os.path.join(report_dir, fname))
                     copied += 1
 
-            # 复制过程文档zip（如果存在）
             zip_name = f"{cname}-{sname}-过程文档.zip"
-            zip_src = os.path.join(root, zip_name)
+            zip_src = os.path.join(proot, zip_name)
             if os.path.exists(zip_src):
                 shutil.copy2(zip_src, os.path.join(report_dir, zip_name))
                 copied += 1
@@ -622,6 +728,36 @@ class ProjectCard(tk.Frame):
                 f"已生成 {xlsx_name}\n已复制 {copied} 个文件到报告打印目录")
         except Exception as e:
             messagebox.showerror("错误", f"报告打印失败: {e}")
+
+    def _create_report_xlsx_data(self, path, data, report_dir, root):
+        """根据编辑框数据创建测评报告打印信息XLSX"""
+        self._create_report_xlsx(path, data["cname"], data["sname"], report_dir, root)
+        # 用编辑框数据二次写入
+        import openpyxl
+        wb = openpyxl.load_workbook(path)
+        ws = wb.active
+        from openpyxl.styles import Alignment, Border, Side
+        thin_border = Border(
+            left=Side(style='thin'), right=Side(style='thin'),
+            top=Side(style='thin'), bottom=Side(style='thin'))
+        extra = {
+            'B3': data.get("contract", ""),
+            'D3': data.get("crm", "是"),
+            'J3': data.get("author", ""),
+            'K3': data.get("reviewer", ""),
+            'L3': data.get("pentester", ""),
+            'M3': data.get("conclusion", ""),
+            'N3': data.get("seal", ""),
+            'S3': data.get("print_req", ""),
+            'T3': data.get("leader", ""),
+            'U3': data.get("actual_author", ""),
+        }
+        for ref, val in extra.items():
+            cell = ws[ref]
+            cell.value = val
+            cell.border = thin_border
+            cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        wb.save(path)
 
     def _create_report_xlsx(self, path, cname, sname, report_dir, root):
         """创建测评报告打印信息XLSX文件"""
