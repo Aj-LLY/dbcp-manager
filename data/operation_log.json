@@ -1738,5 +1738,15 @@
     "project_name": "联帮帮物流科技(夭津)有限责任公司-联帮帮物流平台",
     "from_stage": "报告初稿",
     "to_stage": "整改建议书"
+  },
+  {
+    "id": "1780483522846",
+    "timestamp": "2026-06-03 18:45:22",
+    "action": "编辑流程",
+    "detail": "更新流程阶段配置",
+    "project_id": "",
+    "project_name": "",
+    "from_stage": "",
+    "to_stage": ""
   }
 ]
