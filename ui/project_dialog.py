@@ -225,7 +225,7 @@ class ProjectDialog(tk.Toplevel):
                  ).pack(side=tk.LEFT)
         tk.Label(label_row, text="属地", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
-                 ).pack(side=tk.LEFT, padx=(80, 0))
+                 ).pack(side=tk.LEFT, padx=(120, 0))
 
         row5 = tk.Frame(main_frame, bg="#ffffff")
         row5.pack(fill=tk.X, pady=(2, 5))
@@ -242,7 +242,7 @@ class ProjectDialog(tk.Toplevel):
             font=(Config.FONT_FAMILY, Config.FONT_SIZE_LARGE),
             cursor="hand2", padx=3, pady=0,
             activebackground="#ecf0f1",
-        ).pack(side=tk.LEFT, padx=(2, 8))
+        ).pack(side=tk.LEFT, padx=(2, 20))
 
         # 属地：省级下拉
         self._province_var = tk.StringVar()
@@ -379,8 +379,7 @@ class ProjectDialog(tk.Toplevel):
                 parts = self._project.location.rsplit("-", 1)
                 if len(parts) == 2:
                     self._province_var.set(parts[0])
-                    self._on_province_change()
-                    self._city_var.set(parts[1])
+                    self._on_province_change(keep_city=parts[1])
             self._deadline_var.set(self._project.deadline)
 
             # 根据项目的stage_id匹配并选中对应的阶段下拉项
@@ -407,12 +406,14 @@ class ProjectDialog(tk.Toplevel):
         if result is not None:
             self._deadline_var.set(result)
 
-    def _on_province_change(self, event=None):
+    def _on_province_change(self, event=None, keep_city=""):
         """省级下拉变更时，更新市级下拉选项"""
         province = self._province_var.get()
-        cities = PROVINCE_CITIES.get(province, ["请先选择省区"])
+        cities = PROVINCE_CITIES.get(province, [])
+        if not cities:
+            cities = ["请先选择省区"]
         self._city_combo["values"] = cities
-        self._city_combo.set("")
+        self._city_combo.set(keep_city if keep_city in cities else "")
 
     def _open_issue_calendar(self):
         """打开日历选择器，将选中日期填入下证日期输入框"""
@@ -494,7 +495,7 @@ class ProjectDialog(tk.Toplevel):
         """获取属地：省区-市区格式"""
         p = self._province_var.get().strip()
         c = self._city_var.get().strip()
-        if p and c and c != "请先选择省区":
+        if p and c and c != "请先选择省区" and c != "":
             return f"{p}-{c}"
         return ""
 
