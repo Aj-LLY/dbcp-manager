@@ -331,6 +331,7 @@ class MainWindow(tk.Tk):
                 cert_number=result.get("cert_number"),
                 issue_date=result.get("issue_date"),
                 level=result.get("level"),
+                location=result.get("location"),
                 deadline=result.get("deadline"),
                 notes=result.get("notes"),
                 stage_id=result.get("stage_id"),

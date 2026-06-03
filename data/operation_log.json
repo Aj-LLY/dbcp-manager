@@ -1628,5 +1628,25 @@
     "project_name": "12121-111111",
     "from_stage": "",
     "to_stage": ""
+  },
+  {
+    "id": "1780474763576",
+    "timestamp": "2026-06-03 16:19:23",
+    "action": "编辑项目",
+    "detail": "编辑项目「12121-111111」的信息",
+    "project_id": "proj_1779874915309",
+    "project_name": "12121-111111",
+    "from_stage": "",
+    "to_stage": ""
+  },
+  {
+    "id": "1780474773872",
+    "timestamp": "2026-06-03 16:19:33",
+    "action": "编辑项目",
+    "detail": "编辑项目「12121-111111」的信息",
+    "project_id": "proj_1779874915309",
+    "project_name": "12121-111111",
+    "from_stage": "",
+    "to_stage": ""
   }
 ]
