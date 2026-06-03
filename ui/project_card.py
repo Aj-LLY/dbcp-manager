@@ -368,13 +368,13 @@ class ProjectCard(tk.Frame):
         return ""
 
     def _on_rename_click(self):
-        """一键重命名：修正文件中的公司名称和系统名称，并规范化命名"""
-        import os, re
+        """一键重命名：修正文件名 + ZIP解压 + 结果报告"""
+        import os, re, zipfile, shutil
         from tkinter import messagebox
         try:
             root = self._find_project_folder()
             if not root or not os.path.isdir(root):
-                messagebox.showinfo("提示", "未找到项目文件夹，请先在编辑中设置文件夹路径")
+                messagebox.showinfo("提示", "未找到项目文件夹")
                 return
             cname = (self.project.company_name or "未命名").replace("/", "_").replace("\\", "_")
             sname = (self.project.system_name or "").replace("/", "_").replace("\\", "_")
@@ -383,35 +383,76 @@ class ProjectCard(tk.Frame):
             key_map = {
                 "保密承诺书": "02", "测评调研表": "03", "测评授权书": "04",
                 "风险告知书": "05", "项目计划书": "06", "测评方案": "07",
+                "测评方案评审表": "08", "归档材料评审记录表": "08",
                 "首次会议记录": "09", "测评现场记录表": "10", "问题汇总": "11",
                 "漏洞扫描报告": "12", "项目文档移交清单": "14", "末次会议记录": "15",
-                "测评报告-终稿": "16", "服务情况评价表": "18", "报备表": "19",
+                "测评报告-终稿": "16",
+                "测评报告评审表": "17", "测评报告评审记录表": "17",
+                "服务情况评价表": "18", "报备表": "19",
             }
 
             renamed = 0
+            msgs = []  # 操作报告
+
+            # === ZIP解压处理 ===
             for fname in os.listdir(root):
                 fpath = os.path.join(root, fname)
-                if not os.path.isfile(fpath):
+                if not os.path.isfile(fpath) or not fname.lower().endswith(".zip"):
+                    continue
+                # 测评方案评审记录表.zip → 解压并重命名为08
+                if "测评方案评审记录表" in fname:
+                    try:
+                        with zipfile.ZipFile(fpath, "r") as zf:
+                            zf.extractall(root)
+                        os.remove(fpath)
+                        renamed += 1
+                        msgs.append(f"解压: {fname} → 提取文件")
+                    except Exception as e:
+                        msgs.append(f"解压失败: {fname} ({e})")
+                # 测评报告评审表.zip → 解压，保留终审，删除初审
+                elif "测评报告评审表" in fname:
+                    try:
+                        with zipfile.ZipFile(fpath, "r") as zf:
+                            zf.extractall(root)
+                        os.remove(fpath)
+                        renamed += 1
+                        msgs.append(f"解压: {fname} → 提取文件")
+                    except Exception as e:
+                        msgs.append(f"解压失败: {fname} ({e})")
+
+            # === 删除包含"初审"的文件 ===
+            for fname in os.listdir(root):
+                if "初审" in fname:
+                    try:
+                        os.remove(os.path.join(root, fname))
+                        msgs.append(f"删除初审: {fname}")
+                    except Exception:
+                        pass
+
+            # === 文件重命名 ===
+            for fname in os.listdir(root):
+                fpath = os.path.join(root, fname)
+                if not os.path.isfile(fpath) or fname.endswith(".zip"):
                     continue
                 name_no_ext, ext = os.path.splitext(fname)
 
-                # 匹配已编号文件: 02-旧公司-旧系统-关键词.ext
                 m = re.match(r"^(\d{2})-(.+)", name_no_ext)
                 if m:
                     num = m.group(1)
-                    rest = name_no_ext[len(num) + 1:]  # 去掉编号-
-                    # 按关键词长度降序匹配（避免"测评方案"误匹配"测评报告-终稿"）
+                    rest = name_no_ext[len(num) + 1:]
                     for keyword in sorted(key_map, key=len, reverse=True):
                         if keyword in rest:
-                            new_name = f"{num}-{new_prefix}-{keyword}{ext}"
+                            target_num = key_map[keyword]
+                            new_name = f"{target_num}-{new_prefix}-{keyword}{ext}"
                             if new_name != fname:
                                 new_path = os.path.join(root, new_name)
                                 if not os.path.exists(new_path):
                                     os.rename(fpath, new_path)
                                     renamed += 1
+                                else:
+                                    msgs.append(f"跳过(已存在): {new_name}")
                             break
                 else:
-                    # 未编号文件：按关键词长度降序匹配
                     for keyword in sorted(key_map, key=len, reverse=True):
                         if keyword in name_no_ext:
                             num = key_map[keyword]
@@ -420,9 +461,11 @@ class ProjectCard(tk.Frame):
                             if not os.path.exists(new_path):
                                 os.rename(fpath, new_path)
                                 renamed += 1
+                            else:
+                                msgs.append(f"跳过(已存在): {new_name}")
                             break
 
-            # 同步更新子目录中的公司系统名
+            # === 子目录重命名 ===
             for dname in os.listdir(root):
                 dpath = os.path.join(root, dname)
                 if not os.path.isdir(dpath):
@@ -436,12 +479,18 @@ class ProjectCard(tk.Frame):
                             renamed += 1
                         break
 
-            if renamed:
-                messagebox.showinfo("重命名完成", f"已重命名 {renamed} 个项目")
+            # === 结果报告 ===
+            if msgs:
+                msg_text = "\n".join(msgs[:15])
+                if len(msgs) > 15:
+                    msg_text += f"\n...共 {len(msgs)} 条"
+                messagebox.showinfo("操作报告", msg_text)
+            elif renamed:
+                messagebox.showinfo("完成", f"已处理 {renamed} 个项目")
             else:
-                messagebox.showinfo("提示", "所有文件名已是最新，无需重命名")
+                messagebox.showinfo("提示", "所有文件名已是最新，无需修改")
         except Exception as e:
-            messagebox.showerror("错误", f"重命名失败: {e}")
+            messagebox.showerror("错误", f"操作失败: {e}")
 
     def _on_zip_click(self):
         """打包过程文档：将项目文件夹中的过程文件压缩为ZIP"""
@@ -618,14 +667,14 @@ class ProjectCard(tk.Frame):
             cell = ws[f'{col}3']
             cell.value = val
             cell.border = thin_border
-            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
 
         # 为所有 A-U 列第3行设置完整边框
         for col_idx in range(1, 22):
             cell = ws.cell(row=3, column=col_idx)
             cell.border = thin_border
             if not cell.value:
-                cell.alignment = Alignment(horizontal='center', vertical='center')
+                cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
 
         ws.row_dimensions[3].height = 25
 
