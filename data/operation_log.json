@@ -1598,5 +1598,35 @@
     "project_name": "12121",
     "from_stage": "项目启动",
     "to_stage": "现状调研"
+  },
+  {
+    "id": "1780473883553",
+    "timestamp": "2026-06-03 16:04:43",
+    "action": "编辑项目",
+    "detail": "编辑项目「12121」的信息",
+    "project_id": "proj_1779874915309",
+    "project_name": "12121",
+    "from_stage": "",
+    "to_stage": ""
+  },
+  {
+    "id": "1780473917445",
+    "timestamp": "2026-06-03 16:05:17",
+    "action": "编辑项目",
+    "detail": "编辑项目「12121-111111」的信息",
+    "project_id": "proj_1779874915309",
+    "project_name": "12121-111111",
+    "from_stage": "",
+    "to_stage": ""
+  },
+  {
+    "id": "1780473938730",
+    "timestamp": "2026-06-03 16:05:38",
+    "action": "编辑项目",
+    "detail": "编辑项目「12121-111111」的信息",
+    "project_id": "proj_1779874915309",
+    "project_name": "12121-111111",
+    "from_stage": "",
+    "to_stage": ""
   }
 ]
