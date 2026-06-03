@@ -11,6 +11,34 @@ from models.project import Project  # 导入Project模型类，表示一个等�
 from utils.config import Config  # 导入Config配置类，获取颜色、字体等UI配置常量
 
 
+class _ToolTip:
+    """简易按钮悬浮提示"""
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tw = None
+        widget.bind("<Enter>", self._enter)
+        widget.bind("<Leave>", self._leave)
+
+    def _enter(self, event=None):
+        x, y = self.widget.winfo_rootx() + 5, self.widget.winfo_rooty() + 22
+        self.tw = tk.Toplevel(self.widget)
+        self.tw.wm_overrideredirect(True)
+        self.tw.wm_geometry(f"+{x}+{y}")
+        label = tk.Label(self.tw, text=self.text, bg="#333", fg="white",
+                         font=("Microsoft YaHei", 8), padx=4, pady=1)
+        label.pack()
+
+    def _leave(self, event=None):
+        if self.tw:
+            self.tw.destroy()
+            self.tw = None
+
+
+def _add_tooltip(widget, text):
+    _ToolTip(widget, text)
+
+
 class ProjectCard(tk.Frame):
     """项目卡片组件 - 继承自tk.Frame，作为看板列中的项目展示卡片
 
@@ -207,37 +235,41 @@ class ProjectCard(tk.Frame):
 
         tk.Frame(file_btn_frame, bg=Config.CARD_BG).pack(side=tk.LEFT, expand=True)
         self._folder_btn = tk.Button(
-            file_btn_frame, text="\U0001f4c2 \u6253\u5f00", command=self._on_folder_click,
+            file_btn_frame, text="\U0001f4c2", command=self._on_folder_click,
             bg="#ecf0f1", fg="#2c3e50",
-            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
-            relief="flat", borderwidth=0, cursor="hand2", padx=6, pady=1,
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+            relief="flat", borderwidth=0, cursor="hand2", padx=7, pady=1,
             activebackground="#d5dbdb",
         )
         self._folder_btn.pack(side=tk.LEFT, padx=(0, 2))
+        _add_tooltip(self._folder_btn, "打开项目文件夹")
         self._rename_btn = tk.Button(
-            file_btn_frame, text="\U0001f4dd \u91cd\u547d\u540d", command=self._on_rename_click,
+            file_btn_frame, text="\U0001f4dd", command=self._on_rename_click,
             bg="#f0f2f5", fg="#2c3e50",
-            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
-            relief="flat", borderwidth=0, cursor="hand2", padx=6, pady=1,
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+            relief="flat", borderwidth=0, cursor="hand2", padx=7, pady=1,
             activebackground="#d5dbdb",
         )
-        self._rename_btn.pack(side=tk.LEFT, padx=(2, 0))
+        self._rename_btn.pack(side=tk.LEFT, padx=(2, 2))
+        _add_tooltip(self._rename_btn, "批量重命名文件")
         self._zip_btn = tk.Button(
-            file_btn_frame, text="\U0001f4e6 \u6253\u5305\u8fc7\u7a0b\u6587\u6863", command=self._on_zip_click,
+            file_btn_frame, text="\U0001f4e6", command=self._on_zip_click,
             bg="#f39c12", fg="white",
-            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
-            relief="flat", borderwidth=0, cursor="hand2", padx=6, pady=1,
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+            relief="flat", borderwidth=0, cursor="hand2", padx=7, pady=1,
             activebackground="#e67e22",
         )
         self._zip_btn.pack(side=tk.LEFT, padx=(2, 2))
+        _add_tooltip(self._zip_btn, "打包过程文档")
         self._report_btn = tk.Button(
-            file_btn_frame, text="\U0001f4c4 \u62a5\u544a\u6253\u5370", command=self._on_report_print_click,
+            file_btn_frame, text="\U0001f4c4", command=self._on_report_print_click,
             bg="#8e44ad", fg="white",
-            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
-            relief="flat", borderwidth=0, cursor="hand2", padx=6, pady=1,
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+            relief="flat", borderwidth=0, cursor="hand2", padx=7, pady=1,
             activebackground="#7d3c98",
         )
         self._report_btn.pack(side=tk.LEFT, padx=(2, 0))
+        _add_tooltip(self._report_btn, "报告打印")
         tk.Frame(file_btn_frame, bg=Config.CARD_BG).pack(side=tk.LEFT, expand=True)
 
         # ---- 右箭头按钮 ----
@@ -572,44 +604,30 @@ class ProjectCard(tk.Frame):
             cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
         ws.row_dimensions[2].height = 35
 
-        # 数据行 (Row 6)
-        today = date.today()
-        date_val = today.strftime('%Y-%m-%d')
-        exc_date = openpyxl.utils.datetime.to_excel_datetime(today) if hasattr(
-            openpyxl.utils.datetime, 'to_excel_datetime') else today
-
-        data = {
-            'A6': 1,
-            'B6': f'{cname}网络安全等级保护测评服务项目',
-            'C6': cname,
-            'D6': '是',
-            'E6': (self.project.location or '').split('-')[0] if self.project.location else '',
-            'F6': sname,
-            'G6': self.project.deadline or date_val,
-            'H6': self.project.deadline or date_val,
-            'I6': self.project.deadline or date_val,
-        }
-        for cell_ref, val in data.items():
-            cell = ws[cell_ref]
+        # 数据行 (Row 3，紧接表头无空行)
+        date_val = self.project.deadline or date.today().strftime('%Y-%m-%d')
+        data = [
+            (1, 'A'), (f'{cname}网络安全等级保护测评服务项目', 'B'), (cname, 'C'),
+            ('是', 'D'),
+            ((self.project.location or '').split('-')[0] if self.project.location else '', 'E'),
+            (sname, 'F'),
+            (date_val, 'G'), (date_val, 'H'), (date_val, 'I'),
+            ('见附件', 'O'), ('见附件', 'P'), ('见附件', 'Q'), ('见附件', 'R'),
+        ]
+        for val, col in data:
+            cell = ws[f'{col}3']
             cell.value = val
             cell.border = thin_border
             cell.alignment = Alignment(horizontal='center', vertical='center')
 
-        # 附件列标注
-        ws['O6'] = '见附件'
-        ws['O6'].border = thin_border
-        ws['O6'].alignment = Alignment(horizontal='center', vertical='center')
-        ws['P6'] = '见附件'
-        ws['P6'].border = thin_border
-        ws['P6'].alignment = Alignment(horizontal='center', vertical='center')
-        ws['Q6'] = '见附件'
-        ws['Q6'].border = thin_border
-        ws['Q6'].alignment = Alignment(horizontal='center', vertical='center')
-        ws['R6'] = '见附件'
-        ws['R6'].border = thin_border
-        ws['R6'].alignment = Alignment(horizontal='center', vertical='center')
+        # 为所有 A-U 列第3行设置完整边框
+        for col_idx in range(1, 22):
+            cell = ws.cell(row=3, column=col_idx)
+            cell.border = thin_border
+            if not cell.value:
+                cell.alignment = Alignment(horizontal='center', vertical='center')
 
-        ws.row_dimensions[6].height = 25
+        ws.row_dimensions[3].height = 25
 
         # 合并单元格 G1-U1
         ws.merge_cells('G1:U1')
