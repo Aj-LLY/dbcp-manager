@@ -170,70 +170,67 @@ class ProjectCard(tk.Frame):
         )
         self._deadline_label.pack(fill=tk.X, pady=(2, 0))
 
-        # ---- 底部按钮栏（居中） ----
+        # ---- 底部按钮栏第1行：操作按钮（居中） ----
         btn_frame = tk.Frame(self._content, bg=Config.CARD_BG)
         btn_frame.pack(fill=tk.X, pady=(4, 0))
 
-        # 用两个弹性空间夹住按钮实现居中布局
-        tk.Frame(btn_frame, bg=Config.CARD_BG).pack(side=tk.LEFT, expand=True)  # 左侧弹性空间
-
-        # 详情按钮 - 打开项目详情窗口
+        tk.Frame(btn_frame, bg=Config.CARD_BG).pack(side=tk.LEFT, expand=True)
         self._detail_btn = tk.Button(
             btn_frame, text="\u8be6\u60c5", command=self._on_detail_click,
             bg="#ecf0f1", fg="#2c3e50",
             font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-            relief="flat", borderwidth=0,
-            cursor="hand2", padx=8, pady=1,
-            activebackground="#d5dbdb",  # 鼠标悬停时背景色
+            relief="flat", borderwidth=0, cursor="hand2", padx=8, pady=1,
+            activebackground="#d5dbdb",
         )
-        self._detail_btn.pack(side=tk.LEFT, padx=(0, 4))  # 右侧4像素间距
-
-        # 编辑按钮 - 直接打开项目编辑对话框
+        self._detail_btn.pack(side=tk.LEFT, padx=(0, 4))
         self._edit_btn = tk.Button(
             btn_frame, text="\u7f16\u8f91", command=self._on_edit_click,
             bg="#3498db", fg="white",
             font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-            relief="flat", borderwidth=0,
-            cursor="hand2", padx=8, pady=1,
+            relief="flat", borderwidth=0, cursor="hand2", padx=8, pady=1,
             activebackground="#2980b9",
         )
         self._edit_btn.pack(side=tk.LEFT)
-
-        # 复制按钮 - 克隆当前项目创建副本
         self._copy_btn = tk.Button(
             btn_frame, text="\u590d\u5236", command=self._on_copy_click,
             bg="#27ae60", fg="white",
             font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-            relief="flat", borderwidth=0,
-            cursor="hand2", padx=8, pady=1,
+            relief="flat", borderwidth=0, cursor="hand2", padx=8, pady=1,
             activebackground="#1e8449",
         )
         self._copy_btn.pack(side=tk.LEFT, padx=(4, 0))
-
-        # 右侧弹性空间
         tk.Frame(btn_frame, bg=Config.CARD_BG).pack(side=tk.LEFT, expand=True)
 
-        # 打开项目文件夹按钮
+        # ---- 底部按钮栏第2行：文件操作（居中） ----
+        file_btn_frame = tk.Frame(self._content, bg=Config.CARD_BG)
+        file_btn_frame.pack(fill=tk.X, pady=(2, 0))
+
+        tk.Frame(file_btn_frame, bg=Config.CARD_BG).pack(side=tk.LEFT, expand=True)
         self._folder_btn = tk.Button(
-            btn_frame, text="\U0001f4c2", command=self._on_folder_click,
+            file_btn_frame, text="\U0001f4c2 \u6253\u5f00", command=self._on_folder_click,
             bg="#ecf0f1", fg="#2c3e50",
-            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-            relief="flat", borderwidth=0,
-            cursor="hand2", padx=6, pady=1,
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
+            relief="flat", borderwidth=0, cursor="hand2", padx=6, pady=1,
             activebackground="#d5dbdb",
         )
-        self._folder_btn.pack(side=tk.LEFT, padx=(0, 0))
-
-        # 文件重命名按钮
+        self._folder_btn.pack(side=tk.LEFT, padx=(0, 2))
         self._rename_btn = tk.Button(
-            btn_frame, text="\U0001f4dd", command=self._on_rename_click,
+            file_btn_frame, text="\U0001f4dd \u91cd\u547d\u540d", command=self._on_rename_click,
             bg="#f0f2f5", fg="#2c3e50",
-            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-            relief="flat", borderwidth=0,
-            cursor="hand2", padx=6, pady=1,
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
+            relief="flat", borderwidth=0, cursor="hand2", padx=6, pady=1,
             activebackground="#d5dbdb",
         )
         self._rename_btn.pack(side=tk.LEFT, padx=(2, 0))
+        self._zip_btn = tk.Button(
+            file_btn_frame, text="\U0001f4e6 \u6253\u5305", command=self._on_zip_click,
+            bg="#f39c12", fg="white",
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
+            relief="flat", borderwidth=0, cursor="hand2", padx=6, pady=1,
+            activebackground="#e67e22",
+        )
+        self._zip_btn.pack(side=tk.LEFT, padx=(2, 0))
+        tk.Frame(file_btn_frame, bg=Config.CARD_BG).pack(side=tk.LEFT, expand=True)
 
         # ---- 右箭头按钮 ----
         # Unicode \u25b6 为 ▶ 字符，点击可将项目移至下一阶段
@@ -406,6 +403,61 @@ class ProjectCard(tk.Frame):
         except Exception as e:
             messagebox.showerror("错误", f"重命名失败: {e}")
 
+    def _on_zip_click(self):
+        """打包过程文档：将项目文件夹中的过程文件压缩为ZIP"""
+        import os, zipfile
+        from tkinter import messagebox
+        try:
+            root = self._find_project_folder()
+            if not root or not os.path.isdir(root):
+                messagebox.showinfo("提示", "未找到项目文件夹")
+                return
+            cname = self.project.company_name or "未命名"
+            sname = self.project.system_name or ""
+            zip_name = f"{cname}-{sname}-过程文档.zip"
+            zip_path = os.path.join(root, zip_name)
+
+            # 需要打包的文件关键词列表
+            pack_keywords = [
+                "保密承诺书", "测评调研表", "测评授权书", "风险告知书",
+                "项目计划书", "测评方案", "首次会议记录", "测评现场记录表",
+                "问题汇总", "漏洞扫描报告", "项目文档移交清单", "末次会议记录",
+                "测评报告-终稿", "服务情况评价表", "报备表",
+            ]
+
+            count = 0
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                # 打包文件
+                for fname in os.listdir(root):
+                    fpath = os.path.join(root, fname)
+                    if not os.path.isfile(fpath) or fname == zip_name:
+                        continue
+                    name_no_ext = os.path.splitext(fname)[0]
+                    for kw in pack_keywords:
+                        if kw in name_no_ext:
+                            zf.write(fpath, fname)
+                            count += 1
+                            break
+                # 打包渗透测试报告目录
+                for dname in os.listdir(root):
+                    dpath = os.path.join(root, dname)
+                    if os.path.isdir(dpath) and "渗透测试报告" in dname:
+                        for dirpath, _, filenames in os.walk(dpath):
+                            for fn in filenames:
+                                fp = os.path.join(dirpath, fn)
+                                arcname = os.path.relpath(fp, root)
+                                zf.write(fp, arcname)
+                                count += 1
+
+            if count > 0:
+                messagebox.showinfo("打包完成",
+                    f"已打包 {count} 个文件\n{zip_name}")
+            else:
+                os.remove(zip_path)
+                messagebox.showinfo("提示", "未找到可打包的过程文件")
+        except Exception as e:
+            messagebox.showerror("错误", f"打包失败: {e}")
+
     def _bind_events(self):
         """绑定鼠标事件到卡片内部所有组件（排除按钮组件，因为它们有独立的command）
 
@@ -414,7 +466,7 @@ class ProjectCard(tk.Frame):
         """
         btn_widgets = {self._prev_btn, self._next_btn,
                        self._detail_btn, self._edit_btn, self._copy_btn,
-                       self._folder_btn, self._rename_btn}  # 排除的按钮组件
+                       self._folder_btn, self._rename_btn, self._zip_btn}
 
         # 先给Frame自身绑定事件
         self.bind("<Button-1>", self._on_click)  # 鼠标左键单击
