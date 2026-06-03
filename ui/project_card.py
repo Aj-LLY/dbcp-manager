@@ -64,6 +64,13 @@ def _show_report_dialog(parent, cname="", sname="", location="", deadline=""):
         except Exception:
             pass
 
+    # ---- 底部按钮（先pack确保障空间）----
+    btn_frame = tk.Frame(dlg, bg="#f0f2f5")
+    btn_frame.pack(fill=tk.X, side=tk.BOTTOM)
+    tk.Frame(btn_frame, bg="#d0d5dd", height=1).pack(fill=tk.X)
+    btn_inner = tk.Frame(btn_frame, bg="#f0f2f5")
+    btn_inner.pack(fill=tk.X, padx=16, pady=8)
+
     # ---- 可滚动内容区域 ----
     canvas = tk.Canvas(dlg, bg="#ffffff", highlightthickness=0)
     scrollbar = tk.Scrollbar(dlg, orient=tk.VERTICAL, command=canvas.yview)
@@ -124,8 +131,15 @@ def _show_report_dialog(parent, cname="", sname="", location="", deadline=""):
         }
 
     def _on_confirm():
+        data = _collect()
+        # 空值回退：项目数据兜底
+        if not data["cname"]: data["cname"] = cname
+        if not data["location"]: data["location"] = location
+        if not data["sname"]: data["sname"] = sname
+        if not data["deadline"]: data["deadline"] = deadline
+        if not data["contract"]: data["contract"] = f"{cname}网络安全等级保护测评服务项目"
         result["confirmed"] = True
-        result["data"] = _collect()
+        result["data"] = data
         dlg.destroy()
 
     def _open_defaults_editor():
@@ -150,6 +164,13 @@ def _show_report_dialog(parent, cname="", sname="", location="", deadline=""):
         dedit.minsize(420, 400)
         dedit.configure(bg="#ffffff")
         dedit.grab_set()
+
+        # 底部按钮（先pack）
+        dbtn_frame = tk.Frame(dedit, bg="#f0f2f5")
+        dbtn_frame.pack(fill=tk.X, side=tk.BOTTOM)
+        tk.Frame(dbtn_frame, bg="#d0d5dd", height=1).pack(fill=tk.X)
+        dbtn_inner = tk.Frame(dbtn_frame, bg="#f0f2f5")
+        dbtn_inner.pack(fill=tk.X, padx=16, pady=8)
 
         dcanvas = tk.Canvas(dedit, bg="#ffffff", highlightthickness=0)
         dscroll = tk.Scrollbar(dedit, orient=tk.VERTICAL, command=dcanvas.yview)
@@ -202,12 +223,7 @@ def _show_report_dialog(parent, cname="", sname="", location="", deadline=""):
             messagebox.showinfo("提示", "默认值已保存", parent=dedit)
             dedit.destroy()
 
-        # 底部按钮
-        dbtn_frame = tk.Frame(dedit, bg="#f0f2f5")
-        dbtn_frame.pack(fill=tk.X, side=tk.BOTTOM)
-        tk.Frame(dbtn_frame, bg="#d0d5dd", height=1).pack(fill=tk.X)
-        dbtn_inner = tk.Frame(dbtn_frame, bg="#f0f2f5")
-        dbtn_inner.pack(fill=tk.X, padx=16, pady=8)
+        # 按钮绑定
         tk.Button(dbtn_inner, text="取消", command=dedit.destroy,
                   bg="#ffffff", fg="#2c3e50", cursor="hand2",
                   font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
@@ -222,12 +238,7 @@ def _show_report_dialog(parent, cname="", sname="", location="", deadline=""):
         dedit.bind("<Return>", lambda e: _save_and_close())
         dedit.bind("<Escape>", lambda e: dedit.destroy())
 
-    # 底部按钮（固定在对话框底部）
-    btn_frame = tk.Frame(dlg, bg="#f0f2f5")
-    btn_frame.pack(fill=tk.X, side=tk.BOTTOM)
-    tk.Frame(btn_frame, bg="#d0d5dd", height=1).pack(fill=tk.X)
-    btn_inner = tk.Frame(btn_frame, bg="#f0f2f5")
-    btn_inner.pack(fill=tk.X, padx=16, pady=8)
+    # ---- 按钮绑定 ----
     tk.Button(btn_inner, text="设置默认值", command=_open_defaults_editor,
               bg="#f0f2f5", fg="#2c3e50", cursor="hand2",
               font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
