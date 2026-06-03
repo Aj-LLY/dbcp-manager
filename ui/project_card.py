@@ -380,15 +380,27 @@ class ProjectCard(tk.Frame):
             sname = (self.project.system_name or "").replace("/", "_").replace("\\", "_")
             new_prefix = f"{cname}-{sname}"
 
+            # match_keyword → (编号, 标准化名称)
             key_map = {
-                "保密承诺书": "02", "测评调研表": "03", "测评授权书": "04",
-                "风险告知书": "05", "项目计划书": "06", "测评方案": "07",
-                "测评方案评审表": "08", "归档材料评审记录表": "08",
-                "首次会议记录": "09", "测评现场记录表": "10", "问题汇总": "11",
-                "漏洞扫描报告": "12", "项目文档移交清单": "14", "末次会议记录": "15",
-                "测评报告-终稿": "16",
-                "测评报告评审表": "17", "测评报告评审记录表": "17",
-                "服务情况评价表": "18", "报备表": "19",
+                "保密承诺书": ("02", "保密承诺书"),
+                "测评调研表": ("03", "测评调研表"),
+                "测评授权书": ("04", "测评授权书"),
+                "风险告知书": ("05", "风险告知书"),
+                "项目计划书": ("06", "项目计划书"),
+                "测评方案": ("07", "测评方案"),
+                "归档材料评审记录表": ("08", "测评方案评审表"),
+                "测评方案评审表": ("08", "测评方案评审表"),
+                "首次会议记录": ("09", "首次会议记录"),
+                "测评现场记录表": ("10", "测评现场记录表"),
+                "问题汇总": ("11", "问题汇总"),
+                "漏洞扫描报告": ("12", "漏洞扫描报告"),
+                "项目文档移交清单": ("14", "项目文档移交清单"),
+                "末次会议记录": ("15", "末次会议记录"),
+                "测评报告-终稿": ("16", "测评报告-终稿"),
+                "测评报告评审记录表": ("17", "测评报告评审表"),
+                "测评报告评审表": ("17", "测评报告评审表"),
+                "服务情况评价表": ("18", "服务情况评价表"),
+                "报备表": ("19", "报备表"),
             }
 
             renamed = 0
@@ -442,8 +454,8 @@ class ProjectCard(tk.Frame):
                     rest = name_no_ext[len(num) + 1:]
                     for keyword in sorted(key_map, key=len, reverse=True):
                         if keyword in rest:
-                            target_num = key_map[keyword]
-                            new_name = f"{target_num}-{new_prefix}-{keyword}{ext}"
+                            num, target_kw = key_map[keyword]
+                            new_name = f"{num}-{new_prefix}-{target_kw}{ext}"
                             if new_name != fname:
                                 new_path = os.path.join(root, new_name)
                                 if not os.path.exists(new_path):
@@ -455,8 +467,8 @@ class ProjectCard(tk.Frame):
                 else:
                     for keyword in sorted(key_map, key=len, reverse=True):
                         if keyword in name_no_ext:
-                            num = key_map[keyword]
-                            new_name = f"{num}-{new_prefix}-{keyword}{ext}"
+                            num, target_kw = key_map[keyword]
+                            new_name = f"{num}-{new_prefix}-{target_kw}{ext}"
                             new_path = os.path.join(root, new_name)
                             if not os.path.exists(new_path):
                                 os.rename(fpath, new_path)
@@ -580,7 +592,7 @@ class ProjectCard(tk.Frame):
             # 创建 XLSX
             xlsx_name = f"00-{prefix}-测评报告打印信息.xlsx"
             xlsx_path = os.path.join(report_dir, xlsx_name)
-            self._create_report_xlsx(xlsx_path, cname, sname)
+            self._create_report_xlsx(xlsx_path, cname, sname, report_dir, root)
 
             # 复制文件到报告打印目录
             copied = 0
@@ -611,8 +623,9 @@ class ProjectCard(tk.Frame):
         except Exception as e:
             messagebox.showerror("错误", f"报告打印失败: {e}")
 
-    def _create_report_xlsx(self, path, cname, sname):
+    def _create_report_xlsx(self, path, cname, sname, report_dir, root):
         """创建测评报告打印信息XLSX文件"""
+        import os as _os
         import openpyxl
         from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
         from datetime import date
@@ -661,7 +674,7 @@ class ProjectCard(tk.Frame):
             ((self.project.location or '').split('-')[0] if self.project.location else '', 'E'),
             (sname, 'F'),
             (date_val, 'G'), (date_val, 'H'), (date_val, 'I'),
-            ('见附件', 'O'), ('见附件', 'P'), ('见附件', 'Q'), ('见附件', 'R'),
+            ('双击打开附件', 'O'), ('双击打开附件', 'P'), ('双击打开附件', 'Q'), ('双击打开附件', 'R'),
         ]
         for val, col in data:
             cell = ws[f'{col}3']
@@ -680,6 +693,33 @@ class ProjectCard(tk.Frame):
 
         # 合并单元格 G1-U1
         ws.merge_cells('G1:U1')
+
+        # 附件超链接: O=基本情况表, P=授权书+风险告知书, Q=测评报告, R=过程文档
+        link_map = {
+            'O': ['基本情况表'],
+            'P': ['测评授权书', '风险告知书'],
+            'Q': ['测评报告-终稿'],
+            'R': ['过程文档.zip'],
+        }
+        for col, keywords in link_map.items():
+            found = False
+            for kw in keywords:
+                for d in [report_dir, root]:
+                    if not _os.path.isdir(d):
+                        continue
+                    for fname in _os.listdir(d):
+                        if kw in fname:
+                            fpath = _os.path.join(d, fname)
+                            cell = ws[f'{col}3']
+                            cell.value = fname
+                            cell.hyperlink = fpath
+                            cell.font = Font(color='0563C1', underline='single', size=10)
+                            found = True
+                            break
+                    if found:
+                        break
+                if found:
+                    break
 
         wb.save(path)
 
