@@ -331,35 +331,24 @@ class ProjectCard(tk.Frame):
         return ""
 
     def _on_rename_click(self):
-        """一键重命名：将项目文件夹中未规范命名的文件按规则重命名"""
+        """一键重命名：修正文件中的公司名称和系统名称，并规范化命名"""
         import os, re
         from tkinter import messagebox
         try:
             root = self._find_project_folder()
             if not root or not os.path.isdir(root):
+                messagebox.showinfo("提示", "未找到项目文件夹，请先在编辑中设置文件夹路径")
                 return
-            cname = self.project.company_name or "未命名"
-            sname = self.project.system_name or ""
-            prefix = f"{cname}-{sname}"
+            cname = (self.project.company_name or "未命名").replace("/", "_").replace("\\", "_")
+            sname = (self.project.system_name or "").replace("/", "_").replace("\\", "_")
+            new_prefix = f"{cname}-{sname}"
 
-            # 关键词→编号映射
             key_map = {
-                "保密承诺书": "02",
-                "测评调研表": "03",
-                "测评授权书": "04",
-                "风险告知书": "05",
-                "项目计划书": "06",
-                "测评方案": "07",
-                "首次会议记录": "09",
-                "测评现场记录表": "10",
-                "问题汇总": "11",
-                "漏洞扫描报告": "12",
-                "项目文档移交清单": "14",
-                "末次会议记录": "15",
-                "测评报告-终稿": "16",
-                "服务情况评价表": "18",
-                "报备表": "19",
-                "过程文档": "过程文档",
+                "保密承诺书": "02", "测评调研表": "03", "测评授权书": "04",
+                "风险告知书": "05", "项目计划书": "06", "测评方案": "07",
+                "首次会议记录": "09", "测评现场记录表": "10", "问题汇总": "11",
+                "漏洞扫描报告": "12", "项目文档移交清单": "14", "末次会议记录": "15",
+                "测评报告-终稿": "16", "服务情况评价表": "18", "报备表": "19",
             }
 
             renamed = 0
@@ -367,26 +356,54 @@ class ProjectCard(tk.Frame):
                 fpath = os.path.join(root, fname)
                 if not os.path.isfile(fpath):
                     continue
-                # 跳过已规范命名的文件
-                if re.match(r"^\d{2}-", fname):
-                    continue
                 name_no_ext, ext = os.path.splitext(fname)
-                for keyword, num in key_map.items():
-                    if keyword in name_no_ext:
-                        new_name = f"{num}-{prefix}-{keyword}{ext}"
-                        new_path = os.path.join(root, new_name)
-                        if not os.path.exists(new_path):
-                            os.rename(fpath, new_path)
+
+                # 匹配已编号文件: 02-旧公司-旧系统-关键词.ext
+                m = re.match(r"^(\d{2})-(.+)-(.+)", name_no_ext)
+                if m:
+                    num = m.group(1)
+                    # 从文件名末尾提取关键词
+                    rest = name_no_ext[len(num) + 1:]  # 去掉编号-
+                    for keyword in key_map:
+                        if rest.endswith(keyword):
+                            new_name = f"{num}-{new_prefix}-{keyword}{ext}"
+                            if new_name != fname:
+                                new_path = os.path.join(root, new_name)
+                                if not os.path.exists(new_path):
+                                    os.rename(fpath, new_path)
+                                    renamed += 1
+                            break
+                else:
+                    # 未编号文件：关键词匹配
+                    for keyword, num in key_map.items():
+                        if keyword in name_no_ext:
+                            new_name = f"{num}-{new_prefix}-{keyword}{ext}"
+                            new_path = os.path.join(root, new_name)
+                            if not os.path.exists(new_path):
+                                os.rename(fpath, new_path)
+                                renamed += 1
+                            break
+
+            # 同步更新子目录中的公司系统名
+            for dname in os.listdir(root):
+                dpath = os.path.join(root, dname)
+                if not os.path.isdir(dpath):
+                    continue
+                for keyword, num in {"报告打印": "00", "渗透测试报告": "13"}.items():
+                    if keyword in dname and (cname not in dname or sname not in dname):
+                        new_dname = f"{num}-{new_prefix}-{keyword}"
+                        new_dpath = os.path.join(root, new_dname)
+                        if not os.path.exists(new_dpath):
+                            os.rename(dpath, new_dpath)
                             renamed += 1
                         break
 
             if renamed:
-                messagebox.showinfo("重命名完成", f"已重命名 {renamed} 个文件")
-            elif messagebox.askyesno("未找到可重命名文件",
-                                      "未发现需要重命名的文件。\n是否打开文件夹手动处理？"):
-                self._on_folder_click()
-        except Exception:
-            pass
+                messagebox.showinfo("重命名完成", f"已重命名 {renamed} 个项目")
+            else:
+                messagebox.showinfo("提示", "所有文件名已是最新，无需重命名")
+        except Exception as e:
+            messagebox.showerror("错误", f"重命名失败: {e}")
 
     def _bind_events(self):
         """绑定鼠标事件到卡片内部所有组件（排除按钮组件，因为它们有独立的command）
