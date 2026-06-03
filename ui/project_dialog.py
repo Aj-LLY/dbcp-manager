@@ -336,7 +336,25 @@ class ProjectDialog(tk.Toplevel):
             values=stage_names, state="readonly",  # 只读下拉框，防止用户输入
             font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
         )
-        self._stage_combo.pack(fill=tk.X, pady=(2, 10))  # 水平填充
+        self._stage_combo.pack(fill=tk.X, pady=(2, 5))
+
+        # 项目文件夹管理
+        tk.Label(main_frame, text="项目文件夹", bg="#ffffff",
+                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
+                 ).pack(anchor="w")
+        folder_row = tk.Frame(main_frame, bg="#ffffff")
+        folder_row.pack(fill=tk.X, pady=(2, 10))
+        self._folder_path_var = tk.StringVar()
+        self._folder_entry, fp_outer = bordered_entry(
+            folder_row, textvariable=self._folder_path_var,
+        )
+        fp_outer.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        tk.Button(
+            folder_row, text="创建/刷新目录", command=self._on_create_folders,
+            bg="#f0f2f5", fg="#2c3e50", relief="flat", cursor="hand2",
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+            padx=8, pady=2, activebackground="#d5dbdb",
+        ).pack(side=tk.LEFT, padx=(6, 0))
 
         # 备注输入（带滚动条和外边框的多行文本框）
         tk.Label(main_frame, text="备注信息", bg="#ffffff",
@@ -384,6 +402,7 @@ class ProjectDialog(tk.Toplevel):
                     self._province_var.set(parts[0])
                     self._on_province_change(keep_city=parts[1])
             self._deadline_var.set(self._project.deadline)
+            self._folder_path_var.set(self._project.folder_path or "")
 
             # 根据项目的stage_id匹配并选中对应的阶段下拉项
             for stage in self._stages:
@@ -491,8 +510,30 @@ class ProjectDialog(tk.Toplevel):
             "deadline": deadline,
             "notes": self._notes_text.get("1.0", "end-1c").strip(),
             "stage_id": stage_id,
+            "folder_path": self._folder_path_var.get().strip(),
         }
         self.destroy()  # 关闭对话框
+
+    def _on_create_folders(self):
+        """创建/刷新项目文件夹目录结构"""
+        import os
+        try:
+            root = self._folder_path_var.get().strip()
+            if not root:
+                messagebox.showwarning("提示", "请先输入或选择文件夹路径", parent=self)
+                return
+            cname = (self._company_var.get().strip() or "未命名").replace("/", "_").replace("\\", "_")
+            sname = (self._system_var.get().strip() or "").replace("/", "_").replace("\\", "_")
+            subdirs = [
+                "01-其他归档文件",
+                f"00-{cname}-{sname}-报告打印",
+                f"13-{cname}-{sname}-渗透测试报告",
+            ]
+            for d in subdirs:
+                os.makedirs(os.path.join(root, d), exist_ok=True)
+            messagebox.showinfo("完成", "项目目录结构已创建/刷新", parent=self)
+        except OSError as e:
+            messagebox.showerror("错误", f"创建失败: {e}", parent=self)
 
     def _get_location(self) -> str:
         """获取属地：省区-市区格式"""

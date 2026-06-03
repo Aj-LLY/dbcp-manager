@@ -306,9 +306,13 @@ class ProjectCard(tk.Frame):
             pass
 
     def _find_project_folder(self) -> str:
-        """查找项目文件夹路径"""
+        """查找项目文件夹路径（优先使用存储路径，回退搜索）"""
         import os
         from utils.config import Config
+        # 优先使用存储的路径
+        if self.project.folder_path and os.path.exists(self.project.folder_path):
+            return self.project.folder_path
+        # 回退：按公司名+系统名+日期搜索
         base = Config.get_data_dir()
         if not os.path.exists(base):
             return ""
@@ -319,7 +323,7 @@ class ProjectCard(tk.Frame):
         else:
             date_str = ""
         for name in os.listdir(base):
-            if cname in name and sname in name and date_str in name:
+            if os.path.isdir(os.path.join(base, name)) and cname in name and sname in name and date_str in name:
                 return os.path.join(base, name)
         return base
 
@@ -374,10 +378,9 @@ class ProjectCard(tk.Frame):
                         break
 
             if renamed:
-                messagebox.showinfo("重命名完成", f"已重命名 {renamed} 个文件", parent=self)
+                messagebox.showinfo("重命名完成", f"已重命名 {renamed} 个文件")
             elif messagebox.askyesno("未找到可重命名文件",
-                                      "未发现需要重命名的文件。\n是否打开文件夹手动处理？",
-                                      parent=self):
+                                      "未发现需要重命名的文件。\n是否打开文件夹手动处理？"):
                 self._on_folder_click()
         except Exception:
             pass
