@@ -1,116 +1,178 @@
 """
 配置模块 - 管理应用程序的所有常量配置和默认值
 
-提供：
-- 文件路径配置（数据文件、日志文件等）
-- 默认流程步骤定义
-- UI颜色和样式常量
-- 应用程序元数据
+本模块定义应用程序的全局配置类 Config，所有配置项以静态方法和类变量的形式组织，
+无需实例化即可通过 Config.XXX 直接访问。
+
+配置分类：
+  1. 应用程序元数据：名称、版本、作者
+  2. 文件路径配置：数据文件、日志文件、配置文件路径（支持打包和源码运行两种模式）
+  3. 默认流程步骤：8 个等保测评标准流程阶段的默认定义
+  4. UI 样式配置：看板颜色、卡片颜色、字体、窗口尺寸等
+  5. 日期格式：用于格式化和显示的标准日期/时间格式
+  6. 状态颜色映射：不同项目状态对应的卡片背景色
+  7. 业务配置：截止日期预警天数
+
+路径策略（get_data_dir）：
+  - PyInstaller 打包运行（sys.frozen = True）：
+      1. 优先使用 EXE 同目录的 data 文件夹（便携模式）
+      2. 回退到用户 AppData 目录（防止 EXE 更新导致数据丢失）
+  - 源码运行（sys.frozen = False）：
+      使用项目源码根目录（main.py 所在目录的上级）
 """
 
-import os  # 操作系统接口模块，用于路径拼接和目录操作
-import sys  # 系统相关模块，用于判断是否为打包后的可执行文件环境
+# =============================================================================
+# 导入区
+# =============================================================================
+
+import os  # 操作系统接口模块，用于路径拼接、目录检查和环境变量读取
+import sys  # 系统相关模块，用于判断是否为 PyInstaller 打包后的可执行文件环境
 
 
 class Config:
     """应用程序全局配置类
-    所有配置项以类变量和类方法的形式组织，无需实例化即可使用
+
+    所有配置项以类变量（直接访问）和类方法（@classmethod / @staticmethod）的形式组织。
+    纯静态设计，无需创建实例即可使用，例如：
+      - Config.APP_NAME       # 获取应用名称
+      - Config.get_data_dir() # 获取数据目录路径
     """
 
-    # ==================== 应用程序元数据 ====================
-    APP_NAME = "项目进度管理系统"  # 应用程序显示名称
-    APP_VERSION = "2.8.0"               # 当前版本号
-    APP_AUTHOR = "网络安全测评团队"       # 开发/维护团队名称
+    # =============================================================================
+    # 应用程序元数据
+    # =============================================================================
 
-    # ==================== 文件路径配置 ====================
+    APP_NAME = "项目进度管理系统"  # 应用程序在产品界面和打包名称中的显示名称
+    APP_VERSION = "3.0.0"         # 当前版本号（语义化版本格式：主.次.修订）
+    APP_AUTHOR = "网络安全测评团队"  # 开发/维护团队名称（用于打包元数据）
+
+    # =============================================================================
+    # 文件路径配置
+    # =============================================================================
+
     @staticmethod
     def get_data_dir():
         """获取数据文件存储目录
-        使用用户 AppData 目录，确保 EXE 更新后数据不丢失
+
+        根据运行模式返回不同的数据目录路径：
+
+        打包运行模式（sys.frozen = True）：
+          1. 优先检查 EXE 同目录下是否存在 data 文件夹（便携模式）
+             如果存在：返回 EXE 所在目录
+          2. 否则：返回用户 AppData 目录下的程序专用文件夹
+             路径示例：C:/Users/xxx/AppData/Roaming/等保测评进度管理系统/
+
+        源码运行模式（sys.frozen = False）：
+          返回项目源码根目录（main.py 文件所在目录的上一级）
+
+        Returns:
+            str: 数据存储根目录的绝对路径
         """
         if getattr(sys, 'frozen', False):  # 检查是否在 PyInstaller 等打包环境中运行
-            # 优先使用 EXE 同目录的 data 文件夹（便携模式）
-            exe_dir = os.path.dirname(sys.executable)
-            portable_data = os.path.join(exe_dir, "data")
-            if os.path.exists(portable_data):
-                return exe_dir
-            # 回退到用户 AppData 目录（EXE 更新也不会丢失）
-            appdata = os.environ.get("APPDATA", os.path.expanduser("~"))
-            base_dir = os.path.join(appdata, "等保测评进度管理系统")
-            return base_dir
+            # 打包环境：先尝试便携模式
+            exe_dir = os.path.dirname(sys.executable)  # 获取 EXE 文件所在目录
+            portable_data = os.path.join(exe_dir, "data")  # 便携 data 文件夹路径
+            if os.path.exists(portable_data):  # 如果便携 data 文件夹存在
+                return exe_dir  # 使用便携模式（数据与 EXE 同目录）
+            # 回退到用户 AppData 目录（EXE 更新不会影响此目录中的数据）
+            appdata = os.environ.get("APPDATA", os.path.expanduser("~"))  # Windows AppData 或用户主目录
+            base_dir = os.path.join(appdata, "等保测评进度管理系统")  # 程序专用目录
+            return base_dir  # 返回 AppData 路径
         else:
-            # 源码运行：使用项目根目录
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            # 源码运行模式：返回项目根目录
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # utils/../ = 项目根目录
             return base_dir
 
     @classmethod
     def get_data_file_path(cls):
-        """获取主数据文件完整路径"""
-        return os.path.join(cls.get_data_dir(), "data", "dap_data.json")  # 拼接 data/dap_data.json 完整路径
+        """获取主数据文件完整路径
+
+        Returns:
+            str: data/dap_data.json 的完整绝对路径
+        """
+        return os.path.join(cls.get_data_dir(), "data", "dap_data.json")  # 拼接路径
 
     @classmethod
     def get_log_file_path(cls):
-        """获取操作日志文件路径"""
-        return os.path.join(cls.get_data_dir(), "data", "operation_log.json")  # 拼接 data/operation_log.json 完整路径
+        """获取操作日志文件完整路径
 
-    # ==================== 默认流程步骤 ====================
+        Returns:
+            str: data/operation_log.json 的完整绝对路径
+        """
+        return os.path.join(cls.get_data_dir(), "data", "operation_log.json")  # 拼接路径
+
+    # =============================================================================
+    # 默认流程步骤 - 等保测评标准流程的 8 个阶段定义
+    # =============================================================================
+
     DEFAULT_WORKFLOW_STAGES = [
-        # 等保测评标准流程的8个阶段，每个阶段包含唯一ID、显示名称、排序序号和主题颜色
-        {"id": "stage_1", "name": "项目启动", "order": 0, "color": "#3498db"},  # 蓝色 - 第一步：项目启动
-        {"id": "stage_2", "name": "现状调研", "order": 1, "color": "#2ecc71"},  # 绿色 - 第二步：现状调研
-        {"id": "stage_3", "name": "差距评估", "order": 2, "color": "#e67e22"},  # 橙色 - 第三步：差距评估
-        {"id": "stage_4", "name": "方案设计", "order": 3, "color": "#9b59b6"},  # 紫色 - 第四步：方案设计
-        {"id": "stage_5", "name": "整改实施", "order": 4, "color": "#e74c3c"},  # 红色 - 第五步：整改实施
-        {"id": "stage_6", "name": "测评验收", "order": 5, "color": "#1abc9c"},  # 青色 - 第六步：测评验收
-        {"id": "stage_7", "name": "报告输出", "order": 6, "color": "#f39c12"},  # 黄色 - 第七步：报告输出
-        {"id": "stage_8", "name": "项目归档", "order": 7, "color": "#95a5a6"},  # 灰色 - 第八步：项目归档
+        {"id": "stage_1", "name": "项目启动", "order": 0, "color": "#3498db"},  # 阶段1：蓝色 - 项目启动
+        {"id": "stage_2", "name": "现状调研", "order": 1, "color": "#2ecc71"},  # 阶段2：绿色 - 系统信息收集与分析
+        {"id": "stage_3", "name": "差距评估", "order": 2, "color": "#e67e22"},  # 阶段3：橙色 - 安全现状与标准的差距分析
+        {"id": "stage_4", "name": "方案设计", "order": 3, "color": "#9b59b6"},  # 阶段4：紫色 - 安全整改方案设计
+        {"id": "stage_5", "name": "整改实施", "order": 4, "color": "#e74c3c"},  # 阶段5：红色 - 安全整改实施与推进
+        {"id": "stage_6", "name": "测评验收", "order": 5, "color": "#1abc9c"},  # 阶段6：青色 - 整改后测评与验收
+        {"id": "stage_7", "name": "报告输出", "order": 6, "color": "#f39c12"},  # 阶段7：黄色 - 测评报告编制与输出
+        {"id": "stage_8", "name": "项目归档", "order": 7, "color": "#95a5a6"},  # 阶段8：灰色 - 项目资料归档与结项
     ]
 
-    # ==================== UI样式配置 ====================
-    # 看板颜色 - 控制看板界面各组件的背景和边框颜色
-    KANBAN_BG = "#f0f2f5"           # 看板整体背景色（浅灰蓝）
-    COLUMN_BG = "#e8eaed"           # 单列背景色（浅灰）
-    COLUMN_HEADER_BG = "#dfe1e6"    # 列标题背景色（略深灰）
-    CARD_BG = "#ffffff"             # 卡片背景色（白色）
-    CARD_BORDER = "#d0d5dd"         # 卡片边框颜色（浅灰）
-    CARD_HOVER_BG = "#f8f9fa"       # 鼠标悬停时卡片背景色（极浅灰）
+    # =============================================================================
+    # UI 样式配置 - 看板界面的视觉参数
+    # =============================================================================
 
-    # 字体配置 - 统一界面的字体族和字号规格
-    FONT_FAMILY = "Microsoft YaHei"  # 默认字体族（微软雅黑，适合中文显示）
-    FONT_SIZE_SMALL = 9               # 小字号（用于辅助信息）
-    FONT_SIZE_NORMAL = 10             # 正常字号（用于正文内容）
-    FONT_SIZE_LARGE = 12              # 大字号（用于标题）
-    FONT_SIZE_TITLE = 14              # 标题字号
-    FONT_SIZE_HEADER = 16             # 页头字号
+    # --- 看板颜色体系 ---
+    KANBAN_BG = "#f0f2f5"     # 看板整体背景色（浅灰蓝，柔和视觉）
+    COLUMN_BG = "#e8eaed"     # 单列背景色（浅灰，与看板区分层次）
+    COLUMN_HEADER_BG = "#dfe1e6"  # 列标题背景色（略深灰，形成视觉层次）
+    CARD_BG = "#ffffff"       # 卡片背景色（纯白，模拟纸质卡片的物理感）
+    CARD_BORDER = "#d0d5dd"   # 卡片边框颜色（浅灰，柔和边界）
+    CARD_HOVER_BG = "#f8f9fa" # 鼠标悬停时卡片背景色（极浅灰，微妙反馈）
 
-    # 窗口默认大小
-    WINDOW_WIDTH = 1500  # 主窗口默认宽度（像素）
-    WINDOW_HEIGHT = 850  # 主窗口默认高度（像素）
+    # --- 字体配置 ---
+    FONT_FAMILY = "Microsoft YaHei"  # 默认字体族（微软雅黑，Windows 最佳中文显示效果）
+    FONT_SIZE_SMALL = 9               # 小字号 - 辅助信息、提示文字
+    FONT_SIZE_NORMAL = 10             # 正常字号 - 正文内容、按钮文字
+    FONT_SIZE_LARGE = 12              # 大字号 - 子标题
+    FONT_SIZE_TITLE = 14              # 标题字号 - 区块标题
+    FONT_SIZE_HEADER = 16             # 页头字号 - 窗口/对话框标题
+
+    # --- 窗口默认尺寸 ---
+    WINDOW_WIDTH = 1500  # 主窗口默认宽度（像素），适配 1920x1080 屏幕
+    WINDOW_HEIGHT = 850  # 主窗口默认高度（像素），留出任务栏和状态栏空间
     WINDOW_MIN_WIDTH = 900   # 主窗口最小宽度（防止缩得过小导致布局错乱）
     WINDOW_MIN_HEIGHT = 500  # 主窗口最小高度
 
-    # 卡片尺寸
-    CARD_WIDTH = 200       # 每个项目卡片的固定宽度（像素）
-    CARD_MIN_HEIGHT = 80   # 每个项目卡片的最小高度（像素）
+    # --- 卡片尺寸 ---
+    CARD_WIDTH = 200       # 每张项目卡片的固定宽度（像素）
+    CARD_MIN_HEIGHT = 80   # 每张项目卡片的最小高度（像素）
 
-    # 列尺寸
-    COLUMN_WIDTH = 260        # 每个阶段列的固定宽度（像素）
+    # --- 列尺寸 ---
+    COLUMN_WIDTH = 260        # 每个阶段列的默认宽度（像素）
     COLUMN_MIN_HEIGHT = 400   # 每个阶段列的最小高度（像素）
 
-    # 工具栏高度
-    TOOLBAR_HEIGHT = 45  # 顶部工具栏的高度（像素）
+    # --- 工具栏尺寸 ---
+    TOOLBAR_HEIGHT = 45  # 顶部工具栏固定高度（像素），足够容纳按钮和提示
 
-    # ==================== 日期格式 ====================
-    DATE_FORMAT = "%Y-%m-%d"                  # 日期显示格式（年-月-日）
-    DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"     # 日期时间显示格式（年-月-日 时:分:秒）
+    # =============================================================================
+    # 日期格式 - 统一的日期时间显示格式
+    # =============================================================================
 
-    # ==================== 状态颜色映射 ====================
+    DATE_FORMAT = "%Y-%m-%d"              # 日期显示格式：YYYY-MM-DD（如 2026-06-03）
+    DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S" # 日期时间显示格式：YYYY-MM-DD HH:MM:SS
+
+    # =============================================================================
+    # 状态颜色映射 - 不同项目状态对应的卡片背景色
+    # =============================================================================
+
     STATUS_COLORS = {
-        "normal": "#ffffff",      # 正常状态：白色背景
-        "warning": "#fff3cd",     # 即将到期（7天内）：浅黄色背景，起警示作用
-        "overdue": "#f8d7da",     # 已超期：浅红色背景，表示严重逾期
-        "completed": "#d4edda",   # 已完成（归档阶段）：浅绿色背景，表示已完成
+        "normal": "#ffffff",      # 正常状态：白色背景（默认）
+        "warning": "#fff3cd",     # 即将到期（7 天内）：浅黄色背景，起警示作用
+        "overdue": "#f8d7da",     # 已超期：浅红色背景，表示严重逾期需立即处理
+        "completed": "#d4edda",   # 已完成（归档阶段）：浅绿色背景，表示已结项
     }
 
-    # 截止日期预警天数
-    DEADLINE_WARNING_DAYS = 7  # 截止日期前多少天开始显示黄色预警
+    # =============================================================================
+    # 业务配置
+    # =============================================================================
+
+    DEADLINE_WARNING_DAYS = 7  # 截止日期前多少天开始显示橙色预警（0 天不预警，7 天提前提醒）
