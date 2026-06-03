@@ -359,13 +359,13 @@ class ProjectCard(tk.Frame):
                 name_no_ext, ext = os.path.splitext(fname)
 
                 # 匹配已编号文件: 02-旧公司-旧系统-关键词.ext
-                m = re.match(r"^(\d{2})-(.+)-(.+)", name_no_ext)
+                m = re.match(r"^(\d{2})-(.+)", name_no_ext)
                 if m:
                     num = m.group(1)
-                    # 从文件名末尾提取关键词
                     rest = name_no_ext[len(num) + 1:]  # 去掉编号-
-                    for keyword in key_map:
-                        if rest.endswith(keyword):
+                    # 按关键词长度降序匹配（避免"测评方案"误匹配"测评报告-终稿"）
+                    for keyword in sorted(key_map, key=len, reverse=True):
+                        if keyword in rest:
                             new_name = f"{num}-{new_prefix}-{keyword}{ext}"
                             if new_name != fname:
                                 new_path = os.path.join(root, new_name)
@@ -374,9 +374,10 @@ class ProjectCard(tk.Frame):
                                     renamed += 1
                             break
                 else:
-                    # 未编号文件：关键词匹配
-                    for keyword, num in key_map.items():
+                    # 未编号文件：按关键词长度降序匹配
+                    for keyword in sorted(key_map, key=len, reverse=True):
                         if keyword in name_no_ext:
+                            num = key_map[keyword]
                             new_name = f"{num}-{new_prefix}-{keyword}{ext}"
                             new_path = os.path.join(root, new_name)
                             if not os.path.exists(new_path):
