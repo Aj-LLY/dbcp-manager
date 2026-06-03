@@ -63,12 +63,13 @@ def _show_report_dialog(parent, cname="", sname="", location="", deadline=""):
         except Exception:
             pass
 
-    canvas = tk.Canvas(dlg, bg="#ffffff", highlightthickness=0)
+    canvas = tk.Canvas(dlg, bg="#ffffff", highlightthickness=0, width=500)
     scrollbar = tk.Scrollbar(dlg, orient=tk.VERTICAL, command=canvas.yview)
     canvas.configure(yscrollcommand=scrollbar.set)
     main = tk.Frame(canvas, bg="#ffffff", padx=20, pady=15)
     main.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-    canvas.create_window((0, 0), window=main, anchor="nw", width=500)
+    cw_id = canvas.create_window((0, 0), window=main, anchor="nw")
+    canvas.bind("<Configure>", lambda e: canvas.itemconfig(cw_id, width=e.width - 4))
     scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
     canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
@@ -123,22 +124,103 @@ def _show_report_dialog(parent, cname="", sname="", location="", deadline=""):
         result["data"] = _collect()
         dlg.destroy()
 
-    def _save_defaults():
+    def _open_defaults_editor():
+        """打开设置默认值的独立编辑框"""
         import json, os
         from utils.config import Config
         path = os.path.join(Config.get_data_dir(), "data", "report_defaults.json")
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(_collect(), f, ensure_ascii=False, indent=2)
-        messagebox.showinfo("提示", "默认值已保存", parent=dlg)
+        saved = {}
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    saved = json.load(f)
+            except Exception:
+                pass
+        # 如果无保存值，用当前对话框数据填充
+        if not any(saved.values()):
+            saved = _collect()
 
-    # 底部按钮
+        dedit = tk.Toplevel(dlg)
+        dedit.title("设置默认值")
+        dedit.geometry("500x550")
+        dedit.configure(bg="#ffffff")
+        dedit.grab_set()
+
+        dcanvas = tk.Canvas(dedit, bg="#ffffff", highlightthickness=0)
+        dscroll = tk.Scrollbar(dedit, orient=tk.VERTICAL, command=dcanvas.yview)
+        dcanvas.configure(yscrollcommand=dscroll.set)
+        dmain = tk.Frame(dcanvas, bg="#ffffff", padx=20, pady=15)
+        dmain.bind("<Configure>", lambda e: dcanvas.configure(scrollregion=dcanvas.bbox("all")))
+        dcanvas.create_window((0, 0), window=dmain, anchor="nw", tags="dw")
+        dcanvas.bind("<Configure>", lambda e: dcanvas.itemconfig("dw", width=e.width - 4))
+        dscroll.pack(side=tk.RIGHT, fill=tk.Y)
+        dcanvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        dvars = {}
+        for label, key in [
+            ("客户公司全称", "cname"), ("合同编号或项目名称", "contract"),
+            ("所属地", "location"), ("系统名称", "sname"), ("是否录入CRM", "crm"),
+            ("编制/审核/批准日期", "deadline"), ("编制人", "author"),
+            ("审核人", "reviewer"), ("渗透人员", "pentester"),
+            ("测评结论及重大风险隐患数量", "conclusion"), ("盖章", "seal"),
+            ("打印要求", "print_req"), ("项目组长联系人", "leader"),
+            ("实际报告编制人", "actual_author"),
+        ]:
+            tk.Label(dmain, text=label, bg="#ffffff",
+                     font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL)).pack(anchor="w")
+            var = tk.StringVar(value=saved.get(key, ""))
+            from utils.helpers import bordered_entry
+            _, outer = bordered_entry(dmain, textvariable=var, width=40)
+            outer.pack(fill=tk.X, pady=(2, 5))
+            dvars[key] = var
+
+        def _save_and_close():
+            data = {k: v.get().strip() for k, v in dvars.items()}
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            # 回填到主对话框
+            for key, var in dvars.items():
+                target = {
+                    "cname": v_cname, "contract": v_contract, "location": v_location,
+                    "sname": v_sname, "crm": v_crm, "deadline": v_deadline,
+                    "author": v_author, "reviewer": v_reviewer, "pentester": v_pentester,
+                    "conclusion": v_conclusion, "seal": v_seal,
+                    "print_req": v_print_req, "leader": v_leader,
+                    "actual_author": v_actual,
+                }.get(key)
+                if target:
+                    target.set(data[key])
+            messagebox.showinfo("提示", "默认值已保存", parent=dedit)
+            dedit.destroy()
+
+        # 底部按钮
+        dbtn_frame = tk.Frame(dedit, bg="#f0f2f5")
+        dbtn_frame.pack(fill=tk.X, side=tk.BOTTOM)
+        tk.Frame(dbtn_frame, bg="#d0d5dd", height=1).pack(fill=tk.X)
+        dbtn_inner = tk.Frame(dbtn_frame, bg="#f0f2f5")
+        dbtn_inner.pack(fill=tk.X, padx=16, pady=8)
+        tk.Button(dbtn_inner, text="取消", command=dedit.destroy,
+                  bg="#ffffff", fg="#2c3e50", cursor="hand2",
+                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                  relief="flat", padx=20, pady=5,
+                  highlightbackground="#d0d5dd", highlightthickness=1,
+                  ).pack(side=tk.RIGHT, padx=(10, 0))
+        tk.Button(dbtn_inner, text="保存", command=_save_and_close,
+                  bg="#3498db", fg="white", cursor="hand2",
+                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
+                  relief="flat", padx=20, pady=5,
+                  ).pack(side=tk.RIGHT)
+        dedit.bind("<Return>", lambda e: _save_and_close())
+        dedit.bind("<Escape>", lambda e: dedit.destroy())
+
+    # 底部按钮（固定在对话框底部）
     btn_frame = tk.Frame(dlg, bg="#f0f2f5")
     btn_frame.pack(fill=tk.X, side=tk.BOTTOM)
     tk.Frame(btn_frame, bg="#d0d5dd", height=1).pack(fill=tk.X)
     btn_inner = tk.Frame(btn_frame, bg="#f0f2f5")
     btn_inner.pack(fill=tk.X, padx=16, pady=8)
-    tk.Button(btn_inner, text="保存默认值", command=_save_defaults,
+    tk.Button(btn_inner, text="设置默认值", command=_open_defaults_editor,
               bg="#f0f2f5", fg="#2c3e50", cursor="hand2",
               font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
               relief="flat", padx=12, pady=5,
@@ -149,12 +231,14 @@ def _show_report_dialog(parent, cname="", sname="", location="", deadline=""):
               font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
               relief="flat", padx=20, pady=5,
               highlightbackground="#d0d5dd", highlightthickness=1,
+              activebackground="#f0f2f5",
               ).pack(side=tk.RIGHT, padx=(10, 0))
     tk.Button(btn_inner, text="确认", command=_on_confirm,
               bg="#3498db", fg="white", cursor="hand2",
               font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
               relief="flat", padx=20, pady=5,
-              ).pack(side=tk.RIGHT, padx=(0, 10))
+              activebackground="#2980b9",
+              ).pack(side=tk.RIGHT)
 
     dlg.bind("<Return>", lambda e: _on_confirm())
     dlg.bind("<Escape>", lambda e: dlg.destroy())
