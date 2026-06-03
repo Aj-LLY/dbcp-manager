@@ -41,6 +41,7 @@ def _add_tooltip(widget, text):
 
 def _show_report_dialog(parent, cname="", sname="", location="", deadline=""):
     """报告打印编辑确认对话框"""
+    from tkinter import messagebox
     dlg = tk.Toplevel(parent)
     dlg.title("报告打印信息确认")
     dlg.geometry("520x550")
@@ -49,6 +50,18 @@ def _show_report_dialog(parent, cname="", sname="", location="", deadline=""):
     dlg.grab_set()
 
     result = {"confirmed": False}
+
+    # 加载已保存的默认值
+    import json, os
+    from utils.config import Config
+    defaults = {}
+    def_path = os.path.join(Config.get_data_dir(), "data", "report_defaults.json")
+    if os.path.exists(def_path):
+        try:
+            with open(def_path, "r", encoding="utf-8") as f:
+                defaults = json.load(f)
+        except Exception:
+            pass
 
     canvas = tk.Canvas(dlg, bg="#ffffff", highlightthickness=0)
     scrollbar = tk.Scrollbar(dlg, orient=tk.VERTICAL, command=canvas.yview)
@@ -72,24 +85,23 @@ def _show_report_dialog(parent, cname="", sname="", location="", deadline=""):
              font=(Config.FONT_FAMILY, Config.FONT_SIZE_HEADER, "bold"),
              ).pack(anchor="w", pady=(0, 12))
 
-    v_cname = _make_row("客户公司全称", cname)
-    v_contract = _make_row("合同编号或项目名称", f"{cname}网络安全等级保护测评服务项目")
-    v_location = _make_row("所属地", location)
-    v_sname = _make_row("系统名称", sname)
-    v_crm = _make_row("是否录入CRM", "是")
-    v_deadline = _make_row("编制/审核/批准日期", deadline)
-    v_author = _make_row("编制人")
-    v_reviewer = _make_row("审核人")
-    v_pentester = _make_row("渗透人员")
-    v_conclusion = _make_row("测评结论及重大风险隐患数量")
-    v_seal = _make_row("盖章")
-    v_print_req = _make_row("打印要求")
-    v_leader = _make_row("项目组长联系人")
-    v_actual = _make_row("实际报告编制人")
+    v_cname = _make_row("客户公司全称", defaults.get("cname", cname))
+    v_contract = _make_row("合同编号或项目名称", defaults.get("contract", f"{cname}网络安全等级保护测评服务项目"))
+    v_location = _make_row("所属地", defaults.get("location", location))
+    v_sname = _make_row("系统名称", defaults.get("sname", sname))
+    v_crm = _make_row("是否录入CRM", defaults.get("crm", "是"))
+    v_deadline = _make_row("编制/审核/批准日期", defaults.get("deadline", deadline))
+    v_author = _make_row("编制人", defaults.get("author", ""))
+    v_reviewer = _make_row("审核人", defaults.get("reviewer", ""))
+    v_pentester = _make_row("渗透人员", defaults.get("pentester", ""))
+    v_conclusion = _make_row("测评结论及重大风险隐患数量", defaults.get("conclusion", ""))
+    v_seal = _make_row("盖章", defaults.get("seal", ""))
+    v_print_req = _make_row("打印要求", defaults.get("print_req", ""))
+    v_leader = _make_row("项目组长联系人", defaults.get("leader", ""))
+    v_actual = _make_row("实际报告编制人", defaults.get("actual_author", ""))
 
-    def _on_confirm():
-        result["confirmed"] = True
-        result["data"] = {
+    def _collect():
+        return {
             "cname": v_cname.get().strip(),
             "contract": v_contract.get().strip(),
             "location": v_location.get().strip(),
@@ -105,7 +117,20 @@ def _show_report_dialog(parent, cname="", sname="", location="", deadline=""):
             "leader": v_leader.get().strip(),
             "actual_author": v_actual.get().strip(),
         }
+
+    def _on_confirm():
+        result["confirmed"] = True
+        result["data"] = _collect()
         dlg.destroy()
+
+    def _save_defaults():
+        import json, os
+        from utils.config import Config
+        path = os.path.join(Config.get_data_dir(), "data", "report_defaults.json")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(_collect(), f, ensure_ascii=False, indent=2)
+        messagebox.showinfo("提示", "默认值已保存", parent=dlg)
 
     # 底部按钮
     btn_frame = tk.Frame(dlg, bg="#f0f2f5")
@@ -113,17 +138,23 @@ def _show_report_dialog(parent, cname="", sname="", location="", deadline=""):
     tk.Frame(btn_frame, bg="#d0d5dd", height=1).pack(fill=tk.X)
     btn_inner = tk.Frame(btn_frame, bg="#f0f2f5")
     btn_inner.pack(fill=tk.X, padx=16, pady=8)
+    tk.Button(btn_inner, text="保存默认值", command=_save_defaults,
+              bg="#f0f2f5", fg="#2c3e50", cursor="hand2",
+              font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+              relief="flat", padx=12, pady=5,
+              activebackground="#d5dbdb",
+              ).pack(side=tk.LEFT)
     tk.Button(btn_inner, text="取消", command=dlg.destroy,
               bg="#ffffff", fg="#2c3e50", cursor="hand2",
               font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-              relief="flat", padx=18, pady=5,
+              relief="flat", padx=20, pady=5,
               highlightbackground="#d0d5dd", highlightthickness=1,
-              ).pack(side=tk.RIGHT, padx=(8, 0))
+              ).pack(side=tk.RIGHT, padx=(10, 0))
     tk.Button(btn_inner, text="确认", command=_on_confirm,
               bg="#3498db", fg="white", cursor="hand2",
               font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
-              relief="flat", padx=18, pady=5,
-              ).pack(side=tk.RIGHT)
+              relief="flat", padx=20, pady=5,
+              ).pack(side=tk.RIGHT, padx=(0, 10))
 
     dlg.bind("<Return>", lambda e: _on_confirm())
     dlg.bind("<Escape>", lambda e: dlg.destroy())
