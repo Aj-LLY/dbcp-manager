@@ -828,22 +828,20 @@ class ProjectDialog(tk.Toplevel):
         def _run():
             """后台线程执行函数：调用 OCR 服务并回传结果到主线程。"""
             try:
-                from services.cert_ocr import CertOCRService  # 延迟导入，避免启动时加载
-                result = CertOCRService().recognize(file_path) # 执行 OCR 识别
-                # 使用 after 将结果回传到主线程处理
-                self.after(0, lambda: self._fill_cert_result(result))
+                from services.cert_ocr import CertOCRService
+                result = CertOCRService().recognize(file_path)
+                self.after(0, lambda: self._fill_cert_result(result, file_path))
             except Exception as e:
-                # 识别失败，回传错误信息
                 self.after(0, lambda: self._ocr_failed(str(e)))
 
         # 启动后台线程执行识别（daemon 线程，随主程序退出自动终止）
         threading.Thread(target=_run, daemon=True).start()
 
-    def _fill_cert_result(self, result: dict):
-        """将 OCR 识别结果自动填充到对应的表单字段中。
+    def _fill_cert_result(self, result: dict, file_path: str = ""):
+        """将 OCR 识别结果填充到表单字段，并将备案证文件归档。
 
-        恢复上传按钮为可用状态，根据识别结果更新各输入框，
-        并显示识别摘要信息。
+        恢复上传按钮，更新各输入框，并将原始文件复制到
+        01-其他归档文件/01-备案证-往期测评报告/ 目录下。
 
         Args:
             result: OCR 识别结果字典，可能包含的键：
@@ -868,11 +866,41 @@ class ProjectDialog(tk.Toplevel):
         if result.get("level"):
             self._level_var.set(result["level"]); filled.append("系统等级")
 
-        # 更新 OCR 状态标签，显示识别到的字段摘要
+        # 更新 OCR 状态标签
         self._ocr_status.configure(
             text=f"已识别：{'、'.join(filled)}（请核对）" if filled else "识别结果不完整",
             fg="#27ae60" if filled else "#e67e22",
         )
+
+        # 归档备案证文件到项目文件夹
+        if file_path and filled:
+            self._archive_cert_file(file_path)
+
+    def _archive_cert_file(self, src_path: str):
+        """将备案证文件复制到项目归档目录。
+
+        目标路径: {项目文件夹}/01-其他归档文件/01-备案证-往期测评报告/
+        文件命名: {公司名称}-{系统名称}-备案证.{原扩展名}
+        """
+        import os, shutil
+        try:
+            root = self._folder_path_var.get().strip()
+            if not root or not os.path.isdir(root):
+                return  # 项目文件夹未设置或不存在，跳过归档
+            cname = self._company_var.get().strip()
+            sname = self._system_var.get().strip()
+            if not cname and not sname:
+                return  # 无公司/系统名称，跳过
+            ext = os.path.splitext(src_path)[1] or ".pdf"
+            safe_name = f"{cname or '未知'}-{sname or '未知'}-备案证{ext}"
+            safe_name = safe_name.replace("/", "_").replace("\\", "_").replace(":", "_")
+            dest_dir = os.path.join(root, "01-其他归档文件", "01-备案证-往期测评报告")
+            os.makedirs(dest_dir, exist_ok=True)
+            dest_path = os.path.join(dest_dir, safe_name)
+            if not os.path.exists(dest_path):
+                shutil.copy2(src_path, dest_path)
+        except OSError:
+            pass  # 归档失败不影响主流程
 
     def _ocr_failed(self, error: str):
         """OCR 识别失败时的处理：恢复按钮状态并显示错误信息。
