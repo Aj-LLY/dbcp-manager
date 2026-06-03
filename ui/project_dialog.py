@@ -217,47 +217,50 @@ class ProjectDialog(tk.Toplevel):
         )
         f_outer.pack(fill=tk.X, pady=(2, 5))
 
-        # 5. 下证日期 + 属地
-        label_row = tk.Frame(main_frame, bg="#ffffff")
-        label_row.pack(fill=tk.X)
-        tk.Label(label_row, text="下证日期", bg="#ffffff",
-                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
-                 ).pack(side=tk.LEFT)
-        tk.Label(label_row, text="属地", bg="#ffffff",
-                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
-                 ).pack(side=tk.LEFT, padx=(120, 0))
-
+        # 5. 下证日期 + 属地（左右分栏，标签对齐各自内容）
         row5 = tk.Frame(main_frame, bg="#ffffff")
         row5.pack(fill=tk.X, pady=(2, 5))
 
-        # 下证日期
+        # --- 下证日期（左侧）---
+        issue_col = tk.Frame(row5, bg="#ffffff")
+        issue_col.pack(side=tk.LEFT)
+        tk.Label(issue_col, text="下证日期", bg="#ffffff",
+                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
+                 ).pack(anchor="w")
+        issue_input_row = tk.Frame(issue_col, bg="#ffffff")
+        issue_input_row.pack(fill=tk.X, pady=(2, 0))
         self._issue_date_var = tk.StringVar()
         self._issue_date_entry, id_outer = bordered_entry(
-            row5, textvariable=self._issue_date_var, width=18,
+            issue_input_row, textvariable=self._issue_date_var, width=18,
         )
         id_outer.pack(side=tk.LEFT)
         tk.Button(
-            row5, text="\U0001f4c5", command=self._open_issue_calendar,
+            issue_input_row, text="\U0001f4c5", command=self._open_issue_calendar,
             bg="#ffffff", fg="#3498db", relief="flat",
             font=(Config.FONT_FAMILY, Config.FONT_SIZE_LARGE),
             cursor="hand2", padx=3, pady=0,
             activebackground="#ecf0f1",
-        ).pack(side=tk.LEFT, padx=(2, 20))
+        ).pack(side=tk.LEFT, padx=(2, 0))
 
-        # 属地：省级下拉
+        # --- 属地（右侧）---
+        loc_col = tk.Frame(row5, bg="#ffffff")
+        loc_col.pack(side=tk.LEFT, padx=(20, 0))
+        tk.Label(loc_col, text="属地", bg="#ffffff",
+                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
+                 ).pack(anchor="w")
+        loc_input_row = tk.Frame(loc_col, bg="#ffffff")
+        loc_input_row.pack(fill=tk.X, pady=(2, 0))
         self._province_var = tk.StringVar()
         self._province_combo = ttk.Combobox(
-            row5, textvariable=self._province_var, values=PROVINCES,
+            loc_input_row, textvariable=self._province_var, values=PROVINCES,
             state="readonly", width=8,
             font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
         )
         self._province_combo.pack(side=tk.LEFT, padx=(0, 2))
         self._province_combo.bind("<<ComboboxSelected>>", self._on_province_change)
-
-        # 属地：市级下拉
         self._city_var = tk.StringVar()
         self._city_combo = ttk.Combobox(
-            row5, textvariable=self._city_var, values=["请先选择省区"],
+            loc_input_row, textvariable=self._city_var, values=["请先选择省区"],
             state="readonly", width=10,
             font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
         )
