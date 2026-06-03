@@ -97,20 +97,20 @@ def _show_report_dialog(parent, cname="", sname="", location="", deadline=""):
              font=(Config.FONT_FAMILY, Config.FONT_SIZE_HEADER, "bold"),
              ).pack(anchor="w", pady=(0, 10))
 
-    v_cname = _make_row("客户公司全称", defaults.get("cname", cname))
-    v_contract = _make_row("合同编号或项目名称", defaults.get("contract", f"{cname}网络安全等级保护测评服务项目"))
-    v_location = _make_row("所属地", defaults.get("location", location))
-    v_sname = _make_row("系统名称", defaults.get("sname", sname))
-    v_crm = _make_row("是否录入CRM", defaults.get("crm", "是"))
-    v_deadline = _make_row("编制/审核/批准日期", defaults.get("deadline", deadline))
-    v_author = _make_row("编制人", defaults.get("author", ""))
-    v_reviewer = _make_row("审核人", defaults.get("reviewer", ""))
-    v_pentester = _make_row("渗透人员", defaults.get("pentester", ""))
-    v_conclusion = _make_row("测评结论及重大风险隐患数量", defaults.get("conclusion", ""))
-    v_seal = _make_row("盖章", defaults.get("seal", ""))
-    v_print_req = _make_row("打印要求", defaults.get("print_req", ""))
-    v_leader = _make_row("项目组长联系人", defaults.get("leader", ""))
-    v_actual = _make_row("实际报告编制人", defaults.get("actual_author", ""))
+    v_cname = _make_row("客户公司全称", defaults.get("cname") or cname)
+    v_contract = _make_row("合同编号或项目名称", defaults.get("contract") or f"{cname}网络安全等级保护测评服务项目")
+    v_location = _make_row("所属地", defaults.get("location") or location)
+    v_sname = _make_row("系统名称", defaults.get("sname") or sname)
+    v_crm = _make_row("是否录入CRM", defaults.get("crm") or "是")
+    v_deadline = _make_row("编制/审核/批准日期", defaults.get("deadline") or deadline)
+    v_author = _make_row("编制人", defaults.get("author") or "")
+    v_reviewer = _make_row("审核人", defaults.get("reviewer") or "")
+    v_pentester = _make_row("渗透人员", defaults.get("pentester") or "")
+    v_conclusion = _make_row("测评结论及重大风险隐患数量", defaults.get("conclusion") or "")
+    v_seal = _make_row("盖章", defaults.get("seal") or "")
+    v_print_req = _make_row("打印要求", defaults.get("print_req") or "")
+    v_leader = _make_row("项目组长联系人", defaults.get("leader") or "")
+    v_actual = _make_row("实际报告编制人", defaults.get("actual_author") or "")
 
     def _collect():
         return {
@@ -197,7 +197,7 @@ def _show_report_dialog(parent, cname="", sname="", location="", deadline=""):
         ]:
             tk.Label(dmain, text=label, bg="#ffffff",
                      font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL)).pack(anchor="w")
-            var = tk.StringVar(value=saved.get(key, ""))
+            var = tk.StringVar(value=saved.get(key) or "")
             from utils.helpers import bordered_entry
             _, outer = bordered_entry(dmain, textvariable=var, width=40)
             outer.pack(fill=tk.X, pady=(2, 5))
