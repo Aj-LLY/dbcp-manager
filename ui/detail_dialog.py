@@ -1,86 +1,153 @@
 """
-项目详情对话框 - 查看和编辑项目完整信息
+项目详情对话框模块 -- 等保测评进度管理系统
 
-双击卡片弹出，展示项目详细信息，支持：
-- 查看项目基本信息
-- 快速编辑项目属性
-- 查看该项目的历史操作日志
-- 阶段移动（上一阶段/下一阶段）
-- 删除项目（带二次确认）
+本模块提供项目详细信息查看和操作界面，以模态对话框形式展示。
+主要功能包括：
+  - 查看项目完整信息（公司名称、系统名称、证书编号、日期、等级、属地、阶段等）
+  - 交付日期超期 / 即将到期预警提示
+  - 备注信息只读展示
+  - 操作日志摘要（最近 5 条）
+  - 阶段移动（上一阶段 / 下一阶段）
+  - 编辑项目（弹出 ProjectDialog）
+  - 删除项目（带二次确认）
+  - 移动阶段后不关闭窗口，通过 refresh_data() 刷新内容
+
+外部使用者应通过 show_detail_dialog() 便捷函数调用，
+该函数以事件循环方式运行，支持 move 回调（不关闭窗口）和其他操作返回值。
+
+使用示例：
+    result = show_detail_dialog(parent, project, stages, logs, on_move=on_move_callback)
+    if result:
+        action, data = result   # action ∈ {"edit", "delete"}, data 为相关数据
 """
 
-import tkinter as tk  # 导入Tkinter GUI库，用于构建桌面应用界面组件
-from tkinter import messagebox  # 导入messagebox，用于显示警告/确认弹窗
-from models.project import Project  # 导入Project模型类，表示一个等保测评项目实体
-from models.workflow import WorkflowStage  # 导入WorkflowStage模型类，表示一个流程阶段实体
-from ui.project_dialog import show_project_dialog  # 导入项目编辑对话框便捷函数
-from utils.config import Config  # 导入Config配置类，获取字体等UI配置常量
-from utils.helpers import days_until_deadline  # 导入辅助函数：计算距离截止日期的剩余天数
+# =============================================================================
+# 标准库导入
+# =============================================================================
+import tkinter as tk            # Tkinter GUI 库：构建桌面应用窗口和组件
+from tkinter import messagebox  # messagebox：警告 / 确认 / 信息弹窗
 
+# =============================================================================
+# 项目内部模块导入
+# =============================================================================
+from models.project import Project         # Project 数据模型：表示一个等保测评项目实体
+from models.workflow import WorkflowStage   # WorkflowStage 数据模型：表示流程阶段
+from ui.project_dialog import show_project_dialog  # 项目编辑对话框便捷函数
+from utils.config import Config            # 全局配置：字体族、字号、截止日期预警天数等常量
+from utils.helpers import days_until_deadline  # 辅助函数：计算截止日期的剩余天数（负数表示已超期）
+
+
+# =============================================================================
+# DetailDialog -- 项目详情模态对话框
+# =============================================================================
 
 class DetailDialog(tk.Toplevel):
-    """项目详情对话框 - 继承自tk.Toplevel
+    """项目详情对话框。
 
-    展示项目的完整信息，包括基本信息、备注、操作日志记录。
-    提供编辑、删除和阶段移动等操作入口。
+    以模态顶层窗口形式展示项目的完整信息并提供操作入口。
+    窗口布局：
+      - 底部固定按钮栏：上一阶段 / 下一阶段 | 编辑 / 删除项目 / 关闭
+      - 可滚动内容区（Canvas + Scrollbar）：
+          - 标题行（项目名称）
+          - 信息卡片区（浅灰背景）：逐行显示各属性字段
+          - 备注信息（只读多行文本框）
+          - 操作记录摘要（最近 5 条日志）
+
+    交互行为：
+      - 编辑：打开 ProjectDialog，确认后返回 ("edit", dict) 给调用方
+      - 删除：确认后返回 ("delete", None) 给调用方
+      - 移动阶段：通过 on_move 回调处理（不关闭窗口），然后调用 refresh_data() 刷新
+      - 关闭：直接 destroy
+
+    Attributes:
+        result: tuple | None
+            用户操作结果。格式为 (action, data)，其中 action 为 "edit" 或 "delete"，
+            data 为编辑后的表单字典或 None（删除操作）。取消 / 关闭为 None。
     """
 
     def __init__(self, parent, project: Project,
                  stages: list[WorkflowStage],
                  project_logs: list[dict]):
-        """初始化详情对话框
+        """初始化项目详情对话框。
 
         Args:
-            parent: 父级窗口
-            project: 要展示的项目实体
-            stages: 流程阶段列表（用于阶段移动和编辑时提供可选项）
-            project_logs: 该项目的操作日志列表（按时间排序）
+            parent: 父级窗口。
+            project: 要展示详情的目标项目实体。
+            stages: 流程阶段列表（用于阶段移动和编辑时提供下拉选项）。
+            project_logs: 该项目的操作日志列表（dict 列表，已按时间排序）。
         """
+        # 调用父类 Tk.Toplevel 构造器
         super().__init__(parent)
-        self.title(f"项目详情 - {project.name}")  # 标题中包含项目名称
-        self._project = project  # 保存项目引用
-        self._stages = stages  # 保存阶段列表引用
-        self._logs = project_logs  # 保存日志列表引用
+        self.title(f"项目详情 - {project.name}")             # 标题中显示项目名称
+        self._project = project                              # 保存目标项目引用
+        self._stages = stages                                # 保存阶段列表引用
+        self._logs = project_logs                            # 保存日志列表引用
 
-        self.result = None
-        self._move_callback = None  # 外部设置：移动阶段回调
-        self._edit_callback = None  # 外部设置：编辑项目回调
-        self._delete_callback = None  # 外部设置：删除项目回调
+        self.result = None                                   # 初始化操作结果
+        self._move_callback = None                           # 外部设置：移动阶段的回调函数
+        self._edit_callback = None                           # 外部设置：编辑项目的回调函数
+        self._delete_callback = None                         # 外部设置：删除项目的回调函数
 
-        self._setup_window()  # 配置窗口属性
-        self._build_ui()  # 构建详情界面
-        self._center_window()  # 窗口居中
-        self.grab_set()  # 模态窗口
+        # ---- 按顺序执行初始化步骤 ----
+        self._setup_window()     # ① 配置窗口基本属性
+        self._build_ui()         # ② 构建详情界面 UI 布局
+        self._center_window()    # ③ 窗口居中
+        self.grab_set()          # ④ 设为模态窗口
 
     def _setup_window(self):
-        """配置窗口属性"""
-        self.geometry("520x550")  # 初始大小
-        self.minsize(420, 400)  # 最小尺寸
-        self.resizable(True, True)  # 可调整大小
-        self.configure(bg="#ffffff")  # 白色背景
+        """配置对话框窗口的基本属性。
+
+        初始大小 520×550，最小尺寸 420×400，允许调整大小，白色背景。
+        """
+        self.geometry("520x550")         # 初始窗口大小
+        self.minsize(420, 400)           # 最小尺寸（防止缩得过小）
+        self.resizable(True, True)       # 允许水平和垂直调整
+        self.configure(bg="#ffffff")     # 白色背景
 
     def _build_ui(self):
-        """构建详情界面（可滚动内容 + 底部固定按钮，与项目编辑对话框风格一致）"""
-        # ---- 底部关闭按钮（先pack，确保窗口缩小时不被挤出） ----
-        bottom_frame = tk.Frame(self, bg="#f0f2f5")
-        bottom_frame.pack(side=tk.BOTTOM, fill=tk.X)
-        tk.Frame(bottom_frame, bg="#d0d5dd", height=1).pack(fill=tk.X)
+        """构建详情界面的完整 UI 布局。
 
+        布局结构（从上到下）：
+          -- 底部按钮栏（先 pack，确保缩小时不被挤出视口）
+              · 上一阶段 / 下一阶段（左侧）
+              · 编辑 / 删除项目 / 关闭（右侧）
+          -- 可滚动内容区域（Canvas + Scrollbar + 内嵌 Frame）
+              · 标题行：项目名称
+              · 信息卡片区：浅灰背景，逐行显示属性
+              · 备注信息：只读 Text 组件
+              · 操作日志：最近 5 条操作记录
+
+        信息卡片字段：
+          公司名称、系统名称、证书编号、下证日期、系统等级、
+          属地、当前阶段、交付日期（含预警）、创建时间、最后更新
+        """
+        # =====================================================================
+        # 底部固定按钮栏（先 pack，放在 BOTTOM 位置占位）
+        # =====================================================================
+        bottom_frame = tk.Frame(self, bg="#f0f2f5")          # 底部容器，浅灰色背景
+        bottom_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        tk.Frame(bottom_frame, bg="#d0d5dd", height=1).pack(fill=tk.X)  # 顶部分隔线
+
+        # 按钮内层容器
         btn_inner = tk.Frame(bottom_frame, bg="#f0f2f5")
         btn_inner.pack(fill=tk.X, padx=16, pady=8)
 
-        # 进度移动按钮 - 白底深字灰边框
+        # 统一的按钮样式字典
         btn_style = {"cursor": "hand2", "relief": "flat", "padx": 12, "pady": 5,
                      "font": (Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
                      "highlightbackground": "#d0d5dd", "highlightthickness": 1}
+
+        # "上一阶段" -- 将项目移到左侧（前一个）阶段
         tk.Button(btn_inner, text="\u25c0 上一阶段", command=self._move_prev,
                   bg="#ffffff", fg="#2c3e50", activebackground="#f0f2f5",
                   **btn_style).pack(side=tk.LEFT, padx=(0, 5))
+
+        # "下一阶段" -- 将项目移到右侧（后一个）阶段
         tk.Button(btn_inner, text="下一阶段 \u25b6", command=self._move_next,
                   bg="#ffffff", fg="#2c3e50", activebackground="#f0f2f5",
                   **btn_style).pack(side=tk.LEFT)
 
-        # 编辑按钮 - 蓝底白字粗体
+        # "编辑" -- 蓝色背景，打开 ProjectDialog 编辑项目属性
         tk.Button(btn_inner, text="编辑", command=self._edit_project,
                   bg="#3498db", fg="white", cursor="hand2",
                   font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
@@ -88,7 +155,7 @@ class DetailDialog(tk.Toplevel):
                   activebackground="#2980b9",
                   ).pack(side=tk.RIGHT, padx=(8, 0))
 
-        # 删除项目按钮 - 红底白字粗体
+        # "删除项目" -- 红色背景，二次确认后永久删除
         tk.Button(btn_inner, text="删除项目", command=self._delete_project,
                   bg="#e74c3c", fg="white", cursor="hand2",
                   font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
@@ -96,7 +163,7 @@ class DetailDialog(tk.Toplevel):
                   activebackground="#c0392b",
                   ).pack(side=tk.RIGHT, padx=(8, 0))
 
-        # 关闭按钮 - 白底深字灰边框
+        # "关闭" -- 白色背景灰色边框，直接关闭对话框
         tk.Button(btn_inner, text="关闭", command=self.destroy,
                   bg="#ffffff", fg="#2c3e50", cursor="hand2",
                   font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
@@ -105,275 +172,361 @@ class DetailDialog(tk.Toplevel):
                   activebackground="#f0f2f5",
                   ).pack(side=tk.RIGHT, padx=(8, 0))
 
-        # ---- 可滚动内容区域 ----
-        canvas = tk.Canvas(self, bg="#ffffff", highlightthickness=0)
+        # =====================================================================
+        # 可滚动内容区域（Canvas + Scrollbar）
+        # =====================================================================
+        canvas = tk.Canvas(self, bg="#ffffff", highlightthickness=0)  # 滚动画布
         scrollbar = tk.Scrollbar(self, orient=tk.VERTICAL, command=canvas.yview)
-        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.configure(yscrollcommand=scrollbar.set)       # 与滚动条双向绑定
 
+        # 主内容 Frame（所有详情信息放在此处）
         main = tk.Frame(canvas, bg="#ffffff", padx=24, pady=18)
+        # 当 main 大小变化时更新 Canvas 的滚动区域
         main.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 
+        # 在 Canvas 内创建窗口对象并 anchor 到左上角
         canvas.create_window((0, 0), window=main, anchor="nw", tags="content")
+        # Canvas 宽度变化时同步调整内部窗口宽度（留 4px 边距给滚动条）
         canvas.bind("<Configure>", lambda e: canvas.itemconfig("content", width=e.width - 4))
+        # 鼠标滚轮绑定到 Canvas
         canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-e.delta/120), "units"))
 
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # 鼠标滚轮支持（同时绑定canvas和对话框，确保始终响应）
+        # 保存 Canvas 引用，并将滚轮事件同时绑定到对话框自身以确保始终响应
         self._canvas = canvas
         self.bind("<MouseWheel>", lambda e: self._canvas.yview_scroll(int(-e.delta/120), "units"))
 
-        # 标题行 - 显示项目名称
+        # =====================================================================
+        # 标题行 -- 显示项目名称
+        # =====================================================================
         header = tk.Frame(main, bg="#ffffff")
-        header.pack(fill=tk.X, pady=(0, 15))  # 水平填充，下方15px间距
+        header.pack(fill=tk.X, pady=(0, 15))
 
         tk.Label(header, text=self._project.name,
                  bg="#ffffff", fg="#2c3e50",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_HEADER, "bold"),
-                 wraplength=400, justify="left",  # 自动换行，左对齐
+                 wraplength=400, justify="left",            # 超长自动换行，左对齐
                  ).pack(anchor="w")
 
-        # 信息区域 - 浅灰背景的卡片式信息块
+        # =====================================================================
+        # 信息卡片区 -- 浅灰背景，逐行显示各字段
+        # =====================================================================
         info_frame = tk.Frame(main, bg="#f8f9fa", padx=12, pady=10)
         info_frame.pack(fill=tk.X, pady=(0, 10))
 
-        # 逐行添加项目信息字段（标签: 值）
-        # 公司名称
+        # 逐行添加项目属性字段（字段名 : 字段值）
         self._add_info_row(info_frame, "公司名称",
                            self._project.company_name or "-")
-        # 系统名称
         self._add_info_row(info_frame, "系统名称",
                            self._project.system_name or "-")
-        # 证书编号
         self._add_info_row(info_frame, "证书编号",
                            self._project.cert_number or "未备案")
-        # 下证日期
         self._add_info_row(info_frame, "下证日期",
                            self._project.issue_date or "-")
-        # 系统等级
         self._add_info_row(info_frame, "系统等级",
                            self._project.level or "-")
-        # 属地
         self._add_info_row(info_frame, "属地",
                            self._project.location or "-")
-        # 当前阶段
+        # 当前阶段名称（通过 stage_id 查找）
         stage_name = self._get_stage_name(self._project.stage_id)
         self._add_info_row(info_frame, "当前阶段", stage_name)
 
-        # 交付日期 - 包含剩余天数提示
+        # ---- 交付日期 -- 附带超期 / 即将到期预警 ----
         deadline = self._project.deadline or "未设置"
         days_left = days_until_deadline(self._project.deadline) if self._project.deadline else None
         if days_left is not None:
             if days_left < 0:
-                deadline += f"  ⚠️ 已超期 {abs(days_left)} 天"
+                # 已超期：显示警告图标和超期天数
+                deadline += f"  \u26a0\ufe0f 已超期 {abs(days_left)} 天"
             elif days_left <= Config.DEADLINE_WARNING_DAYS:
-                deadline += f"  ⚡ 剩余 {days_left} 天"
+                # 即将到期：显示闪电图标和剩余天数
+                deadline += f"  \u26a1 剩余 {days_left} 天"
             else:
+                # 正常：显示剩余天数
                 deadline += f"  剩余 {days_left} 天"
         self._add_info_row(info_frame, "交付日期", deadline)
 
-        # 创建时间
+        # 创建时间和最后更新时间的格式化展示
         self._add_info_row(info_frame, "创建时间", self._project.created_at)
-
-        # 最后更新时间
         self._add_info_row(info_frame, "最后更新", self._project.updated_at)
 
-        # 备注信息 - 只读多行文本框
+        # =====================================================================
+        # 备注信息 -- 只读多行文本框
+        # =====================================================================
         notes = self._project.notes or "无"
         tk.Label(main, text="备注信息", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
-                 fg="#2c3e50").pack(anchor="w", pady=(5, 2))  # 标签
-        notes_text = tk.Text(main, height=4, wrap="word",
+                 fg="#2c3e50").pack(anchor="w", pady=(5, 2))
+
+        notes_text = tk.Text(main, height=4, wrap="word",     # 4行可见，按单词换行
                              font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
                              bg="#f8f9fa", relief="flat", borderwidth=1)
-        notes_text.insert("1.0", notes)  # 插入备注内容
-        notes_text.configure(state="disabled")  # 设为只读（禁止编辑）
+        notes_text.insert("1.0", notes)                       # 插入备注内容
+        notes_text.configure(state="disabled")                # 设为只读（禁止编辑）
         notes_text.pack(fill=tk.X)
 
-        # 操作日志摘要 - 显示最近5条操作记录
+        # =====================================================================
+        # 操作日志摘要 -- 显示最近 5 条操作记录
+        # =====================================================================
         tk.Label(main, text="操作记录（最近5条）", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
                  fg="#2c3e50").pack(anchor="w", pady=(10, 2))
 
-        log_frame = tk.Frame(main, bg="#f8f9fa")  # 日志列表容器
+        log_frame = tk.Frame(main, bg="#f8f9fa")             # 日志列表容器
         log_frame.pack(fill=tk.X, pady=(0, 5))
 
-        recent_logs = self._logs[:5]  # 取最近5条日志
+        recent_logs = self._logs[:5]                          # 取最近 5 条日志
         if recent_logs:
             for log in recent_logs:
-                # 格式化为 "时间 | 操作类型 | 描述" 的单行文本
+                # 格式化日志行：时间 | 操作类型 | 操作描述
                 log_text = f"{log.get('timestamp', '')} | {log.get('action', '')} | {log.get('detail', '')}"
                 if len(log_text) > 65:
-                    log_text = log_text[:64] + "\u2026"  # 超过65字符截断加省略号
+                    log_text = log_text[:64] + "\u2026"       # 超过65字符截断并添加省略号
                 tk.Label(log_frame, text=log_text, bg="#f8f9fa",
                          font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
                          fg="#7f8c8d", anchor="w", justify="left",
                          ).pack(fill=tk.X, pady=1, padx=8)
         else:
+            # 无日志时的占位提示
             tk.Label(log_frame, text="暂无操作记录", bg="#f8f9fa",
                      font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-                     fg="#95a5a6").pack(pady=8)  # 无日志时的占位文字
+                     fg="#95a5a6").pack(pady=8)
 
     def _add_info_row(self, parent, label: str, value: str):
-        """在信息区域添加一行 "标签: 值" 格式的信息
+        """在信息卡片区添加一行 "标签全角冒号 值" 格式的信息行。
+
+        每行由两部分组成：
+          - 左侧标签列：右对齐、固定宽度、灰色文字的 Label（如 "公司名称："）
+          - 右侧值列：只读 Entry，支持文本选择和复制
 
         Args:
-            parent: 父容器Frame
-            label: 信息字段标签名
-            value: 信息字段值
+            parent: 父容器 Frame（信息卡片区）。
+            label: 字段标签名（如 "公司名称"）。
+            value: 字段值字符串（可为空或任何文本）。
         """
-        row = tk.Frame(parent, bg="#f8f9fa")  # 行容器
-        row.pack(fill=tk.X, pady=2)  # 水平填充，行间距2px
-        # 标签列 - 右对齐，固定宽度10字符，灰色文字
-        tk.Label(row, text=label + "\uff1a", bg="#f8f9fa",  # 全角冒号
+        row = tk.Frame(parent, bg="#f8f9fa")                  # 行容器
+        row.pack(fill=tk.X, pady=2)                            # 水平填充，行间距 2px
+
+        # 标签列：全角冒号后缀，右对齐，固定宽度 10 字符
+        tk.Label(row, text=label + "\uff1a", bg="#f8f9fa",   # \uff1a 是全角冒号
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
                  fg="#7f8c8d", width=10, anchor="e",
                  ).pack(side=tk.LEFT)
-        # 值列 - 只读Entry（支持选择复制）
+
+        # 值列：只读 Entry（支持用户选择复制文本）
         val_entry = tk.Entry(row, bg="#f8f9fa", fg="#2c3e50", relief="flat",
                              font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
                              readonlybackground="#f8f9fa")
-        val_entry.insert(0, value)
-        val_entry.configure(state="readonly")
+        val_entry.insert(0, value)                             # 插入值
+        val_entry.configure(state="readonly")                  # 设为只读
         val_entry.pack(side=tk.LEFT, padx=(5, 0), fill=tk.X, expand=True)
 
-    def _edit_project(self):
-        """编辑项目按钮处理
+    # =========================================================================
+    # 项目操作
+    # =========================================================================
 
-        打开项目编辑对话框，编辑成功后保存结果到self.result
-        并关闭详情窗口（外部MainWindow会捕获result并执行更新操作）。
+    def _edit_project(self):
+        """编辑项目按钮处理。
+
+        打开 project_dialog 的 show_project_dialog 对话框进行编辑，
+        如果用户确认保存，则将结果设为 ("edit", 表单数据) 并关闭详情窗口。
         """
         result = show_project_dialog(
             self, "编辑项目", self._project, self._stages,
         )
-        if result:  # 用户确认保存
-            self.result = ("edit", result)  # 设置结果为编辑操作
-            self.destroy()  # 关闭详情窗口
+        if result:                                             # 用户点击了保存
+            self.result = ("edit", result)                     # 设置编辑操作结果
+            self.destroy()                                     # 关闭详情窗口
 
     def _delete_project(self):
-        """删除项目按钮处理
+        """删除项目按钮处理。
 
-        显示二次确认对话框，确认后设置result为删除操作并关闭窗口。
+        弹出二次确认对话框（askyesno），用户确认后将 self.result
+        设置为 ("delete", None) 并关闭窗口。删除操作的实际执行由外部
+        MainWindow 负责。
         """
         if messagebox.askyesno("确认删除",
                                f"确定要永久删除项目\u300c{self._project.name}\u300d吗？\n\n"
                                "此操作不可撤销！",
                                parent=self):
-            self.result = ("delete", None)  # 设置结果为删除操作
+            self.result = ("delete", None)                     # 设置删除操作结果
             self.destroy()
 
-    def _move_prev(self):
-        """移到上一阶段按钮处理
+    # =========================================================================
+    # 阶段移动
+    # =========================================================================
 
-        查找当前阶段在阶段列表中的索引，如果不在第一个位置，
-        则设置result为移动到前一阶段的ID。
+    def _move_prev(self):
+        """将项目移到上一个流程阶段。
+
+        查找当前阶段在阶段列表中的索引位置，
+        如果不在第一个位置（idx > 0），则将 result 设置为移动到前一个阶段 ID。
+        如果已是第一个阶段，弹出提示信息。
         """
-        idx = self._get_stage_index(self._project.stage_id)
-        if idx > 0:  # 不是第一个阶段
-            self.result = ("move", self._stages[idx - 1].id)  # 移动到前一阶段
+        idx = self._get_stage_index(self._project.stage_id)    # 获取当前阶段索引
+        if idx > 0:                                            # 不是第一个阶段
+            self.result = ("move", self._stages[idx - 1].id)   # 移动到前一个阶段
         else:
             messagebox.showinfo("提示", "已经是第一个阶段", parent=self)
 
-    def refresh_data(self, project, stages, logs):
-        """刷新窗口数据（移动阶段后调用，不关闭窗口）"""
-        self._project = project
-        self._stages = stages
-        self._logs = logs
-        self.title(f"项目详情 - {project.name}")
-        for w in self.winfo_children():
-            w.destroy()
-        self._build_ui()
-        self.result = None
-        self.after(200, lambda: setattr(self, '_opening_child', False))
-
     def _move_next(self):
-        """移到下一阶段按钮处理
+        """将项目移到下一个流程阶段。
 
-        查找当前阶段在阶段列表中的索引，如果不在最后一个位置，
-        则设置result为移动到后一阶段的ID。
+        查找当前阶段在阶段列表中的索引位置，
+        如果不在最后一个位置，则将 result 设置为移动到后一个阶段 ID。
         """
         idx = self._get_stage_index(self._project.stage_id)
-        if idx < len(self._stages) - 1:  # 不是最后一个阶段
-            self.result = ("move", self._stages[idx + 1].id)  # 移动到后一阶段
+        if idx < len(self._stages) - 1:                        # 不是最后一个阶段
+            self.result = ("move", self._stages[idx + 1].id)   # 移动到后一个阶段
         else:
             messagebox.showinfo("提示", "已经是最后一个阶段", parent=self)
 
-    def _get_stage_name(self, stage_id: str) -> str:
-        """根据阶段ID获取阶段名称
+    def refresh_data(self, project, stages, logs):
+        """刷新详情窗口数据（移动阶段后调用，不关闭窗口重建 UI）。
+
+        移动阶段后 MainWindow 会调用此方法更新项目、阶段和日志数据，
+        然后销毁并重建所有子组件以达到刷新效果。
 
         Args:
-            stage_id: 阶段的唯一标识符
+            project: 更新后的项目对象。
+            stages: 更新后的阶段列表。
+            logs: 更新后的日志列表。
+        """
+        self._project = project                                # 更新项目引用
+        self._stages = stages                                  # 更新阶段列表
+        self._logs = logs                                      # 更新日志列表
+        self.title(f"项目详情 - {project.name}")               # 刷新标题
+        # 销毁所有子组件
+        for w in self.winfo_children():
+            w.destroy()
+        self._build_ui()                                       # 重建整个 UI
+        self.result = None                                     # 清空操作结果
+        self.after(200, lambda: setattr(self, '_opening_child', False))  # 延迟清除子窗口标志
+
+    # =========================================================================
+    # 辅助查询方法
+    # =========================================================================
+
+    def _get_stage_name(self, stage_id: str) -> str:
+        """根据阶段 ID 获取对应的阶段名称。
+
+        Args:
+            stage_id: 阶段的唯一标识符。
 
         Returns:
-            str: 阶段名称，找不到返回"未知阶段"
+            str: 阶段名称；若未找到匹配的阶段，返回 "未知阶段"。
         """
         for s in self._stages:
-            if s.id == stage_id:
+            if s.id == stage_id:                               # ID 匹配
                 return s.name
         return "未知阶段"
 
     def _get_stage_index(self, stage_id: str) -> int:
-        """根据阶段ID获取阶段在列表中的索引位置
+        """根据阶段 ID 获取该阶段在阶段列表中的索引位置。
 
         Args:
-            stage_id: 阶段的唯一标识符
+            stage_id: 阶段的唯一标识符。
 
         Returns:
-            int: 索引位置（从0开始），未找到返回-1
+            int: 索引位置（从 0 开始）；未找到返回 -1。
         """
         for i, s in enumerate(self._stages):
             if s.id == stage_id:
                 return i
         return -1
 
+    # =========================================================================
+    # 窗口居中
+    # =========================================================================
+
     def _center_window(self):
-        """窗口居中显示"""
-        self.update_idletasks()
+        """将对话框相对于其父窗口居中显示。"""
+        self.update_idletasks()                                # 等待组件尺寸计算完成
         w = self.winfo_width()
         h = self.winfo_height()
         pw = self.master.winfo_width()
         ph = self.master.winfo_height()
         px = self.master.winfo_rootx()
         py = self.master.winfo_rooty()
-        x = px + (pw - w) // 2
-        y = py + (ph - h) // 2
+        x = px + (pw - w) // 2                                 # 居中 X
+        y = py + (ph - h) // 2                                 # 居中 Y
         self.geometry(f"+{x}+{y}")
 
-
+    # =========================================================================
+    # 焦点管理（失焦自动关闭）
+    # =========================================================================
 
     def _on_focus_out(self, event):
-        """焦点离开时延迟检查，跳过打开子窗口的情况"""
-        if self._opening_child:
+        """Tk 焦点离开事件处理：延迟检查焦点状态。
+
+        如果正在打开子窗口（_opening_child 为 True），跳过检查防止误关。
+        否则延迟 100ms 后检查焦点是否真的离开了整个对话框。
+        """
+        if self._opening_child:                                # 打开子窗口时跳过
             return
-        self.after(100, self._check_focus)
+        self.after(100, self._check_focus)                     # 延迟检查
 
     def _check_focus(self):
-        """延迟检查：如果焦点仍未回来则关闭窗口"""
+        """延迟检查焦点：如果当前没有任何子组件持有焦点，则关闭窗口。
+
+        使用异常捕获处理窗口已被销毁导致的 TclError。
+        """
         try:
-            if not self.focus_get():
+            if not self.focus_get():                           # 无组件持有焦点
                 self.destroy()
         except Exception:
-            self.destroy()
+            self.destroy()                                     # 窗口已销毁则安全关闭
+
+
+# =============================================================================
+# show_detail_dialog -- 便捷函数
+# =============================================================================
 
 def show_detail_dialog(parent, project: Project,
                        stages: list[WorkflowStage],
                        logs: list[dict],
                        on_move=None) -> tuple | None:
-    """显示详情对话框，move通过回调处理（不关闭窗口）"""
-    dialog = DetailDialog(parent, project, stages, logs)
+    """显示项目详情对话框并以事件循环方式运行。
+
+    与简单的 wait_window() 模式不同，此函数使用 while 循环持续 update()，
+    这样可以支持 move 操作（通过回调处理但不关闭窗口）和 edit/delete 操作
+    （关闭窗口并返回结果）。
+
+    Args:
+        parent: 父级窗口。
+        project: 要查看的项目实体。
+        stages: 流程阶段列表。
+        logs: 操作日志列表。
+        on_move: 阶段移动回调函数。签名应为 on_move(new_stage_id, dialog)。
+                 移动阶段时调用此回调（通常由 MainWindow 提供，负责更新数据和刷新对话框），
+                 不会关闭对话框。
+
+    Returns:
+        tuple | None:
+            对于 edit 操作返回 ("edit", form_data_dict)；
+            对于 delete 操作返回 ("delete", None)；
+            用户直接关闭窗口返回 None。
+    """
+    dialog = DetailDialog(parent, project, stages, logs)     # 创建详情对话框实例
+
+    # 事件循环：持续 update 直到窗口被关闭
     while dialog.winfo_exists():
-        dialog.update()
-        if dialog.result:
-            action, data = dialog.result
-            dialog.result = None
+        dialog.update()                                       # 处理所有待处理的 Tk 事件
+        if dialog.result:                                     # 用户触发了操作
+            action, data = dialog.result                      # 解包操作类型和数据
+            dialog.result = None                              # 立即清空，防止重复处理
             if action == "move" and on_move:
+                # 移动操作：通过回调处理（不关闭窗口，由 on_move 负责更新数据和刷新）
                 on_move(data, dialog)
             else:
+                # 编辑 / 删除操作：关闭窗口并返回结果
                 dialog.destroy()
                 return (action, data)
         try:
-            dialog.update_idletasks()
+            dialog.update_idletasks()                         # 处理空闲任务
         except Exception:
-            break
-    return None
+            break                                             # 窗口已销毁则退出循环
+
+    return None  # 窗口被直接关闭，无操作
