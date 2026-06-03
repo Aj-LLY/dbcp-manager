@@ -104,7 +104,8 @@ class ProjectService:
                        issue_date: str = None, level: str = None,
                        location: str = None,
                        deadline: str = None, notes: str = None,
-                       stage_id: str = None) -> tuple[bool, str]:
+                       stage_id: str = None,
+                       folder_path: str = None) -> tuple[bool, str]:
         """更新项目信息（支持部分更新）"""
         project = self.get_project_by_id(project_id)  # 查找项目
         if not project:  # 项目不存在
