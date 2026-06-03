@@ -127,7 +127,8 @@ class ProjectService:
         project.update(company_name=company_name, system_name=system_name,
                        cert_number=cert_number, issue_date=issue_date,
                        level=level, location=location,
-                       deadline=deadline, notes=notes, stage_id=stage_id)
+                       deadline=deadline, notes=notes, stage_id=stage_id,
+                       folder_path=folder_path)
         self._ds.update_project(project_id, project.to_dict())  # 将更新后的项目持久化
 
         if stage_id is not None and stage_id != old_stage_id:  # 阶段发生了变化
