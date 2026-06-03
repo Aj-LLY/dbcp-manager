@@ -297,7 +297,7 @@ class ProjectCard(tk.Frame):
         import os, subprocess, sys
         try:
             path = self._find_project_folder()
-            if path:
+            if path and os.path.isdir(path):
                 if sys.platform == "win32":
                     os.startfile(path)
                 else:
@@ -306,11 +306,11 @@ class ProjectCard(tk.Frame):
             pass
 
     def _find_project_folder(self) -> str:
-        """查找项目文件夹路径（优先使用存储路径，回退搜索）"""
-        import os
+        """查找项目文件夹路径（优先存储路径，回退关键词搜索）"""
+        import os, re
         from utils.config import Config
         # 优先使用存储的路径
-        if self.project.folder_path and os.path.exists(self.project.folder_path):
+        if self.project.folder_path and os.path.isdir(self.project.folder_path):
             return self.project.folder_path
         # 回退：按公司名+系统名+日期搜索
         base = Config.get_data_dir()
@@ -318,14 +318,17 @@ class ProjectCard(tk.Frame):
             return ""
         cname = (self.project.company_name or "未命名").replace("/", "_").replace("\\", "_")
         sname = (self.project.system_name or "").replace("/", "_").replace("\\", "_")
+        date_str = ""
         if self.project.created_at:
             date_str = self.project.created_at[:10].replace("-", "")[2:]
-        else:
-            date_str = ""
+        # 精确匹配关键词
         for name in os.listdir(base):
-            if os.path.isdir(os.path.join(base, name)) and cname in name and sname in name and date_str in name:
-                return os.path.join(base, name)
-        return base
+            full = os.path.join(base, name)
+            if not os.path.isdir(full):
+                continue
+            if cname in name and (not sname or sname in name) and (not date_str or date_str in name):
+                return full
+        return ""
 
     def _on_rename_click(self):
         """一键重命名：将项目文件夹中未规范命名的文件按规则重命名"""
