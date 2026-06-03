@@ -44,16 +44,17 @@ def _show_report_dialog(parent, cname="", sname="", location="", deadline=""):
     from tkinter import messagebox
     dlg = tk.Toplevel(parent)
     dlg.title("报告打印信息确认")
-    dlg.geometry("520x550")
-    dlg.minsize(420, 400)
+    dlg.geometry("520x680")
+    dlg.minsize(440, 500)
     dlg.configure(bg="#ffffff")
     dlg.grab_set()
+    dlg.resizable(True, True)
 
     result = {"confirmed": False}
 
-    # 加载已保存的默认值
     import json, os
     from utils.config import Config
+    from utils.helpers import bordered_entry
     defaults = {}
     def_path = os.path.join(Config.get_data_dir(), "data", "report_defaults.json")
     if os.path.exists(def_path):
@@ -63,28 +64,31 @@ def _show_report_dialog(parent, cname="", sname="", location="", deadline=""):
         except Exception:
             pass
 
-    canvas = tk.Canvas(dlg, bg="#ffffff", highlightthickness=0, width=500)
+    # ---- 可滚动内容区域 ----
+    canvas = tk.Canvas(dlg, bg="#ffffff", highlightthickness=0)
     scrollbar = tk.Scrollbar(dlg, orient=tk.VERTICAL, command=canvas.yview)
     canvas.configure(yscrollcommand=scrollbar.set)
-    main = tk.Frame(canvas, bg="#ffffff", padx=20, pady=15)
-    main.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-    cw_id = canvas.create_window((0, 0), window=main, anchor="nw")
-    canvas.bind("<Configure>", lambda e: canvas.itemconfig(cw_id, width=e.width - 4))
     scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
     canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-    def _make_row(label, default="", width=40):
+    main = tk.Frame(canvas, bg="#ffffff", padx=20, pady=15)
+    cw = canvas.create_window((0, 0), window=main, anchor="nw")
+    main.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+    canvas.bind("<Configure>", lambda e: canvas.itemconfig(cw, width=e.width))
+    canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-e.delta/120), "units"))
+    dlg.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-e.delta/120), "units"))
+
+    def _make_row(label, default=""):
         tk.Label(main, text=label, bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL)).pack(anchor="w")
         var = tk.StringVar(value=default)
-        from utils.helpers import bordered_entry
-        _, outer = bordered_entry(main, textvariable=var, width=width)
-        outer.pack(fill=tk.X, pady=(2, 5))
+        _, outer = bordered_entry(main, textvariable=var)
+        outer.pack(fill=tk.X, pady=(2, 6))
         return var
 
     tk.Label(main, text="报告打印信息确认", bg="#ffffff", fg="#2c3e50",
              font=(Config.FONT_FAMILY, Config.FONT_SIZE_HEADER, "bold"),
-             ).pack(anchor="w", pady=(0, 12))
+             ).pack(anchor="w", pady=(0, 10))
 
     v_cname = _make_row("客户公司全称", defaults.get("cname", cname))
     v_contract = _make_row("合同编号或项目名称", defaults.get("contract", f"{cname}网络安全等级保护测评服务项目"))
@@ -142,19 +146,23 @@ def _show_report_dialog(parent, cname="", sname="", location="", deadline=""):
 
         dedit = tk.Toplevel(dlg)
         dedit.title("设置默认值")
-        dedit.geometry("500x550")
+        dedit.geometry("500x600")
+        dedit.minsize(420, 400)
         dedit.configure(bg="#ffffff")
         dedit.grab_set()
 
         dcanvas = tk.Canvas(dedit, bg="#ffffff", highlightthickness=0)
         dscroll = tk.Scrollbar(dedit, orient=tk.VERTICAL, command=dcanvas.yview)
         dcanvas.configure(yscrollcommand=dscroll.set)
-        dmain = tk.Frame(dcanvas, bg="#ffffff", padx=20, pady=15)
-        dmain.bind("<Configure>", lambda e: dcanvas.configure(scrollregion=dcanvas.bbox("all")))
-        dcanvas.create_window((0, 0), window=dmain, anchor="nw", tags="dw")
-        dcanvas.bind("<Configure>", lambda e: dcanvas.itemconfig("dw", width=e.width - 4))
         dscroll.pack(side=tk.RIGHT, fill=tk.Y)
         dcanvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        dmain = tk.Frame(dcanvas, bg="#ffffff", padx=20, pady=15)
+        dw = dcanvas.create_window((0, 0), window=dmain, anchor="nw")
+        dmain.bind("<Configure>", lambda e: dcanvas.configure(scrollregion=dcanvas.bbox("all")))
+        dcanvas.bind("<Configure>", lambda e: dcanvas.itemconfig(dw, width=e.width))
+        dcanvas.bind("<MouseWheel>", lambda e: dcanvas.yview_scroll(int(-e.delta/120), "units"))
+        dedit.bind("<MouseWheel>", lambda e: dcanvas.yview_scroll(int(-e.delta/120), "units"))
 
         dvars = {}
         for label, key in [
