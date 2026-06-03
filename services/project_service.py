@@ -69,37 +69,22 @@ class ProjectService:
 
     def create_project(self, company_name: str, system_name: str,
                        cert_number: str, issue_date: str, level: str,
-                       deadline: str, notes: str,
+                       location: str, deadline: str, notes: str,
                        stage_id: str) -> tuple[bool, str, Optional[Project]]:
-        """创建新项目
-
-        Args:
-            company_name: 公司名称
-            system_name: 系统名称
-            cert_number: 备案号
-            issue_date: 下证日期
-            level: 系统等级
-            deadline: 项目预计交付日期
-            notes: 备注
-            stage_id: 初始阶段ID
-
-        Returns:
-            (是否成功, 操作消息, 新创建的Project对象或None)
-        """
+        """创建新项目"""
         valid, msg = validate_project_fields(company_name, system_name)
         if not valid:
             return False, msg, None
-
         valid, msg = validate_cert_number(cert_number)
         if not valid:
             return False, msg, None
-
         project = Project(
             company_name=(company_name or "").strip(),
             system_name=(system_name or "").strip(),
             cert_number=(cert_number or "").strip(),
             issue_date=(issue_date or "").strip(),
             level=(level or "").strip(),
+            location=(location or "").strip(),
             deadline=deadline,
             notes=notes,
             stage_id=stage_id,
@@ -117,24 +102,10 @@ class ProjectService:
     def update_project(self, project_id: str, company_name: str = None,
                        system_name: str = None, cert_number: str = None,
                        issue_date: str = None, level: str = None,
+                       location: str = None,
                        deadline: str = None, notes: str = None,
                        stage_id: str = None) -> tuple[bool, str]:
-        """更新项目信息（支持部分更新）
-
-        Args:
-            project_id: 要更新的项目ID
-            company_name: 新公司名称（None=不更新）
-            system_name: 新系统名称（None=不更新）
-            cert_number: 新备案号（None=不更新）
-            issue_date: 新下证日期（None=不更新）
-            level: 新系统等级（None=不更新）
-            deadline: 新项目预计交付日期（None=不更新）
-            notes: 新备注（None=不更新）
-            stage_id: 新阶段ID（None=不更新）
-
-        Returns:
-            (是否成功, 操作消息)
-        """
+        """更新项目信息（支持部分更新）"""
         project = self.get_project_by_id(project_id)  # 查找项目
         if not project:  # 项目不存在
             return False, "项目不存在"
@@ -155,7 +126,7 @@ class ProjectService:
         old_stage = self._get_stage_name(old_stage_id)  # 变更前的阶段名称
         project.update(company_name=company_name, system_name=system_name,
                        cert_number=cert_number, issue_date=issue_date,
-                       level=level,
+                       level=level, location=location,
                        deadline=deadline, notes=notes, stage_id=stage_id)
         self._ds.update_project(project_id, project.to_dict())  # 将更新后的项目持久化
 

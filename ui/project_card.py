@@ -127,6 +127,18 @@ class ProjectCard(tk.Frame):
         else:
             self._level_label = None
 
+        # 属地（居中，小字）
+        if self.project.location:
+            self._loc_label = tk.Label(
+                self._content, text=self.project.location,
+                bg=Config.CARD_BG,
+                font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
+                anchor="center", fg="#7f8c8d",
+            )
+            self._loc_label.pack(fill=tk.X)
+        else:
+            self._loc_label = None
+
         # 4. 证书编号（居中，显示备案状态）
         if self.project.cert_number:
             cert_display = self.project.cert_number

@@ -154,6 +154,9 @@ class DetailDialog(tk.Toplevel):
         # 系统等级
         self._add_info_row(info_frame, "系统等级",
                            self._project.level or "-")
+        # 属地
+        self._add_info_row(info_frame, "属地",
+                           self._project.location or "-")
         # 当前阶段
         stage_name = self._get_stage_name(self._project.stage_id)
         self._add_info_row(info_frame, "当前阶段", stage_name)
