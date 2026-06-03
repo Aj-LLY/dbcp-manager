@@ -300,6 +300,7 @@ class MainWindow(tk.Tk):
                 deadline=data.get("deadline"),
                 notes=data.get("notes"),
                 stage_id=data.get("stage_id"),
+                folder_path=data.get("folder_path"),
             )
             if success:
                 self._refresh_kanban()
@@ -335,6 +336,7 @@ class MainWindow(tk.Tk):
                 deadline=result.get("deadline"),
                 notes=result.get("notes"),
                 stage_id=result.get("stage_id"),
+                folder_path=result.get("folder_path"),
             )
             if success:
                 self._refresh_kanban()
@@ -427,8 +429,9 @@ class MainWindow(tk.Tk):
             for d in subdirs:
                 os.makedirs(os.path.join(root, d), exist_ok=True)
 
-            # 保存文件夹路径到 project
+            # 保存文件夹路径到 project 并持久化（跳过日志）
             project.folder_path = root
+            self._data_service.update_project(project.id, {"folder_path": root})
         except OSError:
             pass
 

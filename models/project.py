@@ -13,14 +13,15 @@ class Project:
                  level: str = "", location: str = "",
                  deadline: str = "", notes: str = "", stage_id: str = "",
                  project_id: str = "", created_at: str = "",
-                 updated_at: str = ""):
+                 updated_at: str = "", folder_path: str = ""):
         self.id = project_id or generate_id("proj")
         self.company_name = company_name
         self.system_name = system_name
         self.cert_number = cert_number
         self.issue_date = issue_date
         self.level = level
-        self.location = location  # 属地（省区-市区）
+        self.location = location
+        self.folder_path = folder_path  # 项目文件夹路径
         self.deadline = deadline
         self.notes = notes
         self.stage_id = stage_id
@@ -42,6 +43,7 @@ class Project:
             "issue_date": self.issue_date,
             "level": self.level,
             "location": self.location,
+            "folder_path": self.folder_path,
             "deadline": self.deadline,
             "notes": self.notes,
             "stage_id": self.stage_id,
@@ -70,6 +72,7 @@ class Project:
             issue_date=data.get("issue_date", ""),
             level=data.get("level", ""),
             location=data.get("location", ""),
+            folder_path=data.get("folder_path", ""),
             deadline=data.get("deadline", ""),
             notes=data.get("notes", ""),
             stage_id=data.get("stage_id", ""),
@@ -80,7 +83,7 @@ class Project:
 
     def update(self, company_name=None, system_name=None, cert_number=None,
                issue_date=None, level=None, location=None,
-               deadline=None, notes=None, stage_id=None):
+               deadline=None, notes=None, stage_id=None, folder_path=None):
         if company_name is not None: self.company_name = company_name
         if system_name is not None: self.system_name = system_name
         if cert_number is not None: self.cert_number = cert_number
@@ -90,6 +93,7 @@ class Project:
         if deadline is not None: self.deadline = deadline
         if notes is not None: self.notes = notes
         if stage_id is not None: self.stage_id = stage_id
+        if folder_path is not None: self.folder_path = folder_path
         self.updated_at = get_now_str()
 
     def __repr__(self) -> str:
