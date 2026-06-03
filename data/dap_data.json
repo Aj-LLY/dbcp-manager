@@ -1,47 +1,122 @@
 {
   "projects": [
     {
-      "id": "proj_1779874915309",
-      "company_name": "12121",
-      "system_name": "111111",
-      "filing_number": "",
-      "deadline": "2026-07-03",
-      "notes": "",
-      "stage_id": "stage_2",
-      "created_at": "2026-05-27 17:41:55",
-      "updated_at": "2026-06-03 16:19:33",
-      "cert_number": "11111111111-11111",
-      "issue_date": "2026-06-10",
+      "id": "proj_1779960974053",
+      "company_name": "中国汽车工业工程有限公司",
+      "system_name": "企业网盘系统",
+      "cert_number": "12010450016-26002",
+      "deadline": "2026-06-30",
+      "notes": "二级",
+      "stage_id": "stage_1",
+      "created_at": "2026-05-28 17:36:14",
+      "updated_at": "2026-05-28 19:36:23"
+    },
+    {
+      "id": "proj_1779961675509",
+      "company_name": "中国汽车工业工程有限公司",
+      "system_name": "一卡通系统",
+      "cert_number": "12010450016-26003",
+      "deadline": "2026-06-30",
+      "notes": "二级",
+      "stage_id": "stage_1",
+      "created_at": "2026-05-28 17:47:55",
+      "updated_at": "2026-05-28 17:48:17"
+    },
+    {
+      "id": "proj_1779961701638",
+      "company_name": "中国汽车工业工程有限公司",
+      "system_name": "工艺数字化管理系统",
+      "cert_number": "12010450016-26004",
+      "deadline": "2026-06-30",
+      "notes": "二级",
+      "stage_id": "stage_1",
+      "created_at": "2026-05-28 17:48:21",
+      "updated_at": "2026-05-28 17:48:40"
+    },
+    {
+      "id": "proj_1779961722933",
+      "company_name": "中国汽车工业工程有限公司",
+      "system_name": "知识管理系统",
+      "cert_number": "12010450016-26005",
+      "deadline": "2026-06-30",
+      "notes": "二级",
+      "stage_id": "stage_1",
+      "created_at": "2026-05-28 17:48:42",
+      "updated_at": "2026-05-28 17:48:56"
+    },
+    {
+      "id": "proj_1779961745018",
+      "company_name": "中国汽车工业工程有限公司",
+      "system_name": "用友财务系统",
+      "cert_number": "12010450016-26006",
+      "deadline": "2026-06-30",
+      "notes": "二级",
+      "stage_id": "stage_1",
+      "created_at": "2026-05-28 17:49:05",
+      "updated_at": "2026-05-28 17:49:17"
+    },
+    {
+      "id": "proj_1780307683010",
+      "company_name": "联帮帮物流科技(夭津)有限责任公司",
+      "system_name": "联帮帮物流平台",
+      "cert_number": "12010439008-25001",
+      "issue_date": "2025-05-30",
       "level": "第三级",
-      "location": "河北-石家庄"
+      "deadline": "2026-06-30",
+      "notes": "",
+      "stage_id": "stage_1780291460746",
+      "created_at": "2026-06-01 17:54:43",
+      "updated_at": "2026-06-03 16:26:47",
+      "location": "天津-滨海新区"
     }
   ],
   "workflow_stages": [
     {
       "id": "stage_1",
-      "name": "项目启动",
+      "name": "备案证下发",
       "order": 0,
       "color": "#3498db",
       "column_width": null
     },
     {
-      "id": "stage_2",
-      "name": "现状调研",
+      "id": "stage_1780291302168",
+      "name": "CRM-打卡联盟申请",
       "order": 1,
       "color": "#2ecc71",
       "column_width": null
     },
     {
       "id": "stage_3",
-      "name": "差距评估",
+      "name": "网安报备",
       "order": 2,
-      "color": "#e67e22",
+      "color": "#e74c3c",
       "column_width": null
     },
     {
-      "id": "stage_8",
-      "name": "项目归档",
+      "id": "stage_7",
+      "name": "授权书盖章",
       "order": 3,
+      "color": "#9b59b6",
+      "column_width": null
+    },
+    {
+      "id": "stage_1780291460746",
+      "name": "整改建议书",
+      "order": 4,
+      "color": "#1abc9c",
+      "column_width": 257
+    },
+    {
+      "id": "stage_1780291534561",
+      "name": "报告初稿",
+      "order": 5,
+      "color": "#f39c12",
+      "column_width": null
+    },
+    {
+      "id": "stage_1780291552790",
+      "name": "报告邮寄",
+      "order": 6,
       "color": "#95a5a6",
       "column_width": null
     }

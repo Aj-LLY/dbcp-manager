@@ -402,25 +402,60 @@ class MainWindow(tk.Tk):
         self._workflow_service.update_stage_width(stage_id, new_width)
 
     def _create_project_folder(self, project):
-        """为新建项目创建数据文件夹
+        """为新建项目创建完整数据目录结构
 
-        在程序同目录 projects/ 下创建文件夹，命名规则：
-        序号-公司名称-系统名称-创建日期(YYMMDD)
+        在程序同目录下创建文件夹并初始化子目录和模板文件。
         """
         import os
         from datetime import date
         try:
             base = Config.get_data_dir()
-            os.makedirs(base, exist_ok=True)
             count = len(self._project_service.get_all_projects())
             date_str = date.today().strftime("%y%m%d")
             cname = (project.company_name or "未命名").replace("/", "_").replace("\\", "_")
             sname = (project.system_name or "").replace("/", "_").replace("\\", "_")
             folder_name = f"{count:03d}-{cname}-{sname}-{date_str}"
-            folder_path = os.path.join(base, folder_name)
-            os.makedirs(folder_path, exist_ok=True)
+            root = os.path.join(base, folder_name)
+            os.makedirs(root, exist_ok=True)
+
+            # 子目录
+            subdirs = [
+                "01-其他归档文件",
+                f"00-{cname}-{sname}-报告打印",
+                f"13-{cname}-{sname}-渗透测试报告",
+            ]
+            for d in subdirs:
+                os.makedirs(os.path.join(root, d), exist_ok=True)
+
+            # 模板文件列表（编号-公司-系统-文档名.扩展名）
+            prefix = f"{cname}-{sname}"
+            files = [
+                f"02-{prefix}-保密承诺书.docx",
+                f"03-{prefix}-测评调研表.docx",
+                f"04-{prefix}-测评授权书（GY）.pdf",
+                f"05-{prefix}-风险告知书.pdf",
+                f"06-{prefix}-项目计划书.docx",
+                f"07-{prefix}-测评方案.docx",
+                f"09-{prefix}-首次会议记录及签到表.docx",
+                f"10-{prefix}-测评现场记录表.docx",
+                f"11-{prefix}-问题汇总及整改建设书.docx",
+                f"12-{prefix}-漏洞扫描报告.docx",
+                f"14-{prefix}-项目文档移交清单.docx",
+                f"15-{prefix}-末次会议记录及签到表.docx",
+                f"16-{prefix}-测评报告-终稿.docx",
+                f"16-{prefix}-测评报告-终稿.pdf",
+                f"18-{prefix}-服务情况评价表.docx",
+                f"19-{prefix}-报备表（GY）.docx",
+            ]
+            for f in files:
+                path = os.path.join(root, f)
+                if not os.path.exists(path):
+                    open(path, "w", encoding="utf-8").close()
+
+            # 保存文件夹路径到 project
+            project.folder_path = root
         except OSError:
-            pass  # 文件夹创建失败不影响主流程
+            pass
 
     # ==================== 窗口事件 ====================
 
