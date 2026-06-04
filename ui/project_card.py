@@ -704,7 +704,19 @@ class ProjectCard(tk.Frame):
             activebackground="#d5dbdb",
         )
         self._folder_btn.pack(side=tk.LEFT, padx=(0, 2))
-        _add_tooltip(self._folder_btn, "打开项目文件夹")  # 添加悬浮提示
+        _add_tooltip(self._folder_btn, "打开项目文件夹")
+
+        # "项目初始化"按钮（🔧）
+        self._init_btn = tk.Button(
+            file_btn_frame, text="\U0001f527",  # 🔧
+            command=self._on_init_click,
+            bg="#f0f2f5", fg="#2c3e50",
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+            relief="flat", borderwidth=0, cursor="hand2", padx=7, pady=1,
+            activebackground="#d5dbdb",
+        )
+        self._init_btn.pack(side=tk.LEFT, padx=(2, 2))
+        _add_tooltip(self._init_btn, "项目初始化（创建子目录和模板文件）")
 
         # "一键重命名"按钮（📝）
         self._rename_btn = tk.Button(
@@ -1112,6 +1124,59 @@ class ProjectCard(tk.Frame):
     # _on_zip_click - 打包过程文档功能
     # ==================================================================================
 
+    def _on_init_click(self):
+        """项目初始化：在已有目录中创建标准子目录和模板文件"""
+        import os
+        from tkinter import messagebox
+        try:
+            root = self._find_project_folder()
+            if not root or not os.path.isdir(root):
+                messagebox.showinfo("提示", "未找到项目文件夹")
+                return
+            cname = (self.project.company_name or "未命名").replace("/", "_").replace("\\", "_")
+            sname = (self.project.system_name or "").replace("/", "_").replace("\\", "_")
+            subdirs = [
+                "01-其他归档文件",
+                f"00-{cname}-{sname}-报告打印",
+                f"13-{cname}-{sname}-渗透测试报告",
+            ]
+            created = 0
+            for d in subdirs:
+                dpath = os.path.join(root, d)
+                if not os.path.exists(dpath):
+                    os.makedirs(dpath, exist_ok=True)
+                    created += 1
+            # 生成保密承诺书
+            try:
+                from utils.config import Config
+                from datetime import date
+                tpl = os.path.join(os.path.dirname(Config.get_data_dir()), "templates",
+                                   "03-模板 保密承诺书.docx")
+                if os.path.exists(tpl):
+                    import shutil, docx
+                    dest = os.path.join(root, f"03-保密承诺书-{cname}-{date.today().year}.docx")
+                    if not os.path.exists(dest):
+                        shutil.copy2(tpl, dest)
+                        doc = docx.Document(dest)
+                        year_s = str(date.today().year)
+                        for p in doc.paragraphs:
+                            for run in p.runs:
+                                for old_y in ("2025", "2026"):
+                                    if old_y in run.text:
+                                        run.text = run.text.replace(old_y, year_s)
+                                if "XX单位" in run.text or "xx单位" in run.text:
+                                    run.text = run.text.replace("XX单位", self.project.company_name or "").replace("xx单位", self.project.company_name or "")
+                        doc.save(dest)
+                        created += 1
+            except Exception:
+                pass
+            if created:
+                messagebox.showinfo("初始化完成", f"已创建 {created} 个子目录/文件")
+            else:
+                messagebox.showinfo("提示", "目录结构已存在，无需初始化")
+        except Exception as e:
+            messagebox.showerror("错误", f"初始化失败: {e}")
+
     def _on_zip_click(self):
         """处理"打包过程文档"按钮点击 - 将项目过程文件压缩为 ZIP
 
@@ -1512,7 +1577,8 @@ class ProjectCard(tk.Frame):
         """
         btn_widgets = {self._prev_btn, self._next_btn,  # 左右箭头按钮
                        self._detail_btn, self._edit_btn, self._copy_btn,  # 操作按钮
-                       self._folder_btn, self._rename_btn, self._zip_btn,  # 文件操作按钮
+                       self._folder_btn, self._init_btn,  # 文件夹+初始化
+                       self._rename_btn, self._zip_btn,  # 重命名+打包
                        self._report_btn}  # 报告打印按钮
 
         # 先给 Frame 自身绑定事件（捕获卡片边缘区域的鼠标事件）
