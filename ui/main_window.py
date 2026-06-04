@@ -226,9 +226,16 @@ class MainWindow(tk.Tk):
                 notes=result["notes"],  # 备注信息
                 stage_id=result["stage_id"],  # 初始流程阶段 ID
             )
-            if success:  # 项目创建成功
-                self._create_project_folder(project)  # 为新项目创建文件目录结构
-                self._refresh_kanban()  # 刷新看板，显示新创建的项目卡片
+            if success:
+                import os
+                user_folder = result.get("folder_path", "").strip()
+                if user_folder and os.path.isdir(user_folder):
+                    # 用户指定了已有目录，直接使用
+                    project.folder_path = user_folder
+                    self._data_service.update_project(project.id, {"folder_path": user_folder})
+                else:
+                    self._create_project_folder(project)
+                self._refresh_kanban()
             else:
                 messagebox.showerror("错误", msg)  # 创建失败时弹窗显示错误原因
 
