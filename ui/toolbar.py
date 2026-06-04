@@ -70,6 +70,7 @@ class Toolbar(tk.Frame):
         self.on_delete_project = None  # "删除项目" -> _on_delete_selected()
         self.on_refresh = None  # "刷新" -> _refresh_kanban()
         self.on_backup = None  # "WebDAV备份" -> _on_backup()
+        self.on_console = None  # "控制台" -> _on_console()
 
         # ---- 构建 UI ----
         self._build_ui()  # 创建按钮区域（水平排列）
@@ -109,8 +110,10 @@ class Toolbar(tk.Frame):
         # 右侧功能按钮
         self._create_btn(right_area, "WebDAV备份", "#8e44ad",  # 紫色主题 - 远程备份
                          lambda: self._call_callback(self.on_backup))  # 安全调用回调
-        self._create_btn(right_area, "操作日志", "#7f8c8d",  # 灰色主题 - 审计查询
-                         lambda: self._call_callback(self.on_view_logs))  # 安全调用回调
+        self._create_btn(right_area, "操作日志", "#7f8c8d",
+                         lambda: self._call_callback(self.on_view_logs))
+        self._create_btn(right_area, "控制台", "#e67e22",
+                         lambda: self._call_callback(self.on_console))
 
     def _create_btn(self, parent, text: str, color: str, command):
         """工具栏按钮的工厂方法 - 统一创建风格一致的按钮

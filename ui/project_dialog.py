@@ -903,13 +903,16 @@ class ProjectDialog(tk.Toplevel):
             pass  # 归档失败不影响主流程
 
     def _ocr_failed(self, error: str):
-        """OCR 识别失败时的处理：恢复按钮状态并显示错误信息。
-
-        Args:
-            error: 错误描述字符串。
-        """
-        self._upload_btn.configure(state="normal", text="上传备案证识别")  # 恢复按钮
-        self._ocr_status.configure(text=f"识别失败：{error}", fg="#e74c3c")  # 显示红色错误信息
+        """OCR 识别失败处理：恢复按钮并显示详细错误。"""
+        self._upload_btn.configure(state="normal", text="上传备案证识别")
+        detail = error[:120] if len(error) > 120 else error
+        self._ocr_status.configure(text=f"识别失败：{detail}", fg="#e74c3c")
+        # 记录到全局错误日志
+        try:
+            from utils.error_log import capture
+            capture(f"OCR识别失败: {error}")
+        except Exception:
+            pass
 
     # =========================================================================
     # 窗口居中

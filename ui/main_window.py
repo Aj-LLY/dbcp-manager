@@ -161,7 +161,8 @@ class MainWindow(tk.Tk):
         self._toolbar.on_view_logs = self._on_view_logs  # "操作日志" 按钮 -> 查看日志处理
         self._toolbar.on_delete_project = self._on_delete_selected  # "删除项目" 按钮 -> 删除选中项目
         self._toolbar.on_refresh = self._refresh_kanban  # "刷新" 按钮 -> 刷新看板数据
-        self._toolbar.on_backup = self._on_backup  # "WebDAV备份" 按钮 -> 备份管理对话框
+        self._toolbar.on_backup = self._on_backup
+        self._toolbar.on_console = self._on_console  # "控制台" 按钮
 
     def _build_kanban(self):
         """构建看板区域组件
@@ -287,17 +288,26 @@ class MainWindow(tk.Tk):
         logs = self._log_service.get_all_logs()  # 获取所有操作日志列表（已按时间倒序排列）
         show_log_dialog(self, logs)  # 打开日志查看对话框，展示日志内容
 
+    def _on_console(self):
+        """打开控制台窗口，查看程序错误日志"""
+        import tkinter as tk
+        from tkinter import scrolledtext
+        from utils.error_log import get_errors
+        dlg = tk.Toplevel(self)
+        dlg.title("控制台 - 错误日志")
+        dlg.geometry("700x400")
+        dlg.configure(bg="#1e1e1e")
+        text = scrolledtext.ScrolledText(dlg, bg="#1e1e1e", fg="#d4d4d4",
+            insertbackground="white", font=("Consolas", 9), wrap="word")
+        text.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+        text.insert("1.0", get_errors())
+        text.configure(state="disabled")
+        btn = tk.Button(dlg, text="关闭", command=dlg.destroy,
+            bg="#333", fg="#ccc", cursor="hand2")
+        btn.pack(pady=(0, 4))
+
     def _on_backup(self):
-        """处理"WebDAV备份"按钮点击事件
-
-        打开 WebDAV 备份管理对话框，允许用户：
-          - 配置 WebDAV 服务器连接参数（地址、用户名、密码、远程路径）
-          - 手动执行数据备份到远程 WebDAV 服务器
-          - 从远程 WebDAV 服务器恢复数据到本地
-          - 设置是否启用自动备份
-
-        恢复操作后自动重新加载数据和刷新看板。
-        """
+        """处理"WebDAV备份"按钮点击事件"""
         dialog = BackupDialog(self, Config.get_data_file_path())  # 创建备份对话框，传入数据文件路径
         # 设置恢复回调：当用户执行恢复操作后，重新加载数据文件并刷新看板
         dialog.on_restore = lambda: (self._data_service.reload(), self._refresh_kanban())
@@ -574,17 +584,66 @@ class MainWindow(tk.Tk):
                 f"00-{cname}-{sname}-报告打印",  # 报告打印输出目录
                 f"13-{cname}-{sname}-渗透测试报告",  # 渗透测试报告目录
             ]
-            for d in subdirs:  # 遍历子目录列表逐一创建
+            for d in subdirs:
                 os.makedirs(os.path.join(root, d), exist_ok=True)
 
-            # 将文件夹路径写入项目数据并持久化（跳过日志记录，避免冗余）
+            # 生成保密承诺书模板（替换年份和公司名称）
+            self._generate_nda_template(root, cname, project.company_name or "未命名")
+
+            # 持久化文件夹路径
             project.folder_path = root  # 设置项目对象的文件夹路径属性
             self._data_service.update_project(project.id, {"folder_path": root})  # 持久化到 JSON
-        except OSError:  # 文件系统操作异常（权限不足、磁盘满等）
-            pass  # 静默处理：文件夹创建失败不阻塞正常流程
+        except OSError:
+            pass
+
+    def _generate_nda_template(self, root, cname_clean, company_name):
+        """生成保密承诺书模板，替换年份和公司名称。
+
+        Args:
+            root: 项目文件夹根路径
+            cname_clean: 清理后的公司名称（用于文件名）
+            company_name: 原始公司名称（用于文档内容替换）
+        """
+        import os, shutil
+        from datetime import date
+        try:
+            template_path = os.path.join(
+                os.path.dirname(Config.get_data_dir()), "templates",
+                "03-模板 保密承诺书.docx"
+            )
+            if not os.path.exists(template_path):
+                return  # 模板文件不存在，跳过
+            dest_name = f"03-保密承诺书-{cname_clean}-{date.today().year}.docx"
+            dest_path = os.path.join(root, dest_name)
+            shutil.copy2(template_path, dest_path)
+            # 替换模板中的占位符
+            import docx
+            doc = docx.Document(dest_path)
+            year_str = str(date.today().year)
+            for p in doc.paragraphs:
+                for run in p.runs:
+                    if "2025" in run.text or "2026" in run.text:
+                        run.text = run.text.replace("2025", year_str).replace("2026", year_str)
+                    if "XX单位" in run.text or "xx单位" in run.text:
+                        run.text = run.text.replace("XX单位", company_name).replace("xx单位", company_name)
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        for p in cell.paragraphs:
+                            for run in p.runs:
+                                if "2025" in run.text or "2026" in run.text:
+                                    run.text = run.text.replace("2025", year_str).replace("2026", year_str)
+                                if "XX单位" in run.text or "xx单位" in run.text:
+                                    run.text = run.text.replace("XX单位", company_name).replace("xx单位", company_name)
+                                # 替换表格中的公司名
+                                if "顺科技" in run.text and company_name:
+                                    run.text = company_name
+            doc.save(dest_path)
+        except Exception:
+            pass  # 模板生成失败不阻塞流程
 
     # ==================================================================================
-    # 窗口事件处理方法 - 响应窗口生命周期事件
+    # 窗口事件处理方法
     # ==================================================================================
 
     def _on_window_resize(self, event):
