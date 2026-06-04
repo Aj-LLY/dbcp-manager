@@ -77,8 +77,11 @@ def main():
       mainloop() 是一个阻塞调用，在窗口关闭之前不会返回。
       所有窗口事件（鼠标点击、键盘输入、定时器等）都由 Tkinter 内部事件循环处理。
     """
-    app = MainWindow()  # 实例化主窗口对象（自动完成所有初始化）
-    app.mainloop()      # 启动 Tkinter 主事件循环（阻塞，直到窗口关闭）
+    app = MainWindow()
+    # 安装全局异常捕获，错误信息可在控制台按钮中查看
+    from utils.error_log import install
+    install(app)
+    app.mainloop()
 
 
 # =============================================================================
