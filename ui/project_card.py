@@ -1147,36 +1147,40 @@ class ProjectCard(tk.Frame):
                 return
             cname = (self.project.company_name or "未命名").replace("/", "_").replace("\\", "_")
             sname = (self.project.system_name or "").replace("/", "_").replace("\\", "_")
-            created = 0
-            msgs = []
-            # 创建01-其他归档文件
-            dpath = os.path.join(root, "01-其他归档文件")
+            created = []; existed = []
+            # 01-其他归档文件
+            dname = "01-其他归档文件"
+            dpath = os.path.join(root, dname)
             if not os.path.exists(dpath):
-                os.makedirs(dpath, exist_ok=True)
-                created += 1; msgs.append("创建目录: 01-其他归档文件")
-            # 创建00-报告打印
-            dpath = os.path.join(root, f"00-{cname}-{sname}-报告打印")
+                os.makedirs(dpath, exist_ok=True); created.append(dname)
+            else:
+                existed.append(dname)
+            # 00-报告打印
+            dname = f"00-{cname}-{sname}-报告打印"
+            dpath = os.path.join(root, dname)
             if not os.path.exists(dpath):
-                os.makedirs(dpath, exist_ok=True)
-                created += 1; msgs.append("创建目录: 00-报告打印")
-            # 生成保密承诺书（03-公司-系统-保密承诺书.docx）
-            try:
-                from utils.config import Config
-                tpl = os.path.join(Config.get_data_dir(), "templates", "02-保密承诺书模板.docx")
-                if os.path.exists(tpl):
-                    import shutil, docx
-                    dest = os.path.join(root, f"03-{cname}-{sname}-保密承诺书.docx")
-                    if not os.path.exists(dest):
-                        shutil.copy2(tpl, dest)
-                        doc = docx.Document(dest)
+                os.makedirs(dpath, exist_ok=True); created.append(dname)
+            else:
+                existed.append(dname)
+            # 02-保密承诺书
+            nda_name = f"02-{cname}-{sname}-保密承诺书.docx"
+            nda_path = os.path.join(root, nda_name)
+            if os.path.exists(nda_path):
+                existed.append(nda_name)
+            else:
+                try:
+                    from utils.config import Config
+                    tpl = os.path.join(Config.get_data_dir(), "templates", "02-保密承诺书模板.docx")
+                    if os.path.exists(tpl):
+                        import shutil, docx
+                        shutil.copy2(tpl, nda_path)
+                        doc = docx.Document(nda_path)
                         company = self.project.company_name or ""
-                        create_date = self.project.created_at[:10] if self.project.created_at else ""
-                        # 替换公司名称: XXX公司 → 实际公司名
                         for p in doc.paragraphs:
                             for run in p.runs:
                                 if "XXX公司" in run.text or "XXX" in run.text:
                                     run.text = run.text.replace("XXX公司", company).replace("XXX", company)
-                        # 替换表格中的日期: XX年XX月XX日 → 创建日期
+                        create_date = self.project.created_at[:10] if self.project.created_at else ""
                         if create_date:
                             parts = create_date.split("-")
                             if len(parts) == 3:
@@ -1188,14 +1192,19 @@ class ProjectCard(tk.Frame):
                                                 for run in p.runs:
                                                     if "年" in run.text and "月" in run.text and "日" in run.text:
                                                         run.text = date_cn
-                        doc.save(dest)
-                        created += 1; msgs.append("生成: 03-保密承诺书.docx")
-            except Exception:
-                pass
-            if msgs:
-                messagebox.showinfo("初始化完成", "\n".join(msgs))
-            else:
-                messagebox.showinfo("提示", "目录结构已存在，无需初始化")
+                        doc.save(nda_path)
+                        created.append(nda_name)
+                except Exception:
+                    pass
+            # 弹窗报告
+            lines = []
+            if created:
+                lines.append("--- 已创建 ---")
+                lines.extend(f"  + {x}" for x in created)
+            if existed:
+                lines.append("--- 已存在 ---")
+                lines.extend(f"  = {x}" for x in existed)
+            messagebox.showinfo("初始化完成", "\n".join(lines) if lines else "无需初始化")
         except Exception as e:
             messagebox.showerror("错误", f"初始化失败: {e}")
 
