@@ -635,7 +635,7 @@ class MainWindow(tk.Tk):
             for p in doc.paragraphs:
                 for j in range(len(p.runs) - 1):
                     if p.runs[j].text.strip() == "XX" and p.runs[j+1].text.strip() == "公司":
-                        p.runs[j].text = ""; p.runs[j+1].text = ""
+                        p.runs[j].text = company_name; p.runs[j+1].text = ""
             # 替换日期: 保留每个run格式, 仅替换"XX"
             now = datetime.now()
             for table in doc.tables:
