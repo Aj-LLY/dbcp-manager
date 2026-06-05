@@ -24,7 +24,7 @@
 # 标准库导入
 # =============================================================================
 import os                       # 操作系统接口：创建目录、路径分隔符替换
-import threading                # 多线程：后台执行 OCR 识别，避免阻塞 UI 线程
+
 from datetime import date, timedelta       # 日期处理：date 用于日期格式验证，timedelta 用于日期偏移计算
 
 # =============================================================================
@@ -45,51 +45,16 @@ from utils.helpers import (                # 辅助工具函数
     bordered_entry,                        # 创建带灰色外边框的输入框组件
     validate_cert_number,                  # 验证证书编号格式（11位数字 - 5位数字）
 )
-
-
-# =============================================================================
-# 全国省市区静态数据（省级 → 市级列表）
-# =============================================================================
-# 用于项目属地下拉选择，实现省-市两级联动。
-# 键为省级行政区名称，值为该省区下属市级行政区名称列表。
-PROVINCE_CITIES = {
-    "北京": ["东城区", "西城区", "朝阳区", "丰台区", "石景山区", "海淀区", "顺义区", "通州区", "大兴区", "房山区", "昌平区", "怀柔区", "密云区", "延庆区", "平谷区", "门头沟区"],
-    "天津": ["和平区", "河东区", "河西区", "南开区", "河北区", "红桥区", "东丽区", "西青区", "北辰区", "武清区", "宝坻区", "滨海新区", "宁河区", "静海区", "蓟州区"],
-    "上海": ["黄浦区", "徐汇区", "长宁区", "静安区", "普陀区", "虹口区", "杨浦区", "闵行区", "宝山区", "嘉定区", "浦东新区", "金山区", "松江区", "青浦区", "奉贤区", "崇明区"],
-    "重庆": ["渝中区", "江北区", "南岸区", "沙坪坝区", "九龙坡区", "大渡口区", "北碚区", "渝北区", "巴南区", "万州区", "涪陵区", "黔江区", "长寿区", "江津区", "合川区", "永川区"],
-    "河北": ["石家庄", "唐山", "秦皇岛", "邯郸", "邢台", "保定", "张家口", "承德", "沧州", "廊坊", "衡水"],
-    "山西": ["太原", "大同", "阳泉", "长治", "晋城", "朔州", "晋中", "运城", "忻州", "临汾", "吕梁"],
-    "内蒙古": ["呼和浩特", "包头", "乌海", "赤峰", "通辽", "鄂尔多斯", "呼伦贝尔", "巴彦淖尔", "乌兰察布", "兴安盟", "锡林郭勒盟", "阿拉善盟"],
-    "辽宁": ["沈阳", "大连", "鞍山", "抚顺", "本溪", "丹东", "锦州", "营口", "阜新", "辽阳", "盘锦", "铁岭", "朝阳", "葫芦岛"],
-    "吉林": ["长春", "吉林", "四平", "辽源", "通化", "白山", "松原", "白城", "延边"],
-    "黑龙江": ["哈尔滨", "齐齐哈尔", "鸡西", "鹤岗", "双鸭山", "大庆", "伊春", "佳木斯", "七台河", "牡丹江", "黑河", "绥化", "大兴安岭"],
-    "江苏": ["南京", "无锡", "徐州", "常州", "苏州", "南通", "连云港", "淮安", "盐城", "扬州", "镇江", "泰州", "宿迁"],
-    "浙江": ["杭州", "宁波", "温州", "嘉兴", "湖州", "绍兴", "金华", "衢州", "舟山", "台州", "丽水"],
-    "安徽": ["合肥", "芜湖", "蚌埠", "淮南", "马鞍山", "淮北", "铜陵", "安庆", "黄山", "滁州", "阜阳", "宿州", "六安", "亳州", "池州", "宣城"],
-    "福建": ["福州", "厦门", "莆田", "三明", "泉州", "漳州", "南平", "龙岩", "宁德"],
-    "江西": ["南昌", "景德镇", "萍乡", "九江", "新余", "鹰潭", "赣州", "吉安", "宜春", "抚州", "上饶"],
-    "山东": ["济南", "青岛", "淄博", "枣庄", "东营", "烟台", "潍坊", "济宁", "泰安", "威海", "日照", "临沂", "德州", "聊城", "滨州", "菏泽"],
-    "河南": ["郑州", "开封", "洛阳", "平顶山", "安阳", "鹤壁", "新乡", "焦作", "濮阳", "许昌", "漯河", "三门峡", "南阳", "商丘", "信阳", "周口", "驻马店", "济源"],
-    "湖北": ["武汉", "黄石", "十堰", "宜昌", "襄阳", "鄂州", "荆门", "孝感", "荆州", "黄冈", "咸宁", "随州", "恩施", "仙桃", "潜江", "天门", "神农架"],
-    "湖南": ["长沙", "株洲", "湘潭", "衡阳", "邵阳", "岳阳", "常德", "张家界", "益阳", "郴州", "永州", "怀化", "娄底", "湘西"],
-    "广东": ["广州", "韶关", "深圳", "珠海", "汕头", "佛山", "江门", "湛江", "茂名", "肇庆", "惠州", "梅州", "汕尾", "河源", "阳江", "清远", "东莞", "中山", "潮州", "揭阳", "云浮"],
-    "广西": ["南宁", "柳州", "桂林", "梧州", "北海", "防城港", "钦州", "贵港", "玉林", "百色", "贺州", "河池", "来宾", "崇左"],
-    "海南": ["海口", "三亚", "三沙", "儋州", "五指山", "琼海", "文昌", "万宁", "东方", "定安", "屯昌", "澄迈", "临高", "白沙", "昌江", "乐东", "陵水", "保亭", "琼中"],
-    "四川": ["成都", "自贡", "攀枝花", "泸州", "德阳", "绵阳", "广元", "遂宁", "内江", "乐山", "南充", "眉山", "宜宾", "广安", "达州", "雅安", "巴中", "资阳", "阿坝", "甘孜", "凉山"],
-    "贵州": ["贵阳", "六盘水", "遵义", "安顺", "毕节", "铜仁", "黔西南", "黔东南", "黔南"],
-    "云南": ["昆明", "曲靖", "玉溪", "保山", "昭通", "丽江", "普洱", "临沧", "楚雄", "红河", "文山", "西双版纳", "大理", "德宏", "怒江", "迪庆"],
-    "西藏": ["拉萨", "日喀则", "昌都", "林芝", "山南", "那曲", "阿里"],
-    "陕西": ["西安", "铜川", "宝鸡", "咸阳", "渭南", "延安", "汉中", "榆林", "安康", "商洛", "杨凌"],
-    "甘肃": ["兰州", "嘉峪关", "金昌", "白银", "天水", "武威", "张掖", "平凉", "酒泉", "庆阳", "定西", "陇南", "临夏", "甘南"],
-    "青海": ["西宁", "海东", "海北", "黄南", "海南", "果洛", "玉树", "海西"],
-    "宁夏": ["银川", "石嘴山", "吴忠", "固原", "中卫"],
-    "新疆": ["乌鲁木齐", "克拉玛依", "吐鲁番", "哈密", "昌吉", "博尔塔拉", "巴音郭楞", "阿克苏", "克孜勒苏", "喀什", "和田", "伊犁", "塔城", "阿勒泰", "石河子"],
-    "香港": ["中西区", "湾仔区", "东区", "南区", "油尖旺区", "深水埗区", "九龙城区", "黄大仙区", "观塘区", "荃湾区", "屯门区", "元朗区", "北区", "大埔区", "沙田区", "西贡区", "离岛区"],
-    "澳门": ["花地玛堂区", "圣安多尼堂区", "大堂区", "望德堂区", "风顺堂区", "嘉模堂区", "圣方济各堂区"],
-    "台湾": ["台北", "高雄", "台中", "台南", "基隆", "新竹", "嘉义", "桃园", "新北"],
-}
-# 省级行政区名称列表（提取 PROVINCE_CITIES 的所有键），供省级下拉选择框使用
-PROVINCES = list(PROVINCE_CITIES.keys())
+from utils.province_data import (          # 全国省市区静态数据
+    PROVINCE_CITIES,                       # 省级 → 市级列表字典（供 _on_province_change 使用）
+    PROVINCES,                             # 省级名称列表（供省级下拉框 values 使用）
+)
+from ui.dialog_project_ocr import (        # OCR 备案证识别模块（从项目对话框抽取）
+    on_upload_cert,                        # 上传备案证 → 后台 OCR 线程
+    fill_cert_result,                      # OCR 结果填充到表单字段
+    archive_cert_file,                     # 归档备案证文件到项目目录
+    ocr_failed,                            # OCR 失败时的恢复与提示
+)
 
 
 # =============================================================================
@@ -796,123 +761,24 @@ class ProjectDialog(tk.Toplevel):
             messagebox.showerror("错误", f"创建失败: {e}", parent=self)
 
     # =========================================================================
-    # OCR 备案证识别
+    # OCR 备案证识别（委托到 ui.dialog_project_ocr 中的独立函数）
     # =========================================================================
 
     def _on_upload_cert(self):
-        """上传备案证文件并启动后台线程进行 OCR 识别。
-
-        打开文件选择对话框让用户选择备案证图片或 PDF 文件，
-        选中后在后台线程中调用 CertOCRService 进行识别，
-        识别结果通过 after 回调回主线程更新表单字段。
-
-        支持的文件格式：PDF、PNG、JPG、JPEG、BMP。
-        """
-        # 打开文件选择对话框，筛选图片和 PDF 文件
-        file_path = filedialog.askopenfilename(
-            parent=self,
-            title="选择备案证文件",
-            filetypes=[
-                ("图片和PDF文件", "*.pdf *.png *.jpg *.jpeg *.bmp"),
-                ("PDF文件", "*.pdf"),
-                ("图片文件", "*.png *.jpg *.jpeg *.bmp"),
-            ],
-        )
-        if not file_path:
-            return  # 用户取消选择，直接返回
-
-        # 禁用上传按钮并显示识别中状态
-        self._upload_btn.configure(state="disabled", text="识别中...")
-        self._ocr_status.configure(text="正在识别备案证，请稍候...", fg="#f39c12")
-
-        def _run():
-            """后台线程执行函数：调用 OCR 服务并回传结果到主线程。"""
-            try:
-                from services.cert_ocr import CertOCRService
-                result = CertOCRService().recognize(file_path)
-                self.after(0, lambda: self._fill_cert_result(result, file_path))
-            except Exception as e:
-                self.after(0, lambda: self._ocr_failed(str(e)))
-
-        # 启动后台线程执行识别（daemon 线程，随主程序退出自动终止）
-        threading.Thread(target=_run, daemon=True).start()
+        """上传备案证文件并启动后台线程进行 OCR 识别。（委托）"""
+        on_upload_cert(self)
 
     def _fill_cert_result(self, result: dict, file_path: str = ""):
-        """将 OCR 识别结果填充到表单字段，并将备案证文件归档。
-
-        恢复上传按钮，更新各输入框，并将原始文件复制到
-        01-其他归档文件/01-备案证-往期测评报告/ 目录下。
-
-        Args:
-            result: OCR 识别结果字典，可能包含的键：
-                company_name, system_name, cert_number, issue_date, level
-        """
-        self._upload_btn.configure(state="normal", text="上传备案证识别")  # 恢复按钮
-        # 如果识别结果所有值都为空，提示用户手动填写
-        if not any(result.values()):
-            self._ocr_status.configure(text="未识别到有效信息，请手动填写", fg="#e74c3c")
-            return
-
-        # 逐个字段填充到对应输入框，并记录已填充的字段名
-        filled = []
-        if result.get("company_name"):
-            self._company_var.set(result["company_name"]); filled.append("公司名称")
-        if result.get("system_name"):
-            self._system_var.set(result["system_name"]); filled.append("系统名称")
-        if result.get("cert_number"):
-            self._cert_var.set(result["cert_number"]); filled.append("证书编号")
-        if result.get("issue_date"):
-            self._issue_date_var.set(result["issue_date"]); filled.append("下证日期")
-        if result.get("level"):
-            self._level_var.set(result["level"]); filled.append("系统等级")
-
-        # 更新 OCR 状态标签
-        self._ocr_status.configure(
-            text=f"已识别：{'、'.join(filled)}（请核对）" if filled else "识别结果不完整",
-            fg="#27ae60" if filled else "#e67e22",
-        )
-
-        # 归档备案证文件到项目文件夹
-        if file_path and filled:
-            self._archive_cert_file(file_path)
+        """将 OCR 识别结果填充到表单字段。（委托）"""
+        fill_cert_result(self, result, file_path)
 
     def _archive_cert_file(self, src_path: str):
-        """将备案证文件复制到项目归档目录。
-
-        目标路径: {项目文件夹}/01-其他归档文件/01-备案证-往期测评报告/
-        文件命名: {公司名称}-{系统名称}-备案证.{原扩展名}
-        """
-        import os, shutil
-        try:
-            root = self._folder_path_var.get().strip()
-            if not root or not os.path.isdir(root):
-                return  # 项目文件夹未设置或不存在，跳过归档
-            cname = self._company_var.get().strip()
-            sname = self._system_var.get().strip()
-            if not cname and not sname:
-                return  # 无公司/系统名称，跳过
-            ext = os.path.splitext(src_path)[1] or ".pdf"
-            safe_name = f"{cname or '未知'}-{sname or '未知'}-备案证{ext}"
-            safe_name = safe_name.replace("/", "_").replace("\\", "_").replace(":", "_")
-            dest_dir = os.path.join(root, "01-其他归档文件", "01-备案证-往期测评报告")
-            os.makedirs(dest_dir, exist_ok=True)
-            dest_path = os.path.join(dest_dir, safe_name)
-            if not os.path.exists(dest_path):
-                shutil.copy2(src_path, dest_path)
-        except OSError:
-            pass  # 归档失败不影响主流程
+        """将备案证文件复制到项目归档目录。（委托）"""
+        archive_cert_file(self, src_path)
 
     def _ocr_failed(self, error: str):
-        """OCR 识别失败处理：恢复按钮并显示详细错误。"""
-        self._upload_btn.configure(state="normal", text="上传备案证识别")
-        detail = error[:120] if len(error) > 120 else error
-        self._ocr_status.configure(text=f"识别失败：{detail}", fg="#e74c3c")
-        # 记录到全局错误日志
-        try:
-            from utils.error_log import capture
-            capture(f"OCR识别失败: {error}")
-        except Exception:
-            pass
+        """OCR 识别失败处理。（委托）"""
+        ocr_failed(self, error)
 
     # =========================================================================
     # 窗口居中
