@@ -1176,26 +1176,42 @@ class ProjectCard(tk.Frame):
                         shutil.copy2(tpl, nda_path)
                         doc = docx.Document(nda_path)
                         company = self.project.company_name or ""
-                        for p in doc.paragraphs:
-                            for run in p.runs:
-                                if "公司" in run.text and ("XX" in run.text or "XXX" in run.text):
-                                    run.text = run.text.replace("XXX公司", company).replace("XX公司", company)
                         create_date = self.project.created_at[:10] if self.project.created_at else ""
+                        date_cn = ""
                         if create_date:
                             parts = create_date.split("-")
                             if len(parts) == 3:
                                 date_cn = f"{parts[0]}年{int(parts[1]):02d}月{int(parts[2]):02d}日"
-                                # 替换段落中日期
-                                for p in doc.paragraphs:
-                                    for run in p.runs:
-                                        run.text = run.text.replace("XX年XX月XX日", date_cn)
-                                # 替换表格中日期
-                                for table in doc.tables:
-                                    for row in table.rows:
-                                        for cell in row.cells:
-                                            for p in cell.paragraphs:
-                                                for run in p.runs:
-                                                    run.text = run.text.replace("XX年XX月XX日", date_cn)
+                        # 段落级别替换: 先合并所有run文本再整体替换
+                        for p in doc.paragraphs:
+                            full = "".join(r.text for r in p.runs)
+                            if "XX公司" in full or "XX" in full:
+                                new_text = full.replace("XX公司", company).replace("XX", company)
+                                # 清除所有run，写入第一个run
+                                for r in p.runs:
+                                    r.text = ""
+                                p.runs[0].text = new_text
+                            if date_cn and "XX年XX月XX日" in full:
+                                new_text = full.replace("XX年XX月XX日", date_cn)
+                                has_date = any("XX年XX月XX日" in r.text for r in p.runs)
+                                if not has_date:  # run级别没匹配到，paragraph级别有
+                                    for r in p.runs:
+                                        r.text = ""
+                                    p.runs[0].text = new_text
+                                else:
+                                    for r in p.runs:
+                                        r.text = r.text.replace("XX年XX月XX日", date_cn)
+                        # 表格级别替换
+                        if date_cn:
+                            for table in doc.tables:
+                                for row in table.rows:
+                                    for cell in row.cells:
+                                        for p in cell.paragraphs:
+                                            full = "".join(r.text for r in p.runs)
+                                            if "XX年XX月XX日" in full:
+                                                for r in p.runs:
+                                                    r.text = r.text.replace("XX年XX月XX日", date_cn)
+                                                break
                         doc.save(nda_path)
                         created.append(nda_name)
                 except Exception:

@@ -623,24 +623,29 @@ class MainWindow(tk.Tk):
                 return
             shutil.copy2(template_path, dest_path)
             import docx
-            doc = docx.Document(dest_path)
-            # 替换所有 XX公司/XXX公司 → 实际公司名
-            for p in doc.paragraphs:
-                for run in p.runs:
-                    if "公司" in run.text and ("XX" in run.text or "XXX" in run.text):
-                        run.text = run.text.replace("XXX公司", company_name).replace("XX公司", company_name)
             from datetime import datetime
+            doc = docx.Document(dest_path)
             create_date = datetime.now().strftime("%Y年%m月%d日")
-            # 替换所有 XX年XX月XX日 → 创建日期
             for p in doc.paragraphs:
-                for run in p.runs:
-                    run.text = run.text.replace("XX年XX月XX日", create_date)
+                full = "".join(r.text for r in p.runs)
+                if "XX公司" in full or "XX" in full:
+                    new_text = full.replace("XX公司", company_name).replace("XX", company_name)
+                    for r in p.runs: r.text = ""
+                    if p.runs: p.runs[0].text = new_text
+                if "XX年XX月XX日" in full:
+                    new_text = full.replace("XX年XX月XX日", create_date)
+                    if not any("XX年XX月XX日" in r.text for r in p.runs):
+                        for r in p.runs: r.text = ""
+                        if p.runs: p.runs[0].text = new_text
+                    else:
+                        for r in p.runs: r.text = r.text.replace("XX年XX月XX日", create_date)
             for table in doc.tables:
                 for row in table.rows:
                     for cell in row.cells:
                         for p in cell.paragraphs:
-                            for run in p.runs:
-                                run.text = run.text.replace("XX年XX月XX日", create_date)
+                            full = "".join(r.text for r in p.runs)
+                            if "XX年XX月XX日" in full:
+                                for r in p.runs: r.text = r.text.replace("XX年XX月XX日", create_date)
             doc.save(dest_path)
         except Exception:
             pass
