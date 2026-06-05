@@ -132,7 +132,9 @@ class MainWindow(tk.Tk):
         # 第五步：加载数据并刷新看板（从服务层读取阶段和项目数据，渲染到 UI）
         # =====================================================================
 
-        self._refresh_kanban()  # 从 DataService 加载阶段和项目，调用 KanbanBoard 渲染
+        self._refresh_kanban()
+        # 启动后延迟检测云端备份（等 UI 完全加载）
+        self.after(1000, self._check_restore_on_startup)
 
     # ==================================================================================
     # UI 构建方法 - 创建和布局所有界面组件
@@ -666,14 +668,99 @@ class MainWindow(tk.Tk):
         pass  # 当前无需额外处理，pack 布局自动完成自适应
 
     def _on_close(self):
-        """处理窗口关闭事件 - 在退出前保存数据
+        """窗口关闭前保存数据并询问是否同步到 WebDAV。"""
+        self._data_service.save()
+        # 询问是否备份到 WebDAV
+        from utils.webdav_config import WebDAVConfig
+        cfg = WebDAVConfig.load()
+        if cfg.url:
+            if messagebox.askyesno("数据同步", "是否将当前数据同步到 WebDAV 服务器？"):
+                try:
+                    from services.backup_service import BackupService
+                    svc = BackupService(cfg)
+                    ok, msg = svc.backup(Config.get_data_file_path())
+                    if ok:
+                        messagebox.showinfo("同步成功", f"数据已备份: {msg}")
+                    else:
+                        messagebox.showwarning("同步失败", msg)
+                except Exception as e:
+                    messagebox.showwarning("同步错误", str(e))
+        self.destroy()
 
-        绑定到窗口的 WM_DELETE_WINDOW 协议（即点击窗口右上角 X 按钮时触发）。
-        调用数据服务的 save() 方法将内存中的所有项目、阶段数据写入 JSON 文件，
-        确保用户的操作结果不会因程序异常退出而丢失。
-        """
-        self._data_service.save()  # 保存所有数据到 JSON 文件（项目、阶段、配置等）
-        self.destroy()  # 销毁 Tkinter 窗口实例，退出 mainloop 主事件循环
+    def _check_restore_on_startup(self):
+        """启动时检查 WebDAV 备份，提示是否恢复数据。"""
+        from utils.webdav_config import WebDAVConfig
+        cfg = WebDAVConfig.load()
+        if not cfg.url:
+            return
+        try:
+            from services.backup_service import BackupService
+            svc = BackupService(cfg)
+            ok, msg, files = svc.list_backups()
+            if not ok or not files:
+                return
+            files.sort(key=lambda x: x["name"], reverse=True)
+            # 构建备份列表对话框
+            import tkinter as tk
+            dlg = tk.Toplevel(self)
+            dlg.title("数据恢复 - 检测到云端备份")
+            dlg.geometry("550x400")
+            dlg.configure(bg="#ffffff")
+            dlg.grab_set()
+            tk.Label(dlg, text="检测到以下云端备份，是否恢复？", bg="#ffffff",
+                     font=("Microsoft YaHei", 12, "bold"), fg="#2c3e50",
+                     ).pack(pady=(15, 10))
+            frame = tk.Frame(dlg, bg="#ffffff")
+            frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=5)
+            lb = tk.Listbox(frame, font=("Microsoft YaHei", 10), selectmode="single")
+            lb.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            sb = tk.Scrollbar(frame, orient=tk.VERTICAL, command=lb.yview)
+            sb.pack(side=tk.RIGHT, fill=tk.Y)
+            lb.configure(yscrollcommand=sb.set)
+            for f in files[:20]:
+                lb.insert(tk.END, f"{f['name']}  ({f.get('modified','?')})")
+            result = {"selected": False}
+            def _restore():
+                sel = lb.curselection()
+                if not sel:
+                    messagebox.showwarning("提示", "请选择要恢复的备份", parent=dlg)
+                    return
+                idx = sel[0]
+                if messagebox.askyesno("确认恢复", f"确定要恢复「{files[idx]['name']}」吗？\n当前数据将被覆盖！", parent=dlg):
+                    ok2, msg2, body = svc.restore(files[idx]["path"])
+                    if ok2:
+                        import json
+                        try:
+                            json.loads(body.decode("utf-8"))
+                        except Exception:
+                            messagebox.showerror("错误", "备份文件格式错误", parent=dlg)
+                            return
+                        with open(Config.get_data_file_path(), "wb") as wf:
+                            wf.write(body)
+                        self._data_service.reload()
+                        self._refresh_kanban()
+                        result["selected"] = True
+                        messagebox.showinfo("成功", "数据已恢复", parent=dlg)
+                        dlg.destroy()
+                    else:
+                        messagebox.showerror("恢复失败", msg2, parent=dlg)
+            btn_frame = tk.Frame(dlg, bg="#f0f2f5")
+            btn_frame.pack(fill=tk.X, side=tk.BOTTOM)
+            tk.Frame(btn_frame, bg="#d0d5dd", height=1).pack(fill=tk.X)
+            inner = tk.Frame(btn_frame, bg="#f0f2f5")
+            inner.pack(fill=tk.X, padx=16, pady=8)
+            tk.Button(inner, text="跳过", command=dlg.destroy,
+                bg="#ffffff", fg="#2c3e50", cursor="hand2",
+                font=("Microsoft YaHei", 10), relief="flat", padx=18, pady=5,
+                highlightbackground="#d0d5dd", highlightthickness=1,
+                ).pack(side=tk.RIGHT, padx=(10, 0))
+            tk.Button(inner, text="恢复选中", command=_restore,
+                bg="#3498db", fg="white", cursor="hand2",
+                font=("Microsoft YaHei", 10, "bold"), relief="flat", padx=18, pady=5,
+                ).pack(side=tk.RIGHT)
+            self.wait_window(dlg)
+        except Exception:
+            pass
 
     # ==================================================================================
     # 内部辅助方法
