@@ -29,8 +29,10 @@ import os                    # 操作系统接口，用于目录创建和文件�
 import tempfile              # 临时文件模块，用于实现原子写入策略
 from typing import Optional  # 类型提示，用于标记可选返回值类型
 
+from services.interfaces import IDataService  # 数据服务抽象接口（DIP）
 
-class DataService:
+
+class DataService(IDataService):
     """数据持久化服务（单例模式）。
 
     作为系统唯一的数据访问入口，管理内存中的数据结构并提供文件读写功能。
