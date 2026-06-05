@@ -144,7 +144,18 @@ class BackupDialog(tk.Toplevel):
         # ---- 标签页二：备份恢复 ----
         self._action_frame = tk.Frame(nb, bg="#ffffff")
         nb.add(self._action_frame, text="  备份 & 恢复  ")
-        self._build_action_tab()                               # 构建备份恢复标签页内容
+        self._build_action_tab()
+        # 切换标签页时自动刷新备份列表
+        nb.bind("<<NotebookTabChanged>>", self._on_tab_changed)
+
+    def _on_tab_changed(self, event=None):
+        """标签页切换时自动刷新备份列表"""
+        try:
+            nb = event.widget
+            if nb.index(nb.select()) == 1:  # 切换到备份恢复标签页
+                self._refresh_file_list()
+        except Exception:
+            pass
 
     # =========================================================================
     # 配置标签页

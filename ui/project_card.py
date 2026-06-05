@@ -1150,7 +1150,7 @@ class ProjectCard(tk.Frame):
             try:
                 from utils.config import Config
                 from datetime import date
-                tpl = os.path.join(os.path.dirname(Config.get_data_dir()), "templates",
+                tpl = os.path.join(Config.get_data_dir(), "templates",
                                    "03-模板 保密承诺书.docx")
                 if os.path.exists(tpl):
                     import shutil, docx
