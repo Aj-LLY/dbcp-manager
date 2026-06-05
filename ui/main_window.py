@@ -625,27 +625,29 @@ class MainWindow(tk.Tk):
             import docx
             from datetime import datetime
             doc = docx.Document(dest_path)
-            create_date = datetime.now().strftime("%Y年%m月%d日")
+            # 替换公司名: 逐run保留格式
             for p in doc.paragraphs:
-                full = "".join(r.text for r in p.runs)
-                if "XX公司" in full or "XX" in full:
-                    new_text = full.replace("XX公司", company_name).replace("XX", company_name)
-                    for r in p.runs: r.text = ""
-                    if p.runs: p.runs[0].text = new_text
-                if "XX年XX月XX日" in full:
-                    new_text = full.replace("XX年XX月XX日", create_date)
-                    if not any("XX年XX月XX日" in r.text for r in p.runs):
-                        for r in p.runs: r.text = ""
-                        if p.runs: p.runs[0].text = new_text
-                    else:
-                        for r in p.runs: r.text = r.text.replace("XX年XX月XX日", create_date)
+                for run in p.runs:
+                    if "XX公司" in run.text or "xx公司" in run.text:
+                        run.text = run.text.replace("XX公司", company_name).replace("xx公司", company_name)
+                        break
+            # 清除 split 的 "XX"+"公司" run 对
+            for p in doc.paragraphs:
+                for j in range(len(p.runs) - 1):
+                    if p.runs[j].text.strip() == "XX" and p.runs[j+1].text.strip() == "公司":
+                        p.runs[j].text = ""; p.runs[j+1].text = ""
+            # 替换日期: 保留每个run格式, 仅替换"XX"
+            now = datetime.now()
             for table in doc.tables:
                 for row in table.rows:
                     for cell in row.cells:
                         for p in cell.paragraphs:
-                            full = "".join(r.text for r in p.runs)
-                            if "XX年XX月XX日" in full:
-                                for r in p.runs: r.text = r.text.replace("XX年XX月XX日", create_date)
+                            rs = p.runs
+                            if len(rs) >= 6 and all(rs[k].text.strip() == v for k, v in [(0,"XX"),(2,"XX"),(4,"XX")]):
+                                rs[0].text = str(now.year)
+                                rs[2].text = f"{now.month:02d}"
+                                rs[4].text = f"{now.day:02d}"
+                                break
             doc.save(dest_path)
         except Exception:
             pass
