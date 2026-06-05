@@ -437,8 +437,9 @@ class KanbanColumn(tk.Frame):
             ProjectCard | None: 找到的卡片实例，未找到则返回 None
         """
         for c in self.cards:  # 遍历列内所有卡片
-            if c.project.id == project_id:  # 比较项目 ID
-                return c  # 找到，返回卡片实例
+            ids = [p.id for p in (c.projects or [c.project])]
+            if project_id in ids:
+                return c
         return None  # 未找到
 
     # ==================================================================================

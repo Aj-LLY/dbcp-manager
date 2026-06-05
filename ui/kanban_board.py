@@ -240,27 +240,30 @@ class KanbanBoard(tk.Frame):
             col.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)  # 左排列，垂直填充，5px 外边距
             self.columns.append(col)  # 加入列列表
 
-        # 第三步：将项目分配到对应的列中
-        for project in projects:
-            self._add_project_to_column(project)  # 按项目 stage_id 匹配列并添加卡片
+        # 第三步：按公司名称分组项目，同公司同阶段合并为一张卡片
+        from collections import defaultdict
+        groups = defaultdict(list)
+        for p in projects:
+            key = (p.company_name.strip() or "未命名", p.stage_id)
+            groups[key].append(p)
+        for (company, sid), proj_list in groups.items():
+            self._add_project_to_column(proj_list)
 
-    def _add_project_to_column(self, project: Project):
-        """将单个项目添加到其阶段对应的列中
-
-        根据项目的 stage_id 在列列表中查找匹配的列。
-        如果找到匹配列，则在其中创建项目卡片并设置回调；
-        如果找不到匹配列（阶段被删除等异常情况），默认添加到第一列作为兜底处理。
+    def _add_project_to_column(self, project):
+        """将项目(组)添加到其阶段对应的列中。
 
         Args:
-            project: 要添加的项目实体对象
+            project: 单个 Project 或 list[Project]（同公司同阶段的合并组）
         """
-        for col in self.columns:  # 遍历所有列
-            if col.stage.id == project.stage_id:  # 找到与项目阶段 ID 匹配的列
-                card = col.add_card(project)  # 在该列中创建项目卡片
-                self._setup_card_callbacks(card)  # 为新卡片绑定所有交互回调
-                return  # 添加成功，退出
-        # 兜底处理：未找到匹配列（理论上不应出现，但做容错）
-        if self.columns:  # 如果有任何列存在
+        proj_list = project if isinstance(project, list) else [project]
+        sid = proj_list[0].stage_id
+        for col in self.columns:
+            if col.stage.id == sid:
+                card = col.add_card(proj_list[0])
+                card.projects = proj_list  # 存储合并的项目列表
+                self._setup_card_callbacks(card)
+                return
+        if self.columns:
             card = self.columns[0].add_card(project)  # 添加到第一列
             self._setup_card_callbacks(card)  # 设置回调
 
@@ -487,17 +490,17 @@ class KanbanBoard(tk.Frame):
         """
         for col in self.columns:  # 遍历所有列
             if col.stage.id == target_stage_id:  # 找到目标列
-                # 从源列中移除卡片
-                for src_col in self.columns:  # 在所有列中查找卡片当前所在列
-                    if card in src_col.cards:  # 找到源列
-                        src_col.remove_card(card)  # 从源列移除（destroy + 从列表删除）
-                        break  # 已找到并移除，退出内层循环
-                # 更新项目数据中的阶段 ID
-                card.project.stage_id = target_stage_id
-                # 在目标列顶部创建新卡片
-                new_card = col.add_card(card.project, position="top")  # position="top" 置顶插入
-                self._setup_card_callbacks(new_card)  # 为新卡片重新绑定所有交互回调
-                return  # 移动完成
+                for src_col in self.columns:
+                    if card in src_col.cards:
+                        src_col.remove_card(card)
+                        break
+                # 更新所有项目数据中的阶段 ID
+                for p in (card.projects or [card.project]):
+                    p.stage_id = target_stage_id
+                new_card = col.add_card(card.projects[0] if card.projects else card.project, position="top")
+                new_card.projects = card.projects  # 保留合并的项目列表
+                self._setup_card_callbacks(new_card)
+                return
 
     def get_selected_project_id(self) -> str | None:
         """获取当前选中卡片的项目 ID
