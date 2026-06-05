@@ -617,7 +617,7 @@ class MainWindow(tk.Tk):
             template_path = os.path.join(Config.get_data_dir(), "templates", "02-保密承诺书模板.docx")
             if not os.path.exists(template_path):
                 return
-            dest_name = f"03-{cname_clean}-{company_name}-保密承诺书.docx" if company_name else f"03-{cname_clean}-保密承诺书.docx"
+            dest_name = f"02-{cname_clean}-{company_name}-保密承诺书.docx" if company_name else f"02-{cname_clean}-保密承诺书.docx"
             dest_path = os.path.join(root, dest_name)
             if os.path.exists(dest_path):
                 return
