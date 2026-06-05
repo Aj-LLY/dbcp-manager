@@ -1033,14 +1033,39 @@ class ProjectCard(tk.Frame):
                     except Exception as e:  # 解压失败（损坏的 ZIP、权限不足等）
                         msgs.append(f"解压失败: {fname} ({e})")
 
-                # 处理"渗透测试报告.zip" -> 解压到当前目录
+                # 处理"渗透测试报告.zip" -> 解压并按文件数处理
                 if "渗透测试报告" in fname and "评审" not in fname:
                     try:
+                        before = set(os.listdir(root))  # 解压前文件列表
                         with zipfile.ZipFile(fpath, "r") as zf:
                             zf.extractall(root)
                         os.remove(fpath)
-                        renamed += 1
-                        msgs.append(f"解压: {fname} -> 提取文件")
+                        after = set(os.listdir(root))
+                        new_items = [x for x in (after - before) if "__MACOSX" not in x]
+                        # 找到解压出的目录（排除文件）
+                        extracted_dirs = [x for x in new_items if os.path.isdir(os.path.join(root, x))]
+                        extracted_files = [x for x in new_items if os.path.isfile(os.path.join(root, x))]
+                        all_extracted = extracted_dirs + extracted_files
+                        if len(all_extracted) == 1:
+                            # 只有一个: 移动到根目录并重命名
+                            src = os.path.join(root, all_extracted[0])
+                            dst = os.path.join(root, f"13-{new_prefix}-渗透测试报告")
+                            if os.path.exists(src):
+                                if os.path.exists(dst):
+                                    shutil.rmtree(dst) if os.path.isdir(dst) else os.remove(dst)
+                                shutil.move(src, dst)
+                                renamed += 1
+                                msgs.append(f"移动并重命名: {all_extracted[0]} -> 13-{new_prefix}-渗透测试报告")
+                        elif len(all_extracted) > 1:
+                            # 多个: 仅重命名目录
+                            for item in extracted_dirs:
+                                src = os.path.join(root, item)
+                                dst = os.path.join(root, f"13-{new_prefix}-渗透测试报告")
+                                if os.path.exists(src) and not os.path.exists(dst):
+                                    os.rename(src, dst)
+                                    renamed += 1
+                                    msgs.append(f"重命名目录: {item} -> 13-{new_prefix}-渗透测试报告")
+                                    break
                     except Exception as e:
                         msgs.append(f"解压失败: {fname} ({e})")
 
