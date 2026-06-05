@@ -624,24 +624,23 @@ class MainWindow(tk.Tk):
             shutil.copy2(template_path, dest_path)
             import docx
             doc = docx.Document(dest_path)
+            # 替换所有 XX公司/XXX公司 → 实际公司名
             for p in doc.paragraphs:
                 for run in p.runs:
-                    if "XXX公司" in run.text or "XXX" in run.text:
-                        run.text = run.text.replace("XXX公司", company_name).replace("XXX", company_name)
-            create_date = ""
+                    if "公司" in run.text and ("XX" in run.text or "XXX" in run.text):
+                        run.text = run.text.replace("XXX公司", company_name).replace("XX公司", company_name)
             from datetime import datetime
-            try:
-                create_date = datetime.now().strftime("%Y年%m月%d日")
-            except Exception:
-                pass
-            if create_date:
-                for table in doc.tables:
-                    for row in table.rows:
-                        for cell in row.cells:
-                            for p in cell.paragraphs:
-                                for run in p.runs:
-                                    if "年" in run.text and "月" in run.text and "日" in run.text:
-                                        run.text = create_date
+            create_date = datetime.now().strftime("%Y年%m月%d日")
+            # 替换所有 XX年XX月XX日 → 创建日期
+            for p in doc.paragraphs:
+                for run in p.runs:
+                    run.text = run.text.replace("XX年XX月XX日", create_date)
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        for p in cell.paragraphs:
+                            for run in p.runs:
+                                run.text = run.text.replace("XX年XX月XX日", create_date)
             doc.save(dest_path)
         except Exception:
             pass
