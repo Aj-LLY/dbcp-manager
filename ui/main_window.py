@@ -617,7 +617,7 @@ class MainWindow(tk.Tk):
         from datetime import date
         try:
             template_path = os.path.join(
-                os.path.dirname(Config.get_data_dir()), "templates",
+                Config.get_data_dir(), "templates",
                 "03-模板 保密承诺书.docx"
             )
             if not os.path.exists(template_path):
