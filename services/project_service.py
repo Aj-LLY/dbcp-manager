@@ -26,12 +26,15 @@ from models.project import Project
 from services.data_service import DataService
 # 数据持久化服务（单例），提供底层 JSON 文件的读写操作
 
+from services.interfaces import IProjectService
+# 项目管理服务抽象接口（DIP）
+
 from utils.helpers import validate_project_fields, validate_cert_number
 # validate_project_fields: 校验公司名称和系统名称的合法性（非空、长度等）
 # validate_cert_number: 校验证书编号格式（11位数字-5位数字）
 
 
-class ProjectService:
+class ProjectService(IProjectService):
     """项目管理服务。
 
     封装所有项目相关的业务逻辑，在 DataService 提供的纯数据操作之上
@@ -47,7 +50,7 @@ class ProjectService:
     """
 
     def __init__(self, data_service: DataService,
-                 log_callback: Optional[Callable] = None):
+                 log_callback: Optional[Callable[..., None]] = None):
         """初始化项目管理服务。
 
         Args:
@@ -182,13 +185,17 @@ class ProjectService:
         # 返回成功结果和创建的项目对象
         return True, "项目创建成功", project
 
-    def update_project(self, project_id: str, company_name: str = None,
-                       system_name: str = None, cert_number: str = None,
-                       issue_date: str = None, level: str = None,
-                       location: str = None,
-                       deadline: str = None, notes: str = None,
-                       stage_id: str = None,
-                       folder_path: str = None) -> tuple[bool, str]:
+    def update_project(self, project_id: str,
+                       company_name: Optional[str] = None,
+                       system_name: Optional[str] = None,
+                       cert_number: Optional[str] = None,
+                       issue_date: Optional[str] = None,
+                       level: Optional[str] = None,
+                       location: Optional[str] = None,
+                       deadline: Optional[str] = None,
+                       notes: Optional[str] = None,
+                       stage_id: Optional[str] = None,
+                       folder_path: Optional[str] = None) -> tuple[bool, str]:
         """更新现有项目的部分字段（支持部分更新）。
 
         所有参数除 project_id 外均为可选（None 表示不更新该字段）。

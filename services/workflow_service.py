@@ -49,7 +49,7 @@ class WorkflowService:
     """
 
     def __init__(self, data_service: DataService,
-                 log_callback: Optional[Callable] = None):
+                 log_callback: Optional[Callable[..., None]] = None):
         """初始化流程管理服务。
 
         Args:
@@ -185,8 +185,9 @@ class WorkflowService:
         # 直接向数据层发送列宽更新
         self._ds.update_stage(stage_id, {"column_width": column_width})
 
-    def update_stage(self, stage_id: str, name: str = None,
-                     color: str = None) -> tuple[bool, str]:
+    def update_stage(self, stage_id: str,
+                     name: Optional[str] = None,
+                     color: Optional[str] = None) -> tuple[bool, str]:
         """更新阶段的基本信息（名称和/或颜色）。
 
         支持部分更新：只传入需要修改的字段，未传入的字段保持不变。

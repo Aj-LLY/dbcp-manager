@@ -12,6 +12,11 @@
 """
 
 # ---------------------------------------------------------------------------
+# 延迟注解求值
+# ---------------------------------------------------------------------------
+from __future__ import annotations
+
+# ---------------------------------------------------------------------------
 # 项目内导入（自建工具库）
 # ---------------------------------------------------------------------------
 from utils.helpers import generate_id, get_now_str
@@ -197,7 +202,7 @@ class Project:
 
     def update(self, company_name=None, system_name=None, cert_number=None,
                issue_date=None, level=None, location=None,
-               deadline=None, notes=None, stage_id=None, folder_path=None):
+               deadline=None, notes=None, stage_id=None, folder_path=None) -> None:
         """部分更新项目属性（只更新传入的非 None 字段）。
 
         采用 "仅更新传入字段" 的策略，未传入的字段保持原值不变。
