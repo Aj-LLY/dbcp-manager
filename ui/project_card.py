@@ -513,8 +513,9 @@ class ProjectCard(tk.Frame):
                          **kwargs)
 
         # ---- 公共属性 ----
-        self.project = project  # 保存关联的项目实体引用（只读，外部不应直接修改）
-        self.is_selected = False  # 选中状态标志（初始为未选中）
+        self.project = project  # 主项目引用（向后兼容，等价于 projects[0]）
+        self.projects = [project]  # 合并后的项目列表（同公司同阶段的全部项目）
+        self.is_selected = False
 
         # ---- 回调函数指针（由 KanbanBoard 创建卡片后设置） ----
         self.on_click = None  # 单击 -> 选中/取消选中
@@ -567,31 +568,28 @@ class ProjectCard(tk.Frame):
         self._content.pack(side=tk.LEFT, fill=tk.BOTH, expand=True,  # 填充剩余空间
                            padx=6, pady=(8, 4))  # 水平 6px 内边距，上方 8px 下方 4px
 
-        # --- 3a. 系统名称（居中、粗体主标题） ---
-        sys_display = self.project.system_name or self.project.company_name or "\u65e0\u540d\u79f0"  # \u65e0\u540d\u79f0 = 无名称
-        if len(sys_display) > 12:  # 名称过长截断
-            sys_display = sys_display[:11] + "\u2026"  # \u2026 = …（省略号）
-        self._sys_label = tk.Label(
-            self._content, text=sys_display, bg=Config.CARD_BG,  # 卡片背景色
-            font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),  # 正常字号加粗
-            anchor="center", fg="#2c3e50",  # 文字居中，深灰色
+        # --- 3a. 公司名称（居中、粗体主标题） ---
+        company_display = self.project.company_name or self.project.system_name or "\u65e0\u540d\u79f0"
+        if len(company_display) > 14:
+            company_display = company_display[:13] + "\u2026"
+        self._company_label = tk.Label(
+            self._content, text=company_display, bg=Config.CARD_BG,
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
+            anchor="center", fg="#2c3e50",
         )
-        self._sys_label.pack(fill=tk.X)  # 水平填充
+        self._company_label.pack(fill=tk.X)
 
-        # --- 3b. 公司名称（仅当两者都有时作为副标题显示） ---
-        if self.project.system_name and self.project.company_name:
-            company_display = self.project.company_name
-            if len(company_display) > 14:  # 公司名称过长截断
-                company_display = company_display[:13] + "\u2026"  # … 省略号
-            self._company_label = tk.Label(
-                self._content, text=company_display, bg=Config.CARD_BG,
-                font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),  # 小字号
-                anchor="center", fg="#5d6d7e",  # 居中，中灰色
-            )
-            self._company_label.pack(fill=tk.X)
-        else:
-            self._company_label = None  # 无公司名称时置空
-
+        # --- 3b. 系统名称列表（小字列出所有系统） ---
+        sys_names = list(set(p.system_name for p in self.projects if p.system_name))
+        if sys_names:
+            for sn in sys_names:
+                display = sn if len(sn) <= 16 else sn[:15] + "\u2026"
+                lbl = tk.Label(self._content, text=display, bg=Config.CARD_BG,
+                    font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
+                    anchor="center", fg="#5d6d7e")
+                lbl.pack(fill=tk.X)
+        elif not company_display:
+            pass
         # --- 3c. 系统安全等级（居中、小字、紫色） ---
         if self.project.level:
             self._level_label = tk.Label(

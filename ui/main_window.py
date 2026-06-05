@@ -369,116 +369,101 @@ class MainWindow(tk.Tk):
         """
         pass  # 预留扩展：可在此添加状态栏更新、右键菜单等逻辑
 
+    def _pick_project_from_card(self, card: ProjectCard) -> Project | None:
+        """从合并卡片中选择单个项目。单项目直接返回, 多项目弹出选择列表。"""
+        projects = card.projects or [card.project]
+        if len(projects) == 1:
+            return projects[0]
+        import tkinter as tk
+        dlg = tk.Toplevel(self)
+        dlg.title("选择系统")
+        dlg.geometry("320x250")
+        dlg.configure(bg="#ffffff")
+        dlg.grab_set()
+        tk.Label(dlg, text="请选择要操作的系统:", bg="#ffffff",
+                 font=("Microsoft YaHei", 11, "bold")).pack(pady=(15, 10))
+        lb = tk.Listbox(dlg, font=("Microsoft YaHei", 10), selectmode="single")
+        lb.pack(fill=tk.BOTH, expand=True, padx=20, pady=5)
+        for p in projects:
+            lb.insert(tk.END, p.system_name or p.name)
+        lb.selection_set(0)
+        result = {"project": None}
+        def _ok():
+            sel = lb.curselection()
+            if sel:
+                result["project"] = projects[sel[0]]
+            dlg.destroy()
+        btn_frame = tk.Frame(dlg, bg="#f0f2f5")
+        btn_frame.pack(fill=tk.X, side=tk.BOTTOM)
+        tk.Frame(btn_frame, bg="#d0d5dd", height=1).pack(fill=tk.X)
+        inner = tk.Frame(btn_frame, bg="#f0f2f5")
+        inner.pack(fill=tk.X, padx=16, pady=8)
+        tk.Button(inner, text="取消", command=dlg.destroy,
+            bg="#ffffff", fg="#2c3e50", cursor="hand2").pack(side=tk.RIGHT, padx=(10,0))
+        tk.Button(inner, text="确定", command=_ok,
+            bg="#3498db", fg="white", cursor="hand2").pack(side=tk.RIGHT)
+        dlg.bind("<Return>", lambda e: _ok())
+        self.wait_window(dlg)
+        return result["project"]
+
     def _on_card_detail(self, card: ProjectCard):
-        """处理卡片"详情"按钮点击事件 - 打开项目详情查看窗口
-
-        展示项目的完整信息，包括：
-          - 基本信息（公司名称、系统名称、等级、地点等）
-          - 流程阶段信息（当前所处阶段）
-          - 操作日志（该项目的增删改历史记录）
-          - 下级文件（项目目录中的过程文档列表）
-
-        在详情窗口中支持的操作：
-          - 编辑项目信息（edit） -> _handle_edit 内部闭包
-          - 删除项目（delete） -> _handle_delete 内部闭包
-          - 阶段移动（move）   -> _handle_move 内部闭包
-
-        内部闭包说明：
-          _handle_move: 在详情窗口中移动项目阶段后，重新获取最新数据刷新详情显示，
-                        避免关闭窗口后重新打开的麻烦。
-
-        Args:
-            card: 被点击"详情"按钮的项目卡片组件
-        """
-        stages = self._workflow_service.get_all_stages()  # 获取当前所有流程阶段（供阶段下拉选择）
-        logs = self._log_service.get_project_logs(card.project.id)  # 获取该项目的专属操作日志
+        """处理卡片"详情"按钮点击事件。合并卡片先选系统再进入详情。"""
+        project = self._pick_project_from_card(card)
+        if not project:
+            return
+        stages = self._workflow_service.get_all_stages()
+        logs = self._log_service.get_project_logs(project.id)
 
         def _handle_move(target_stage_id, dialog):
-            """内部闭包：在详情窗口中移动项目阶段，并刷新详情窗口数据
-
-            Args:
-                target_stage_id: 目标阶段的唯一标识符
-                dialog: 详情对话框实例（用于刷新数据）
-            """
-            success, msg = self._project_service.move_project(
-                card.project.id, target_stage_id)  # 调用项目服务执行阶段移动
-            if success:  # 移动成功
-                self._refresh_kanban()  # 刷新看板，同步卡片位置
-                upd = self._project_service.get_project_by_id(card.project.id)  # 获取最新的项目数据
-                # 刷新详情对话框的数据显示
+            success, msg = self._project_service.move_project(project.id, target_stage_id)
+            if success:
+                self._refresh_kanban()
+                upd = self._project_service.get_project_by_id(project.id)
                 dialog.refresh_data(upd,
-                    self._workflow_service.get_all_stages(),  # 传入最新阶段列表
-                    self._log_service.get_project_logs(card.project.id))  # 传入最新日志
+                    self._workflow_service.get_all_stages(),
+                    self._log_service.get_project_logs(project.id))
             else:
-                messagebox.showerror("错误", msg)  # 移动失败弹窗提示
+                messagebox.showerror("错误", msg)
 
-        # 打开项目详情对话框，传入项目数据、阶段列表、日志和移动回调
-        result = show_detail_dialog(self, card.project, stages, logs,
-                                   on_move=_handle_move)
-        if not result:  # 用户关闭了对话框但未执行任何操作
+        result = show_detail_dialog(self, project, stages, logs, on_move=_handle_move)
+        if not result:
             return
 
-        # 解析对话框返回的操作结果
-        action, data = result  # action 为操作类型字符串（"edit" / "delete"），data 为编辑后的表单数据
-        if action == "edit":  # 用户在详情窗口中点了"编辑"按钮
+        action, data = result
+        if action == "edit":
             success, msg = self._project_service.update_project(
-                card.project.id,  # 要更新的项目 ID
-                company_name=data.get("company_name"),  # 公司名称
-                system_name=data.get("system_name"),  # 系统名称
-                cert_number=data.get("cert_number"),  # 证书编号
-                issue_date=data.get("issue_date"),  # 签发日期
-                level=data.get("level"),  # 保护等级
-                location=data.get("location"),  # 所属地
-                deadline=data.get("deadline"),  # 截止日期
-                notes=data.get("notes"),  # 备注
-                stage_id=data.get("stage_id"),  # 所属阶段
-                folder_path=data.get("folder_path"),  # 文件夹路径
+                project.id, company_name=data.get("company_name"),
+                system_name=data.get("system_name"), cert_number=data.get("cert_number"),
+                issue_date=data.get("issue_date"), level=data.get("level"),
+                location=data.get("location"), deadline=data.get("deadline"),
+                notes=data.get("notes"), stage_id=data.get("stage_id"),
+                folder_path=data.get("folder_path"),
             )
-            if success:  # 更新成功
-                self._refresh_kanban()  # 刷新看板显示最新数据
-            else:
-                messagebox.showerror("错误", msg)  # 更新失败弹窗提示
-
-        elif action == "delete":  # 用户在详情窗口中点了"删除"按钮
-            success, msg = self._project_service.delete_project(card.project.id)  # 执行项目删除
-            if success:  # 删除成功
-                self._refresh_kanban()  # 刷新看板，移除卡片
-            else:
-                messagebox.showerror("错误", msg)  # 删除失败弹窗提示
+            if success: self._refresh_kanban()
+            else: messagebox.showerror("错误", msg)
+        elif action == "delete":
+            success, msg = self._project_service.delete_project(project.id)
+            if success: self._refresh_kanban()
+            else: messagebox.showerror("错误", msg)
 
     def _on_card_edit(self, card: ProjectCard):
-        """处理卡片"编辑"按钮点击 / 卡片双击事件 - 直接打开项目编辑对话框
-
-        与 _on_card_detail 的区别：
-          - _on_card_detail：打开详情窗口（展示完整信息），从详情窗口再进入编辑
-          - _on_card_edit：跳过详情窗口，直接打开编辑对话框（快速编辑入口）
-
-        此方法同时作为卡片双击事件的处理函数，提升操作效率。
-
-        Args:
-            card: 被双击或被点击"编辑"按钮的项目卡片组件
-        """
-        stages = self._workflow_service.get_all_stages()  # 获取所有阶段列表（供编辑对话框的下拉选择）
-        # 打开编辑对话框，传入当前项目数据作为预填值
-        result = show_project_dialog(self, "编辑项目", card.project, stages)
-        if result:  # 用户确认修改
+        """处理卡片编辑/双击。合并卡片先选系统再编辑。"""
+        project = self._pick_project_from_card(card)
+        if not project:
+            return
+        stages = self._workflow_service.get_all_stages()
+        result = show_project_dialog(self, "编辑项目", project, stages)
+        if result:
             success, msg = self._project_service.update_project(
-                card.project.id,  # 要更新的项目唯一 ID
-                company_name=result.get("company_name"),  # 公司名称
-                system_name=result.get("system_name"),  # 系统名称
-                cert_number=result.get("cert_number"),  # 证书编号
-                issue_date=result.get("issue_date"),  # 签发日期
-                level=result.get("level"),  # 保护等级
-                location=result.get("location"),  # 所属地
-                deadline=result.get("deadline"),  # 截止日期
-                notes=result.get("notes"),  # 备注
-                stage_id=result.get("stage_id"),  # 所属阶段
-                folder_path=result.get("folder_path"),  # 文件夹路径
+                project.id, company_name=result.get("company_name"),
+                system_name=result.get("system_name"), cert_number=result.get("cert_number"),
+                issue_date=result.get("issue_date"), level=result.get("level"),
+                location=result.get("location"), deadline=result.get("deadline"),
+                notes=result.get("notes"), stage_id=result.get("stage_id"),
+                folder_path=result.get("folder_path"),
             )
-            if success:  # 更新成功
-                self._refresh_kanban()  # 刷新看板反映最新数据
-            else:
-                messagebox.showerror("错误", msg)  # 更新失败弹窗提示
+            if success: self._refresh_kanban()
+            else: messagebox.showerror("错误", msg)
 
     def _on_card_move_stage(self, card: ProjectCard, target_stage_id: str):
         """处理卡片左箭头/右箭头的阶段移动事件
@@ -493,21 +478,14 @@ class MainWindow(tk.Tk):
             card: 被操作的项目卡片组件
             target_stage_id: 目标阶段的唯一标识符（由 KanbanBoard 计算得出）
         """
-        source_stage_id = card.project.stage_id  # 获取卡片当前所在的阶段 ID
-        if source_stage_id == target_stage_id:  # 源阶段与目标阶段相同（用户在首/尾误点箭头）
-            return  # 无需移动，直接返回
-
-        # 调用项目服务执行阶段移动
-        success, msg = self._project_service.move_project(
-            card.project.id,  # 要移动的项目 ID
-            target_stage_id,  # 目标阶段 ID
-        )
-        if success:  # 移动成功
-            # 直接在 UI 上执行卡片移动（从源列移除，添加到目标列顶部）
-            # 这种方式比全量刷新更高效，且不丢失选中状态
-            self._kanban.move_card_to_column(card, target_stage_id)
-        else:
-            messagebox.showerror("错误", msg)  # 移动失败弹窗提示
+        source_stage_id = card.project.stage_id
+        if source_stage_id == target_stage_id:
+            return
+        # 移动合并卡片中的所有项目
+        projects = card.projects or [card.project]
+        for p in projects:
+            self._project_service.move_project(p.id, target_stage_id)
+        self._kanban.move_card_to_column(card, target_stage_id)
 
     def _on_card_copy(self, card: ProjectCard):
         """处理卡片"复制"按钮点击事件 - 创建当前项目的完整副本
@@ -521,24 +499,15 @@ class MainWindow(tk.Tk):
         Args:
             card: 被点击"复制"按钮的项目卡片组件
         """
-        p = card.project  # 获取源项目对象引用（简化后续字段访问）
-        copy_name = f"{p.company_name} - \u526f\u672c"  # 公司名称 + " - 副本"（\u526f\u672c = 副本）
-        # 调用项目服务创建副本项目，所有字段与源项目保持一致
-        success, msg, _ = self._project_service.create_project(
-            company_name=copy_name,  # 使用带"副本"后缀的名称
-            system_name=p.system_name,  # 系统名称保持不变
-            cert_number=p.cert_number,  # 证书编号保持不变
-            issue_date=p.issue_date,  # 签发日期保持不变
-            level=p.level,  # 保护等级保持不变
-            location=p.location,  # 所属地保持不变
-            deadline=p.deadline,  # 截止日期保持不变
-            notes=p.notes,  # 备注保持不变
-            stage_id=p.stage_id,  # 所处阶段保持不变
-        )
-        if success:  # 复制成功
-            self._refresh_kanban()  # 刷新看板，显示新创建的副本卡片
-        else:
-            messagebox.showerror("错误", msg)  # 复制失败弹窗提示
+        for p in (card.projects or [card.project]):
+            copy_name = f"{p.company_name} - \u526f\u672c"
+            self._project_service.create_project(
+                company_name=copy_name, system_name=p.system_name,
+                cert_number=p.cert_number, issue_date=p.issue_date,
+                level=p.level, location=p.location,
+                deadline=p.deadline, notes=p.notes, stage_id=p.stage_id,
+            )
+        self._refresh_kanban()
 
     def _on_column_resize(self, stage_id: str, new_width: int):
         """处理列宽拖拽完成事件 - 保存调整后的列宽到持久化数据
