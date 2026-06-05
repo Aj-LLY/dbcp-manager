@@ -425,7 +425,9 @@ class MainWindow(tk.Tk):
             else:
                 messagebox.showerror("错误", msg)
 
-        result = show_detail_dialog(self, project, stages, logs, on_move=_handle_move)
+        result = show_detail_dialog(self, project, stages, logs,
+                                   on_move=_handle_move,
+                                   all_projects=(card.projects if len(card.projects) > 1 else None))
         if not result:
             return
 

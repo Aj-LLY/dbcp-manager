@@ -579,16 +579,28 @@ class ProjectCard(tk.Frame):
         )
         self._company_label.pack(fill=tk.X)
 
-        # --- 3b. 系统名称列表（小字列出所有系统） ---
-        sys_names = list(set(p.system_name for p in self.projects if p.system_name))
-        if sys_names:
-            for sn in sys_names:
-                display = sn if len(sn) <= 16 else sn[:15] + "\u2026"
-                lbl = tk.Label(self._content, text=display, bg=Config.CARD_BG,
-                    font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
-                    anchor="center", fg="#5d6d7e")
-                lbl.pack(fill=tk.X)
-        elif not company_display:
+        # --- 3b. 系统行: 系统名称 + 等级 + 证书状态 ---
+        # 去重：相同 system_name 只显示一次，取第一个项目的等级和证书
+        seen = set()
+        for p in self.projects:
+            sn = p.system_name or ""
+            if not sn or sn in seen:
+                continue
+            seen.add(sn)
+            display = sn if len(sn) <= 14 else sn[:13] + "\u2026"
+            extras = ""
+            if p.level:
+                extras += f"  {p.level}"
+            if p.cert_number:
+                extras += "  \u2705"  # ✅
+            else:
+                extras += "  \u26a0\ufe0f"  # ⚠️
+            row_text = f"{display}{extras}"
+            lbl = tk.Label(self._content, text=row_text, bg=Config.CARD_BG,
+                font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
+                anchor="center", fg="#5d6d7e")
+            lbl.pack(fill=tk.X)
+        if not seen:
             pass
         # --- 3c. 系统安全等级（居中、小字、紫色） ---
         if self.project.level:

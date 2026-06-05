@@ -67,15 +67,18 @@ class DetailDialog(tk.Toplevel):
 
     def __init__(self, parent, project: Project,
                  stages: list[WorkflowStage],
-                 project_logs: list[dict]):
+                 project_logs: list[dict],
+                 all_projects: list = None):
         """初始化项目详情对话框。
 
         Args:
             parent: 父级窗口。
             project: 要展示详情的目标项目实体。
-            stages: 流程阶段列表（用于阶段移动和编辑时提供下拉选项）。
-            project_logs: 该项目的操作日志列表（dict 列表，已按时间排序）。
+            stages: 流程阶段列表。
+            project_logs: 操作日志列表。
+            all_projects: 合并卡片中的所有项目（用于展示系统列表）。
         """
+        self._all_projects = all_projects
         # 调用父类 Tk.Toplevel 构造器
         super().__init__(parent)
         self.title(f"项目详情 - {project.name}")             # 标题中显示项目名称
@@ -216,17 +219,32 @@ class DetailDialog(tk.Toplevel):
         info_frame = tk.Frame(main, bg="#f8f9fa", padx=12, pady=10)
         info_frame.pack(fill=tk.X, pady=(0, 10))
 
-        # 逐行添加项目属性字段（字段名 : 字段值）
+        # 公司名称
         self._add_info_row(info_frame, "公司名称",
                            self._project.company_name or "-")
-        self._add_info_row(info_frame, "系统名称",
-                           self._project.system_name or "-")
-        self._add_info_row(info_frame, "证书编号",
-                           self._project.cert_number or "未备案")
-        self._add_info_row(info_frame, "下证日期",
-                           self._project.issue_date or "-")
-        self._add_info_row(info_frame, "系统等级",
-                           self._project.level or "-")
+        # 系统列表表格（若有关联项目则展示多行）
+        all_projects = getattr(self, '_all_projects', None) or [self._project]
+        if len(all_projects) > 1:
+            # 表头
+            hdr = tk.Frame(info_frame, bg="#f8f9fa")
+            hdr.pack(fill=tk.X, pady=(4, 1))
+            for txt, w in [("系统名称", 16), ("证书编号", 14), ("下证日期", 11), ("等级", 6)]:
+                tk.Label(hdr, text=txt, bg="#e9ecef", fg="#2c3e50",
+                         font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL, "bold"),
+                         width=w, anchor="w").pack(side=tk.LEFT, padx=1)
+            for p in all_projects:
+                row = tk.Frame(info_frame, bg="#f8f9fa")
+                row.pack(fill=tk.X, pady=1)
+                for val, w in [(p.system_name or "-", 16), (p.cert_number or "-", 14),
+                               (p.issue_date or "-", 11), (p.level or "-", 6)]:
+                    tk.Label(row, text=val, bg="#f8f9fa", fg="#2c3e50",
+                             font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                             width=w, anchor="w").pack(side=tk.LEFT, padx=1)
+        else:
+            self._add_info_row(info_frame, "系统名称", self._project.system_name or "-")
+            self._add_info_row(info_frame, "证书编号", self._project.cert_number or "未备案")
+            self._add_info_row(info_frame, "下证日期", self._project.issue_date or "-")
+            self._add_info_row(info_frame, "系统等级", self._project.level or "-")
         self._add_info_row(info_frame, "属地",
                            self._project.location or "-")
         # 当前阶段名称（通过 stage_id 查找）
@@ -487,7 +505,8 @@ class DetailDialog(tk.Toplevel):
 def show_detail_dialog(parent, project: Project,
                        stages: list[WorkflowStage],
                        logs: list[dict],
-                       on_move=None) -> tuple | None:
+                       on_move=None,
+                       all_projects: list = None) -> tuple | None:
     """显示项目详情对话框并以事件循环方式运行。
 
     与简单的 wait_window() 模式不同，此函数使用 while 循环持续 update()，
@@ -509,7 +528,7 @@ def show_detail_dialog(parent, project: Project,
             对于 delete 操作返回 ("delete", None)；
             用户直接关闭窗口返回 None。
     """
-    dialog = DetailDialog(parent, project, stages, logs)     # 创建详情对话框实例
+    dialog = DetailDialog(parent, project, stages, logs, all_projects)
 
     # 事件循环：持续 update 直到窗口被关闭
     while dialog.winfo_exists():
