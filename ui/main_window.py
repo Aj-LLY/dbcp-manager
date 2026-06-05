@@ -589,9 +589,8 @@ class MainWindow(tk.Tk):
 
             # 定义需要创建的子目录列表
             subdirs = [
-                "01-其他归档文件",  # 杂项归档资料
-                f"00-{cname}-{sname}-报告打印",  # 报告打印输出目录
-                f"13-{cname}-{sname}-渗透测试报告",  # 渗透测试报告目录
+                "01-其他归档文件",
+                f"00-{cname}-{sname}-报告打印",
             ]
             for d in subdirs:
                 os.makedirs(os.path.join(root, d), exist_ok=True)
@@ -606,7 +605,7 @@ class MainWindow(tk.Tk):
             pass
 
     def _generate_nda_template(self, root, cname_clean, company_name):
-        """生成保密承诺书模板，替换年份和公司名称。
+        """生成保密承诺书模板，替换公司名称和日期。
 
         Args:
             root: 项目文件夹根路径
@@ -614,42 +613,38 @@ class MainWindow(tk.Tk):
             company_name: 原始公司名称（用于文档内容替换）
         """
         import os, shutil
-        from datetime import date
         try:
-            template_path = os.path.join(
-                Config.get_data_dir(), "templates",
-                "03-模板 保密承诺书.docx"
-            )
+            template_path = os.path.join(Config.get_data_dir(), "templates", "02-保密承诺书模板.docx")
             if not os.path.exists(template_path):
-                return  # 模板文件不存在，跳过
-            dest_name = f"03-保密承诺书-{cname_clean}-{date.today().year}.docx"
+                return
+            dest_name = f"03-{cname_clean}-{company_name}-保密承诺书.docx" if company_name else f"03-{cname_clean}-保密承诺书.docx"
             dest_path = os.path.join(root, dest_name)
+            if os.path.exists(dest_path):
+                return
             shutil.copy2(template_path, dest_path)
-            # 替换模板中的占位符
             import docx
             doc = docx.Document(dest_path)
-            year_str = str(date.today().year)
             for p in doc.paragraphs:
                 for run in p.runs:
-                    if "2025" in run.text or "2026" in run.text:
-                        run.text = run.text.replace("2025", year_str).replace("2026", year_str)
-                    if "XX单位" in run.text or "xx单位" in run.text:
-                        run.text = run.text.replace("XX单位", company_name).replace("xx单位", company_name)
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        for p in cell.paragraphs:
-                            for run in p.runs:
-                                if "2025" in run.text or "2026" in run.text:
-                                    run.text = run.text.replace("2025", year_str).replace("2026", year_str)
-                                if "XX单位" in run.text or "xx单位" in run.text:
-                                    run.text = run.text.replace("XX单位", company_name).replace("xx单位", company_name)
-                                # 替换表格中的公司名
-                                if "顺科技" in run.text and company_name:
-                                    run.text = company_name
+                    if "XXX公司" in run.text or "XXX" in run.text:
+                        run.text = run.text.replace("XXX公司", company_name).replace("XXX", company_name)
+            create_date = ""
+            from datetime import datetime
+            try:
+                create_date = datetime.now().strftime("%Y年%m月%d日")
+            except Exception:
+                pass
+            if create_date:
+                for table in doc.tables:
+                    for row in table.rows:
+                        for cell in row.cells:
+                            for p in cell.paragraphs:
+                                for run in p.runs:
+                                    if "年" in run.text and "月" in run.text and "日" in run.text:
+                                        run.text = create_date
             doc.save(dest_path)
         except Exception:
-            pass  # 模板生成失败不阻塞流程
+            pass
 
     # ==================================================================================
     # 窗口事件处理方法

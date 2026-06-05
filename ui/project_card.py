@@ -1009,7 +1009,8 @@ class ProjectCard(tk.Frame):
                 "测评报告评审记录表": ("17", "测评报告评审表"),  # 17 号文件（历史名称）
                 "测评报告评审表": ("17", "测评报告评审表"),  # 17 号文件（标准名称）
                 "服务情况评价表": ("18", "服务情况评价表"),  # 18 号文件
-                "报备表": ("19", "报备表"),  # 19 号文件
+                "报备表": ("19", "报备表"),
+                "渗透测试报告": ("13", "渗透测试报告"),  # 渗透测试报告目录
             }
 
             renamed = 0  # 重命名计数器（累计处理了多少个项目）
@@ -1030,6 +1031,17 @@ class ProjectCard(tk.Frame):
                         renamed += 1  # 计数 +1
                         msgs.append(f"解压: {fname} -> 提取文件")  # 记录操作
                     except Exception as e:  # 解压失败（损坏的 ZIP、权限不足等）
+                        msgs.append(f"解压失败: {fname} ({e})")
+
+                # 处理"渗透测试报告.zip" -> 解压到当前目录
+                if "渗透测试报告" in fname and "评审" not in fname:
+                    try:
+                        with zipfile.ZipFile(fpath, "r") as zf:
+                            zf.extractall(root)
+                        os.remove(fpath)
+                        renamed += 1
+                        msgs.append(f"解压: {fname} -> 提取文件")
+                    except Exception as e:
                         msgs.append(f"解压失败: {fname} ({e})")
 
                 # 处理"测评报告评审表.zip" -> 解压（后续会删除初审版本）
@@ -1125,7 +1137,7 @@ class ProjectCard(tk.Frame):
     # ==================================================================================
 
     def _on_init_click(self):
-        """项目初始化：在已有目录中创建标准子目录和模板文件"""
+        """项目初始化：创建标准子目录和保密承诺书模板"""
         import os
         from tkinter import messagebox
         try:
@@ -1135,43 +1147,53 @@ class ProjectCard(tk.Frame):
                 return
             cname = (self.project.company_name or "未命名").replace("/", "_").replace("\\", "_")
             sname = (self.project.system_name or "").replace("/", "_").replace("\\", "_")
-            subdirs = [
-                "01-其他归档文件",
-                f"00-{cname}-{sname}-报告打印",
-                f"13-{cname}-{sname}-渗透测试报告",
-            ]
             created = 0
-            for d in subdirs:
-                dpath = os.path.join(root, d)
-                if not os.path.exists(dpath):
-                    os.makedirs(dpath, exist_ok=True)
-                    created += 1
-            # 生成保密承诺书
+            msgs = []
+            # 创建01-其他归档文件
+            dpath = os.path.join(root, "01-其他归档文件")
+            if not os.path.exists(dpath):
+                os.makedirs(dpath, exist_ok=True)
+                created += 1; msgs.append("创建目录: 01-其他归档文件")
+            # 创建00-报告打印
+            dpath = os.path.join(root, f"00-{cname}-{sname}-报告打印")
+            if not os.path.exists(dpath):
+                os.makedirs(dpath, exist_ok=True)
+                created += 1; msgs.append("创建目录: 00-报告打印")
+            # 生成保密承诺书（03-公司-系统-保密承诺书.docx）
             try:
                 from utils.config import Config
-                from datetime import date
-                tpl = os.path.join(Config.get_data_dir(), "templates",
-                                   "03-模板 保密承诺书.docx")
+                tpl = os.path.join(Config.get_data_dir(), "templates", "02-保密承诺书模板.docx")
                 if os.path.exists(tpl):
                     import shutil, docx
-                    dest = os.path.join(root, f"03-保密承诺书-{cname}-{date.today().year}.docx")
+                    dest = os.path.join(root, f"03-{cname}-{sname}-保密承诺书.docx")
                     if not os.path.exists(dest):
                         shutil.copy2(tpl, dest)
                         doc = docx.Document(dest)
-                        year_s = str(date.today().year)
+                        company = self.project.company_name or ""
+                        create_date = self.project.created_at[:10] if self.project.created_at else ""
+                        # 替换公司名称: XXX公司 → 实际公司名
                         for p in doc.paragraphs:
                             for run in p.runs:
-                                for old_y in ("2025", "2026"):
-                                    if old_y in run.text:
-                                        run.text = run.text.replace(old_y, year_s)
-                                if "XX单位" in run.text or "xx单位" in run.text:
-                                    run.text = run.text.replace("XX单位", self.project.company_name or "").replace("xx单位", self.project.company_name or "")
+                                if "XXX公司" in run.text or "XXX" in run.text:
+                                    run.text = run.text.replace("XXX公司", company).replace("XXX", company)
+                        # 替换表格中的日期: XX年XX月XX日 → 创建日期
+                        if create_date:
+                            parts = create_date.split("-")
+                            if len(parts) == 3:
+                                date_cn = f"{parts[0]}年{int(parts[1]):02d}月{int(parts[2]):02d}日"
+                                for table in doc.tables:
+                                    for row in table.rows:
+                                        for cell in row.cells:
+                                            for p in cell.paragraphs:
+                                                for run in p.runs:
+                                                    if "年" in run.text and "月" in run.text and "日" in run.text:
+                                                        run.text = date_cn
                         doc.save(dest)
-                        created += 1
+                        created += 1; msgs.append("生成: 03-保密承诺书.docx")
             except Exception:
                 pass
-            if created:
-                messagebox.showinfo("初始化完成", f"已创建 {created} 个子目录/文件")
+            if msgs:
+                messagebox.showinfo("初始化完成", "\n".join(msgs))
             else:
                 messagebox.showinfo("提示", "目录结构已存在，无需初始化")
         except Exception as e:
