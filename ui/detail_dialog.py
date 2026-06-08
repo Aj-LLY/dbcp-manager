@@ -225,21 +225,21 @@ class DetailDialog(tk.Toplevel):
         # 系统列表表格（若有关联项目则展示多行）
         all_projects = getattr(self, '_all_projects', None) or [self._project]
         if len(all_projects) > 1:
+            # 使用 grid 布局确保列对齐
+            columns = [("系统名称", 24), ("证书编号", 18), ("下证日期", 12), ("等级", 8)]
             # 表头
-            hdr = tk.Frame(info_frame, bg="#f8f9fa")
-            hdr.pack(fill=tk.X, pady=(4, 1))
-            for txt, w in [("系统名称", 22), ("证书编号", 18), ("下证日期", 12), ("等级", 8)]:
-                tk.Label(hdr, text=txt, bg="#e9ecef", fg="#2c3e50",
+            for ci, (txt, w) in enumerate(columns):
+                tk.Label(info_frame, text=txt, bg="#e9ecef", fg="#2c3e50",
                          font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL, "bold"),
-                         width=w, anchor="w").pack(side=tk.LEFT, padx=1)
-            for p in all_projects:
-                row = tk.Frame(info_frame, bg="#f8f9fa")
-                row.pack(fill=tk.X, pady=1)
-                for val, w in [(p.system_name or "-", 22), (p.cert_number or "-", 18),
-                               (p.issue_date or "-", 12), (p.level or "-", 8)]:
-                    tk.Label(row, text=val, bg="#f8f9fa", fg="#2c3e50",
+                         width=w, anchor="w", padx=2).grid(row=0, column=ci, sticky="w")
+            # 数据行
+            for ri, p in enumerate(all_projects, 1):
+                vals = [p.system_name or "-", p.cert_number or "-",
+                        p.issue_date or "-", p.level or "-"]
+                for ci, (val, (_, w)) in enumerate(zip(vals, columns)):
+                    tk.Label(info_frame, text=val, bg="#f8f9fa", fg="#2c3e50",
                              font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-                             width=w, anchor="w").pack(side=tk.LEFT, padx=1)
+                             width=w, anchor="w", padx=2).grid(row=ri, column=ci, sticky="w")
         else:
             self._add_info_row(info_frame, "系统名称", self._project.system_name or "-")
             self._add_info_row(info_frame, "证书编号", self._project.cert_number or "未备案")
