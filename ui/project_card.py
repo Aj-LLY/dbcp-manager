@@ -527,7 +527,7 @@ class ProjectCard(tk.Frame):
 
         委托给独立模块 ui.card_file_ops.on_rename_click。
         """
-        on_rename_click(self.project, self)
+        on_rename_click(self.project, self, all_projects=self.projects)
 
     def _on_init_click(self):
         """项目初始化：创建标准子目录和保密承诺书模板
