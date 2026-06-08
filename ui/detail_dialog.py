@@ -228,15 +228,15 @@ class DetailDialog(tk.Toplevel):
             # 表头
             hdr = tk.Frame(info_frame, bg="#f8f9fa")
             hdr.pack(fill=tk.X, pady=(4, 1))
-            for txt, w in [("系统名称", 16), ("证书编号", 14), ("下证日期", 11), ("等级", 6)]:
+            for txt, w in [("系统名称", 22), ("证书编号", 18), ("下证日期", 12), ("等级", 8)]:
                 tk.Label(hdr, text=txt, bg="#e9ecef", fg="#2c3e50",
                          font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL, "bold"),
                          width=w, anchor="w").pack(side=tk.LEFT, padx=1)
             for p in all_projects:
                 row = tk.Frame(info_frame, bg="#f8f9fa")
                 row.pack(fill=tk.X, pady=1)
-                for val, w in [(p.system_name or "-", 16), (p.cert_number or "-", 14),
-                               (p.issue_date or "-", 11), (p.level or "-", 6)]:
+                for val, w in [(p.system_name or "-", 22), (p.cert_number or "-", 18),
+                               (p.issue_date or "-", 12), (p.level or "-", 8)]:
                     tk.Label(row, text=val, bg="#f8f9fa", fg="#2c3e50",
                              font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
                              width=w, anchor="w").pack(side=tk.LEFT, padx=1)
