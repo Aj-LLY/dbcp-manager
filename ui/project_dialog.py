@@ -992,32 +992,42 @@ class ProjectDialog(tk.Toplevel):
     def _on_create_folders(self):
         """在指定路径下创建项目子目录结构。
 
-        创建的目录包括：
-          - 01-其他归档文件
-          - 00-{公司名}-{系统名}-报告打印
-          - 13-{公司名}-{系统名}-渗透测试报告
-
-        使用 os.makedirs 递归创建，exist_ok=True 确保目录已存在时不报错。
-        路径中的 / 和 \\ 会被替换为 _ 以避免路径解析错误。
+        多系统: {序号}-{公司}-{日期}/ 单系统: {序号}-{公司}-{系统}-{日期}/
         """
+        from datetime import date
         try:
             root = self._folder_path_var.get().strip()
             if not root:
                 messagebox.showwarning("提示", "请先输入或选择文件夹路径", parent=self)
                 return
-            # 获取公司名称和系统名称，将路径分隔符替换为下划线防止解析问题
             cname = (self._company_var.get().strip() or "未命名").replace("/", "_").replace("\\", "_")
-            sname = (self._system_var.get().strip() or "").replace("/", "_").replace("\\", "_")
-            # 定义子目录列表
-            subdirs = [
-                "01-其他归档文件",
-                f"00-{cname}-{sname}-报告打印",
-                f"13-{cname}-{sname}-渗透测试报告",
-            ]
-            # 逐个创建子目录
+            # 收集所有系统名称
+            sys_names = []
+            for rd in self._sys_rows_list:
+                sn = rd["system_var"].get().strip()
+                if sn:
+                    sys_names.append(sn.replace("/", "_").replace("\\", "_"))
+            # 判断多系统/单系统 → 决定文件夹名
+            date_str = date.today().strftime("%y%m%d")
+            if len(sys_names) > 1:
+                folder_name = f"001-{cname}-{date_str}"
+            elif len(sys_names) == 1:
+                folder_name = f"001-{cname}-{sys_names[0]}-{date_str}"
+            else:
+                folder_name = f"001-{cname}-{date_str}"
+            full_root = os.path.join(root, folder_name)
+            os.makedirs(full_root, exist_ok=True)
+            # 子目录
+            subdirs = ["01-其他归档文件"]
+            for sn in (sys_names or [""]):
+                subdirs.append(f"00-{cname}-{sn}-报告打印")
+            if sys_names:
+                subdirs.append(f"13-{cname}-{sys_names[0]}-渗透测试报告")
             for d in subdirs:
-                os.makedirs(os.path.join(root, d), exist_ok=True)  # 递归创建，已存在则跳过
-            messagebox.showinfo("完成", "项目目录结构已创建/刷新", parent=self)
+                os.makedirs(os.path.join(full_root, d), exist_ok=True)
+            # 更新文件夹路径
+            self._folder_path_var.set(full_root)
+            messagebox.showinfo("完成", f"项目目录已创建:\n{full_root}", parent=self)
         except OSError as e:
             messagebox.showerror("错误", f"创建失败: {e}", parent=self)
 
