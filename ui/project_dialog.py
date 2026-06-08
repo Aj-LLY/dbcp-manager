@@ -363,23 +363,11 @@ class ProjectDialog(tk.Toplevel):
         ).pack(anchor="w", pady=(0, 5))
 
         # =====================================================================
-        # 上传备案证识别按钮 + OCR 状态标签
-        # =====================================================================
-        upload_row = tk.Frame(main_frame, bg="#ffffff")
-        upload_row.pack(fill=tk.X, pady=(0, 5))
-        self._upload_btn = tk.Button(
-            upload_row, text="上传备案证识别", command=self._on_upload_cert,
-            bg="#27ae60", fg="white", cursor="hand2",
-            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-            relief="flat", padx=10, pady=3,
-            activebackground="#219a52",
-        )
-        self._upload_btn.pack(side=tk.LEFT)
-        # OCR 识别状态提示标签（初始为空）
-        self._ocr_status = tk.Label(upload_row, text="", bg="#ffffff",
+        # OCR 状态提示标签（全局）
+        self._ocr_status = tk.Label(main_frame, text="", bg="#ffffff",
                                      font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
                                      fg="#7f8c8d")
-        self._ocr_status.pack(side=tk.LEFT, padx=(10, 0))
+        self._ocr_status.pack(anchor="w", pady=(0, 5))
 
         # =====================================================================
         # 4. 交付日期（日历选择器 + 快捷日期按钮）
@@ -597,6 +585,13 @@ class ProjectDialog(tk.Toplevel):
             cursor="hand2", padx=2, pady=0,
             activebackground="#e0e4e8",
         ).pack(side=tk.LEFT)
+        # OCR 识别按钮（每行独立）
+        tk.Button(
+            ln2, text="OCR", command=lambda ri=idx: self._on_row_upload_cert(ri - 1),
+            bg="#27ae60", fg="white", cursor="hand2", relief="flat",
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 2),
+            padx=4, pady=1, activebackground="#219a52",
+        ).pack(side=tk.LEFT, padx=(4, 0))
 
         # ---- 第3行：属地（省/市） + 复制/删除按钮 ----
         ln3 = tk.Frame(row_frame, bg="#f0f2f5")
@@ -1033,6 +1028,49 @@ class ProjectDialog(tk.Toplevel):
     def _on_upload_cert(self):
         """上传备案证文件并启动后台线程进行 OCR 识别。（委托）"""
         on_upload_cert(self)
+
+    def _on_row_upload_cert(self, row_idx: int):
+        """为指定系统行上传备案证并进行 OCR 识别。"""
+        import threading
+        from tkinter import filedialog
+        file_path = filedialog.askopenfilename(
+            parent=self, title="选择备案证文件",
+            filetypes=[("图片和PDF", "*.pdf *.png *.jpg *.jpeg *.bmp")])
+        if not file_path:
+            return
+        self._ocr_status.configure(text="正在识别...", fg="#f39c12")
+
+        def _run():
+            try:
+                from services.cert_ocr import CertOCRService
+                result = CertOCRService().recognize(file_path)
+                self.after(0, lambda: self._fill_row_cert_result(result, row_idx, file_path))
+            except Exception as e:
+                self.after(0, lambda: ocr_failed(self, str(e)))
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _fill_row_cert_result(self, result, row_idx, file_path):
+        """将 OCR 结果填入指定系统行。"""
+        if row_idx < len(self._sys_rows_list):
+            r = self._sys_rows_list[row_idx]
+            filled = []
+            if result.get("company_name"):
+                self._company_var.set(result["company_name"]); filled.append("公司名称")
+            if result.get("system_name"):
+                r["system_var"].set(result["system_name"]); filled.append("系统名称")
+            if result.get("cert_number"):
+                r["cert_var"].set(result["cert_number"]); filled.append("证书编号")
+            if result.get("issue_date"):
+                r["issue_date_var"].set(result["issue_date"]); filled.append("下证日期")
+            if result.get("level"):
+                r["level_var"].set(result["level"]); filled.append("系统等级")
+            self._ocr_status.configure(
+                text=f"已识别：{'、'.join(filled)}（请核对）" if filled else "识别结果不完整",
+                fg="#27ae60" if filled else "#e67e22")
+            if file_path and filled:
+                archive_cert_file(self, file_path)
+        else:
+            self._ocr_status.configure(text="识别失败：行索引无效", fg="#e74c3c")
 
     def _fill_cert_result(self, result: dict, file_path: str = ""):
         """将 OCR 识别结果填充到表单字段。（委托）"""

@@ -353,8 +353,10 @@ class DetailDialog(tk.Toplevel):
         打开 project_dialog 的 show_project_dialog 对话框进行编辑，
         如果用户确认保存，则将结果设为 ("edit", 表单数据) 并关闭详情窗口。
         """
+        all_proj = (getattr(self, '_all_projects', None)
+                   or getattr(self, '_saved_all_projects', None))
         result = show_project_dialog(
-            self, "编辑项目", self._project, self._stages,
+            self, "编辑项目", self._project, self._stages, all_projects=all_proj,
         )
         if result:                                             # 用户点击了保存
             self.result = ("edit", result)                     # 设置编辑操作结果
