@@ -102,8 +102,8 @@ class DetailDialog(tk.Toplevel):
 
         初始大小 520×550，最小尺寸 420×400，允许调整大小，白色背景。
         """
-        self.geometry("520x550")         # 初始窗口大小
-        self.minsize(420, 400)           # 最小尺寸（防止缩得过小）
+        self.geometry("640x580")         # 初始窗口大小（加宽以完整显示表格）
+        self.minsize(480, 400)
         self.resizable(True, True)       # 允许水平和垂直调整
         self.configure(bg="#ffffff")     # 白色背景
 
