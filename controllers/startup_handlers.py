@@ -59,8 +59,18 @@ def on_backup(main_window):
 # =============================================================================
 
 def on_close(main_window):
-    """窗口关闭前保存数据并询问是否同步到 WebDAV。"""
+    """窗口关闭前保存数据、窗口位置，并询问是否同步到 WebDAV。"""
     main_window._data_service.save()
+    # 保存窗口位置和大小
+    try:
+        import json, os
+        geo = main_window.geometry()
+        path = os.path.join(Config.get_data_dir(), "data", "window_geometry.json")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"geometry": geo}, f)
+    except Exception:
+        pass
     # 询问是否备份到 WebDAV
     from utils.webdav_config import WebDAVConfig
     cfg = WebDAVConfig.load()

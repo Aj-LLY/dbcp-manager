@@ -122,10 +122,21 @@ class MainWindow(tk.Tk):
         # 第二步：配置窗口基本属性
         # =====================================================================
 
-        self.title(f"{Config.APP_NAME} v{Config.APP_VERSION}")  # 设置窗口标题：应用名称 + 版本号
-        self.geometry(f"{Config.WINDOW_WIDTH}x{Config.WINDOW_HEIGHT}")  # 设置初始窗口尺寸（宽度x高度）
-        self.minsize(Config.WINDOW_MIN_WIDTH, Config.WINDOW_MIN_HEIGHT)  # 设置最小窗口尺寸，防止缩得过小
-        self.configure(bg=Config.KANBAN_BG)  # 设置窗口默认背景色（与看板背景统一，浅灰蓝色）
+        self.title(f"{Config.APP_NAME} v{Config.APP_VERSION}")
+        # 恢复上次窗口位置和大小，首次使用默认值
+        try:
+            import json, os
+            geo_path = os.path.join(Config.get_data_dir(), "data", "window_geometry.json")
+            if os.path.exists(geo_path):
+                with open(geo_path, "r", encoding="utf-8") as f:
+                    saved = json.load(f)
+                    self.geometry(saved.get("geometry", f"{Config.WINDOW_WIDTH}x{Config.WINDOW_HEIGHT}"))
+            else:
+                self.geometry(f"{Config.WINDOW_WIDTH}x{Config.WINDOW_HEIGHT}")
+        except Exception:
+            self.geometry(f"{Config.WINDOW_WIDTH}x{Config.WINDOW_HEIGHT}")
+        self.minsize(Config.WINDOW_MIN_WIDTH, Config.WINDOW_MIN_HEIGHT)
+        self.configure(bg=Config.KANBAN_BG)
 
         # =====================================================================
         # 第三步：构建 UI 组件（从上到下：工具栏 -> 看板）

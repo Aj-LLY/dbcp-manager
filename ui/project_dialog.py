@@ -208,8 +208,8 @@ class ProjectDialog(tk.Toplevel):
           - 可调整大小：水平和垂直均可拖拽调整
           - 背景色：白色 #ffffff
         """
-        self.geometry("580x680")         # 设置窗口初始宽度580px，高度680px（多系统表格加高）
-        self.minsize(420, 480)           # 设置窗口最小宽度420px，最小高度480px
+        self.geometry("680x700")         # 加宽以容纳多系统表格
+        self.minsize(500, 480)           # 设置窗口最小宽度420px，最小高度480px
         self.resizable(True, True)       # 允许用户水平和垂直方向调整窗口大小
         self.configure(bg="#ffffff")     # 窗口背景色设为白色
 
@@ -557,10 +557,8 @@ class ProjectDialog(tk.Toplevel):
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
                  fg="#7f8c8d", width=3, anchor="e").pack(side=tk.LEFT)
         sys_var = tk.StringVar(value=data.get("system_name", ""))
-        sys_entry, sys_outer = bordered_entry(
-            ln1, textvariable=sys_var, width=30,
-        )
-        sys_outer.pack(side=tk.LEFT, padx=(2, 8))
+        sys_entry, sys_outer = bordered_entry(ln1, textvariable=sys_var, width=22)
+        sys_outer.pack(side=tk.LEFT, padx=(2, 8), fill=tk.X, expand=True)
         tk.Label(ln1, text="等级", bg="#f0f2f5",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
                  fg="#7f8c8d", width=3, anchor="e").pack(side=tk.LEFT)
