@@ -163,10 +163,9 @@ def pick_project_from_card(main_window, card: ProjectCard) -> Project | None:
 
 
 def on_card_detail(main_window, card: ProjectCard):
-    """处理卡片"详情"按钮点击事件。合并卡片先选系统再进入详情。"""
-    project = pick_project_from_card(main_window, card)
-    if not project:
-        return
+    """处理卡片详情按钮。多系统时直接展示所有系统。"""
+    project = card.projects[0] if card.projects else card.project
+    all_projects = card.projects if card.projects and len(card.projects) > 1 else None
     stages = main_window._workflow_service.get_all_stages()
     logs = main_window._log_service.get_project_logs(project.id)
 
@@ -182,8 +181,7 @@ def on_card_detail(main_window, card: ProjectCard):
             messagebox.showerror("错误", msg)
 
     result = show_detail_dialog(main_window, project, stages, logs,
-                               on_move=_handle_move,
-                               all_projects=(card.projects if len(card.projects) > 1 else None))
+                               on_move=_handle_move, all_projects=all_projects)
     if not result:
         return
 
