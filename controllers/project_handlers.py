@@ -204,22 +204,31 @@ def on_card_detail(main_window, card: ProjectCard):
 
 
 def on_card_edit(main_window, card: ProjectCard):
-    """处理卡片编辑/双击。多系统时编辑当前项目，表格展示所有系统。"""
+    """处理卡片编辑/双击。多系统时更新所有项目。"""
     project = card.projects[0] if card.projects else card.project
     all_proj = card.projects if card.projects and len(card.projects) > 1 else None
     stages = main_window._workflow_service.get_all_stages()
     result = show_project_dialog(main_window, "编辑项目", project, stages, all_projects=all_proj)
     if result:
-        success, msg = main_window._project_service.update_project(
-            project.id, company_name=result.get("company_name"),
-            system_name=result.get("system_name"), cert_number=result.get("cert_number"),
-            issue_date=result.get("issue_date"), level=result.get("level"),
-            location=result.get("location"), deadline=result.get("deadline"),
-            notes=result.get("notes"), stage_id=result.get("stage_id"),
-            folder_path=result.get("folder_path"),
-        )
-        if success: main_window._refresh_kanban()
-        else: messagebox.showerror("错误", msg)
+        shared = {k: result.get(k) for k in ("company_name", "deadline", "notes",
+            "stage_id", "folder_path")}
+        systems = result.get("systems", [])
+        proj_list = card.projects if card.projects else [card.project]
+        # 更新每个项目：用对应系统行数据 + 共享字段
+        for i, p in enumerate(proj_list):
+            sys_data = systems[i] if i < len(systems) else {}
+            main_window._project_service.update_project(
+                p.id,
+                company_name=shared["company_name"],
+                system_name=sys_data.get("system_name", p.system_name),
+                cert_number=sys_data.get("cert_number", p.cert_number),
+                issue_date=sys_data.get("issue_date", p.issue_date),
+                level=sys_data.get("level", p.level),
+                location=sys_data.get("location", p.location),
+                deadline=shared["deadline"], notes=shared["notes"],
+                stage_id=shared["stage_id"], folder_path=shared["folder_path"],
+            )
+        main_window._refresh_kanban()
 
 
 def on_card_move_stage(main_window, card: ProjectCard, target_stage_id: str):
