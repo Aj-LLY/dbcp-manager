@@ -326,11 +326,7 @@ def create_project_folder(main_window, project):
         root = os.path.join(base, folder_name)  # 拼接完整文件夹路径
         os.makedirs(root, exist_ok=True)  # 递归创建文件夹目录（exist_ok=True 避免重复创建报错）
 
-        # 定义需要创建的子目录列表
-        subdirs = [
-            "01-其他归档文件",
-            f"00-{cname}-{sname}-报告打印",
-        ]
+        subdirs = ["01-其他归档文件"]
         for d in subdirs:
             os.makedirs(os.path.join(root, d), exist_ok=True)
 

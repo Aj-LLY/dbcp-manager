@@ -1079,7 +1079,7 @@ class ProjectDialog(tk.Toplevel):
                 text=f"已识别：{'、'.join(filled)}（请核对）" if filled else "识别结果不完整",
                 fg="#27ae60" if filled else "#e67e22")
             if file_path and filled:
-                archive_cert_file(self, file_path)
+                archive_cert_file(self, file_path, row_idx)
         else:
             self._ocr_status.configure(text="识别失败：行索引无效", fg="#e74c3c")
 

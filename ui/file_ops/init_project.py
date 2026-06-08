@@ -45,15 +45,8 @@ def on_init_click(project: Project, parent=None):
             os.makedirs(dpath, exist_ok=True); created.append(dname)
         else:
             existed.append(dname)
-        # 00-报告打印
-        dname = f"00-{cname}-{sname}-报告打印"
-        dpath = os.path.join(root, dname)
-        if not os.path.exists(dpath):
-            os.makedirs(dpath, exist_ok=True); created.append(dname)
-        else:
-            existed.append(dname)
-        # 02-保密承诺书
-        nda_name = f"02-{cname}-{sname}-保密承诺书.docx"
+        # 02-保密承诺书（单系统加系统名，多系统只有公司名）
+        nda_name = f"02-{cname}-{sname}-保密承诺书.docx" if sname else f"02-{cname}-保密承诺书.docx"
         nda_path = os.path.join(root, nda_name)
         if os.path.exists(nda_path):
             existed.append(nda_name)
