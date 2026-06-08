@@ -3,7 +3,7 @@
 
 本模块提供项目的新增与编辑功能，以模态对话框形式与用户交互。
 主要功能包括：
-  - 项目基本信息录入（公司名称、系统名称、系统等级、证书编号、属地等）
+  - 项目基本信息录入（公司名称、可编辑多系统表格、证书编号、属地等）
   - 日期选择（下证日期和交付日期，均支持日历控件和快捷按钮）
   - 上传备案证OCR自动识别填充字段
   - 项目文件夹路径选择与目录结构创建
@@ -17,6 +17,7 @@
     result = show_project_dialog(parent, title="新增项目", stages=stages)
     if result:
         # result 为包含所有表单字段的 dict
+        # 包含 "systems" 列表（每个系统一行）和顶层向后兼容字段
         ...
 """
 
@@ -58,6 +59,13 @@ from ui.dialog_project_ocr import (        # OCR 备案证识别模块（从项�
 
 
 # =============================================================================
+# 模块级常量
+# =============================================================================
+
+# 系统等级下拉选项（每行共用）
+LEVEL_VALUES = ["", "第一级", "第二级", "第三级", "第四级", "第五级"]
+
+# =============================================================================
 # ProjectDialog -- 项目新增/编辑模态对话框
 # =============================================================================
 
@@ -75,15 +83,13 @@ class ProjectDialog(tk.Toplevel):
 
     表单字段：
       1. 公司名称 *（必填之一）
-      2. 系统名称
-      3. 系统等级（下拉选择：空/第一至第五级）
-      4. 证书编号（11位数字 - 5位数字格式校验）
-      5. 下证日期（日历选择器）+ 属地（省-市两级联动下拉）
-      6. 上传备案证识别按钮（OCR 自动填充）
-      7. 交付日期（日历选择器 + 今天/一周后/一月后/清除快捷按钮）
-      8. 所属阶段（只读下拉选择）
-      9. 项目文件夹（路径选择 + 创建目录按钮）
-      10. 备注信息（多行文本，带滚动条和灰色外边框）
+      2. 可编辑多系统表格（每行含系统名称、等级、证书编号、下证日期、省/市属地）
+         + "+ 添加系统" 按钮
+      3. 上传备案证识别按钮（OCR 自动填充）
+      4. 交付日期（日历选择器 + 今天/一周后/一月后/清除快捷按钮）
+      5. 所属阶段（只读下拉选择）
+      6. 项目文件夹（路径选择 + 创建目录按钮）
+      7. 备注信息（多行文本，带滚动条和灰色外边框）
 
     键盘快捷键：
       - Enter：确认保存
@@ -92,8 +98,9 @@ class ProjectDialog(tk.Toplevel):
     Attributes:
         result: dict | None
             用户确认保存后为包含所有表单字段的字典，取消时为 None。
-            字典字段：company_name, system_name, cert_number, issue_date,
-            level, location, deadline, notes, stage_id, folder_path
+            字典包含："systems" 列表（每行一个 dict）以及顶层向后兼容字段
+            (company_name, system_name, cert_number, issue_date, level,
+             location, deadline, notes, stage_id, folder_path)
     """
 
     def __init__(self, parent, title: str = "新增项目",
@@ -116,6 +123,7 @@ class ProjectDialog(tk.Toplevel):
         self._all_projects = all_projects  # 多系统表格数据
         self._stages = stages or []
         self._is_edit = project is not None
+        self._sys_rows_list = []   # list[dict]: 每个元素为一行系统数据的控件引用
 
         # ---- 按顺序执行窗口初始化步骤 ----
         self._setup_window()     # ① 配置窗口基本属性（大小、最小尺寸、背景色）
@@ -123,6 +131,69 @@ class ProjectDialog(tk.Toplevel):
         self._load_data()        # ③ 编辑模式下预填数据，或设置新增模式的默认值
         self._center_window()    # ④ 将窗口相对于父窗口居中显示
         self.grab_set()          # ⑤ 设置模态（拦截所有事件，必须关闭本窗口后才能操作父窗口）
+
+    # =========================================================================
+    # 向后兼容属性 —— 指向第一行系统数据的 StringVar / Combobox
+    # 这些 @property 确保旧代码（如 OCR 模块、_load_data、_on_confirm、
+    # _get_location、_on_create_folders）中对 self._system_var 等属性的
+    # .get() / .set() 调用依然有效。
+    # =========================================================================
+
+    @property
+    def _system_var(self):
+        """向后兼容：返回第一行系统数据的 system_name StringVar。"""
+        if self._sys_rows_list:
+            return self._sys_rows_list[0]["system_var"]
+        return tk.StringVar()
+
+    @property
+    def _level_var(self):
+        """向后兼容：返回第一行系统数据的 level StringVar。"""
+        if self._sys_rows_list:
+            return self._sys_rows_list[0]["level_var"]
+        return tk.StringVar()
+
+    @property
+    def _cert_var(self):
+        """向后兼容：返回第一行系统数据的 cert_number StringVar。"""
+        if self._sys_rows_list:
+            return self._sys_rows_list[0]["cert_var"]
+        return tk.StringVar()
+
+    @property
+    def _issue_date_var(self):
+        """向后兼容：返回第一行系统数据的 issue_date StringVar。"""
+        if self._sys_rows_list:
+            return self._sys_rows_list[0]["issue_date_var"]
+        return tk.StringVar()
+
+    @property
+    def _province_var(self):
+        """向后兼容：返回第一行系统数据的 province StringVar。"""
+        if self._sys_rows_list:
+            return self._sys_rows_list[0]["province_var"]
+        return tk.StringVar()
+
+    @property
+    def _city_var(self):
+        """向后兼容：返回第一行系统数据的 city StringVar。"""
+        if self._sys_rows_list:
+            return self._sys_rows_list[0]["city_var"]
+        return tk.StringVar()
+
+    @property
+    def _province_combo(self):
+        """向后兼容：返回第一行系统数据的 province ttk.Combobox。"""
+        if self._sys_rows_list:
+            return self._sys_rows_list[0]["province_combo"]
+        return None
+
+    @property
+    def _city_combo(self):
+        """向后兼容：返回第一行系统数据的 city ttk.Combobox。"""
+        if self._sys_rows_list:
+            return self._sys_rows_list[0]["city_combo"]
+        return None
 
     # =========================================================================
     # 窗口配置
@@ -137,7 +208,7 @@ class ProjectDialog(tk.Toplevel):
           - 可调整大小：水平和垂直均可拖拽调整
           - 背景色：白色 #ffffff
         """
-        self.geometry("540x620")         # 设置窗口初始宽度540px，高度620px
+        self.geometry("580x680")         # 设置窗口初始宽度580px，高度680px（多系统表格加高）
         self.minsize(420, 480)           # 设置窗口最小宽度420px，最小高度480px
         self.resizable(True, True)       # 允许用户水平和垂直方向调整窗口大小
         self.configure(bg="#ffffff")     # 窗口背景色设为白色
@@ -154,10 +225,8 @@ class ProjectDialog(tk.Toplevel):
           2. 可滚动的表单内容区域（Canvas + Scrollbar + 内嵌 Frame）
              - 标题行
              - 公司名称输入框（必填标记 *）
-             - 系统名称输入框
-             - 系统等级下拉框
-             - 证书编号输入框
-             - 下证日期（日历按钮）+ 属地（省-市联动下拉）-- 左右分栏
+             - 可编辑多系统表格（每行含名称/等级/证书/下证日期/省-市属地）
+               + "+ 添加系统" 按钮
              - 上传备案证识别按钮 + OCR 状态标签
              - 交付日期（日历按钮 + 快捷日期按钮）
              - 所属阶段下拉框
@@ -174,7 +243,7 @@ class ProjectDialog(tk.Toplevel):
               └── form_canvas [Canvas, fill=BOTH, side=LEFT]
                     └── main_frame [Frame, via create_window]
                           ├── 标题 [Label]
-                          ├── 各种表单字段控件 ...
+                          ├── 各种表单字段控件（含多系统表格）
                           └── 备注文本框 + 滚动条
         """
         # =====================================================================
@@ -261,30 +330,8 @@ class ProjectDialog(tk.Toplevel):
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_HEADER, "bold"),
                  ).pack(anchor="w", pady=(0, 10))
 
-        # 多系统表格（编辑合并卡片时显示）
-        if self._all_projects and len(self._all_projects) > 1:
-            sys_frame = tk.Frame(main_frame, bg="#f0f2f5", padx=6, pady=4)
-            sys_frame.pack(fill=tk.X, pady=(0, 10))
-            tk.Label(sys_frame, text="同公司其他系统", bg="#f0f2f5",
-                     font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL, "bold"),
-                     fg="#2c3e50").pack(anchor="w")
-            hdr = tk.Frame(sys_frame, bg="#f0f2f5")
-            hdr.pack(fill=tk.X, pady=(4, 0))
-            for txt, w in [("系统名称", 20), ("等级", 8), ("证书编号", 16), ("属地", 12)]:
-                tk.Label(hdr, text=txt, bg="#e9ecef", fg="#2c3e50",
-                         font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL, "bold"),
-                         width=w, anchor="w").pack(side=tk.LEFT, padx=1)
-            for p in self._all_projects:
-                row = tk.Frame(sys_frame, bg="#f0f2f5")
-                row.pack(fill=tk.X, pady=1)
-                for val, w in [(p.system_name or "-", 20), (p.level or "-", 8),
-                               (p.cert_number or "-", 16), (p.location or "-", 12)]:
-                    tk.Label(row, text=val, bg="#f0f2f5", fg="#5d6d7e",
-                             font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
-                             width=w, anchor="w").pack(side=tk.LEFT, padx=1)
-
         # =====================================================================
-        # 1. 公司名称（必填字段）
+        # 1. 公司名称（必填字段，所有系统共用）
         # =====================================================================
         tk.Label(main_frame, text="公司名称 *", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
@@ -296,99 +343,24 @@ class ProjectDialog(tk.Toplevel):
         c_outer.pack(fill=tk.X, pady=(2, 5))
 
         # =====================================================================
-        # 2. 系统名称
+        # 2. 可编辑多系统表格
         # =====================================================================
-        tk.Label(main_frame, text="系统名称", bg="#ffffff",
-                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
+        tk.Label(main_frame, text="系统列表", bg="#ffffff",
+                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
                  ).pack(anchor="w")
-        self._system_var = tk.StringVar()             # 系统名称的 StringVar 变量
-        self._system_entry, s_outer = bordered_entry(
-            main_frame, textvariable=self._system_var,
-        )
-        s_outer.pack(fill=tk.X, pady=(2, 5))
+        self._sys_container = tk.Frame(main_frame, bg="#ffffff")
+        self._sys_container.pack(fill=tk.X, pady=(2, 5))
 
-        # =====================================================================
-        # 3. 系统等级（下拉选择，只读）
-        # =====================================================================
-        tk.Label(main_frame, text="系统等级", bg="#ffffff",
-                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
-                 ).pack(anchor="w")
-        self._level_var = tk.StringVar()              # 系统等级的 StringVar 变量
-        level_values = ["", "第一级", "第二级", "第三级", "第四级", "第五级"]  # 下拉选项列表
-        self._level_combo = ttk.Combobox(
-            main_frame, textvariable=self._level_var,
-            values=level_values, state="readonly",    # 只读下拉框，禁止用户手动输入
-            font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
-        )
-        self._level_combo.pack(fill=tk.X, pady=(2, 5))
+        # 默认添加第一个空行
+        self._add_sys_row()
 
-        # =====================================================================
-        # 4. 证书编号
-        # =====================================================================
-        tk.Label(main_frame, text="证书编号", bg="#ffffff",
-                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
-                 ).pack(anchor="w")
-        self._cert_var = tk.StringVar()               # 证书编号的 StringVar 变量
-        self._cert_entry, f_outer = bordered_entry(
-            main_frame, textvariable=self._cert_var,
-        )
-        f_outer.pack(fill=tk.X, pady=(2, 5))
-
-        # =====================================================================
-        # 5. 下证日期 + 属地（左右分栏布局）
-        # =====================================================================
-        row5 = tk.Frame(main_frame, bg="#ffffff")     # 整体行容器
-        row5.pack(fill=tk.X, pady=(2, 5))
-
-        # --- 下证日期（左侧列）---
-        issue_col = tk.Frame(row5, bg="#ffffff")
-        issue_col.pack(side=tk.LEFT)
-        tk.Label(issue_col, text="下证日期", bg="#ffffff",
-                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
-                 ).pack(anchor="w")
-        issue_input_row = tk.Frame(issue_col, bg="#ffffff")
-        issue_input_row.pack(fill=tk.X, pady=(2, 0))
-        self._issue_date_var = tk.StringVar()           # 下证日期的 StringVar 变量
-        self._issue_date_entry, id_outer = bordered_entry(
-            issue_input_row, textvariable=self._issue_date_var, width=18,
-        )
-        id_outer.pack(side=tk.LEFT)
-        # 日历按钮，点击弹出日历选择器
+        # "+ 添加系统" 按钮
         tk.Button(
-            issue_input_row, text="\U0001f4c5", command=self._open_issue_calendar,
-            bg="#ffffff", fg="#3498db", relief="flat",
-            font=(Config.FONT_FAMILY, Config.FONT_SIZE_LARGE),
-            cursor="hand2", padx=3, pady=0,
-            activebackground="#ecf0f1",
-        ).pack(side=tk.LEFT, padx=(2, 0))
-
-        # --- 属地（右侧列，省级 + 市级两级联动下拉）---
-        loc_col = tk.Frame(row5, bg="#ffffff")
-        loc_col.pack(side=tk.LEFT, padx=(20, 0))
-        tk.Label(loc_col, text="属地", bg="#ffffff",
-                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
-                 ).pack(anchor="w")
-        loc_input_row = tk.Frame(loc_col, bg="#ffffff")
-        loc_input_row.pack(fill=tk.X, pady=(2, 0))
-        # 省级下拉框
-        self._province_var = tk.StringVar()
-        self._province_combo = ttk.Combobox(
-            loc_input_row, textvariable=self._province_var, values=PROVINCES,
-            state="readonly", width=8,
+            main_frame, text="+ 添加系统", command=self._add_sys_row,
+            bg="#ecf0f1", fg="#2c3e50", relief="flat", cursor="hand2",
             font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-        )
-        self._province_combo.pack(side=tk.LEFT, padx=(0, 2))
-        # 省级下拉变更时更新市级下拉选项
-        self._province_combo.bind("<<ComboboxSelected>>", self._on_province_change)
-        # 市级下拉框
-        self._city_var = tk.StringVar()
-        self._city_combo = ttk.Combobox(
-            loc_input_row, textvariable=self._city_var, values=["请先选择省区"],
-            state="readonly", width=10,
-            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-        )
-        self._city_combo.pack(side=tk.LEFT)
-        self._city_combo.set("请先选择省区")            # 初始默认提示文字
+            padx=10, pady=2, activebackground="#d5dbdb",
+        ).pack(anchor="w", pady=(0, 5))
 
         # =====================================================================
         # 上传备案证识别按钮 + OCR 状态标签
@@ -410,7 +382,7 @@ class ProjectDialog(tk.Toplevel):
         self._ocr_status.pack(side=tk.LEFT, padx=(10, 0))
 
         # =====================================================================
-        # 6. 交付日期（日历选择器 + 快捷日期按钮）
+        # 4. 交付日期（日历选择器 + 快捷日期按钮）
         # =====================================================================
         tk.Label(main_frame, text="交付日期", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
@@ -461,7 +433,7 @@ class ProjectDialog(tk.Toplevel):
                   cursor="hand2").pack(side=tk.LEFT)
 
         # =====================================================================
-        # 7. 所属阶段（只读下拉选择）
+        # 5. 所属阶段（只读下拉选择）
         # =====================================================================
         tk.Label(main_frame, text="所属阶段", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
@@ -476,7 +448,7 @@ class ProjectDialog(tk.Toplevel):
         self._stage_combo.pack(fill=tk.X, pady=(2, 5))
 
         # =====================================================================
-        # 8. 项目文件夹管理（路径输入 + 浏览 + 创建目录）
+        # 6. 项目文件夹管理（路径输入 + 浏览 + 创建目录）
         # =====================================================================
         tk.Label(main_frame, text="项目文件夹", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
@@ -504,7 +476,7 @@ class ProjectDialog(tk.Toplevel):
         ).pack(side=tk.LEFT, padx=(4, 0))
 
         # =====================================================================
-        # 9. 备注信息（多行文本输入，带滚动条和灰色外边框）
+        # 7. 备注信息（多行文本输入，带滚动条和灰色外边框）
         # =====================================================================
         tk.Label(main_frame, text="备注信息", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
@@ -542,6 +514,222 @@ class ProjectDialog(tk.Toplevel):
         self.bind("<Escape>", lambda e: self.destroy())        # Esc 键 → 关闭对话框
 
     # =========================================================================
+    # 多系统行管理
+    # =========================================================================
+
+    def _add_sys_row(self, data: dict = None):
+        """添加一行可编辑的系统数据到系统表格容器中。
+
+        每行包含：
+          - 系统名称输入框（Entry）
+          - 系统等级下拉框（Combobox，只读）
+          - 证书编号输入框（Entry）
+          - 下证日期输入框（Entry）+ 日历按钮
+          - 属地下拉框（省-市两级联动 Combobox）
+          - "复制"按钮
+          - "删除"按钮（至少保留一行时显示）
+
+        Args:
+            data: 可选的预填数据字典，键包括：
+                system_name, level, cert_number, issue_date, province, city
+
+        Returns:
+            dict: 行数据引用字典，包含所有 StringVar 和控件引用。
+        """
+        data = data or {}
+        idx = len(self._sys_rows_list) + 1
+
+        # ---- 行容器（浅灰背景，形成视觉分组）----
+        row_frame = tk.Frame(self._sys_container, bg="#f0f2f5", padx=5, pady=3)
+        row_frame.pack(fill=tk.X, pady=(0, 3))
+
+        # ---- 行标题：系统 #N ----
+        hdr = tk.Frame(row_frame, bg="#f0f2f5")
+        hdr.pack(fill=tk.X)
+        tk.Label(hdr, text=f"系统 #{idx}", bg="#f0f2f5",
+                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL, "bold"),
+                 fg="#2c3e50").pack(side=tk.LEFT)
+
+        # ---- 第1行：系统名称 + 系统等级 ----
+        ln1 = tk.Frame(row_frame, bg="#f0f2f5")
+        ln1.pack(fill=tk.X, pady=(2, 0))
+        tk.Label(ln1, text="名称", bg="#f0f2f5",
+                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                 fg="#7f8c8d", width=3, anchor="e").pack(side=tk.LEFT)
+        sys_var = tk.StringVar(value=data.get("system_name", ""))
+        sys_entry, sys_outer = bordered_entry(
+            ln1, textvariable=sys_var, width=30,
+        )
+        sys_outer.pack(side=tk.LEFT, padx=(2, 8))
+        tk.Label(ln1, text="等级", bg="#f0f2f5",
+                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                 fg="#7f8c8d", width=3, anchor="e").pack(side=tk.LEFT)
+        lvl_var = tk.StringVar(value=data.get("level", ""))
+        lvl_combo = ttk.Combobox(
+            ln1, textvariable=lvl_var, values=LEVEL_VALUES,
+            state="readonly", width=7,
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+        )
+        lvl_combo.pack(side=tk.LEFT, padx=(2, 0))
+
+        # ---- 第2行：证书编号 + 下证日期 + 日历按钮 ----
+        ln2 = tk.Frame(row_frame, bg="#f0f2f5")
+        ln2.pack(fill=tk.X, pady=(2, 0))
+        tk.Label(ln2, text="证书", bg="#f0f2f5",
+                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                 fg="#7f8c8d", width=3, anchor="e").pack(side=tk.LEFT)
+        cert_var = tk.StringVar(value=data.get("cert_number", ""))
+        cert_entry, cert_outer = bordered_entry(
+            ln2, textvariable=cert_var, width=24,
+        )
+        cert_outer.pack(side=tk.LEFT, padx=(2, 8))
+        tk.Label(ln2, text="下证", bg="#f0f2f5",
+                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                 fg="#7f8c8d", width=3, anchor="e").pack(side=tk.LEFT)
+        issue_var = tk.StringVar(value=data.get("issue_date", ""))
+        issue_entry, issue_outer = bordered_entry(
+            ln2, textvariable=issue_var, width=14,
+        )
+        issue_outer.pack(side=tk.LEFT, padx=(2, 2))
+        tk.Button(
+            ln2, text="\U0001f4c5",
+            command=lambda v=issue_var: self._open_row_issue_calendar(v),
+            bg="#f0f2f5", fg="#3498db", relief="flat",
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_LARGE),
+            cursor="hand2", padx=2, pady=0,
+            activebackground="#e0e4e8",
+        ).pack(side=tk.LEFT)
+
+        # ---- 第3行：属地（省/市） + 复制/删除按钮 ----
+        ln3 = tk.Frame(row_frame, bg="#f0f2f5")
+        ln3.pack(fill=tk.X, pady=(2, 0))
+        tk.Label(ln3, text="属地", bg="#f0f2f5",
+                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                 fg="#7f8c8d", width=3, anchor="e").pack(side=tk.LEFT)
+        prov_var = tk.StringVar(value=data.get("province", ""))
+        prov_combo = ttk.Combobox(
+            ln3, textvariable=prov_var, values=PROVINCES,
+            state="readonly", width=8,
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+        )
+        prov_combo.pack(side=tk.LEFT, padx=(2, 2))
+        init_cities = []
+        if data.get("province"):
+            init_cities = PROVINCE_CITIES.get(data["province"], [])
+        city_var = tk.StringVar(value=data.get("city", ""))
+        city_combo = ttk.Combobox(
+            ln3, textvariable=city_var,
+            values=init_cities if init_cities else ["请先选择省区"],
+            state="readonly", width=8,
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+        )
+        city_combo.pack(side=tk.LEFT)
+
+        # 省级下拉变更时，联动更新市级选项
+        prov_combo.bind(
+            "<<ComboboxSelected>>",
+            lambda e, pc=prov_combo, cc=city_combo: self._on_row_province_change(pc, cc),
+        )
+
+        # 将行数据存入集合
+        row_data = {
+            "frame": row_frame,
+            "system_var": sys_var,
+            "system_entry": sys_entry,
+            "level_var": lvl_var,
+            "level_combo": lvl_combo,
+            "cert_var": cert_var,
+            "cert_entry": cert_entry,
+            "issue_date_var": issue_var,
+            "issue_date_entry": issue_entry,
+            "province_var": prov_var,
+            "province_combo": prov_combo,
+            "city_var": city_var,
+            "city_combo": city_combo,
+        }
+        self._sys_rows_list.append(row_data)
+
+        # ---- 删除按钮（右对齐） ----
+        del_btn = tk.Button(
+            ln3, text="删除", command=lambda: self._remove_sys_row(row_data),
+            bg="#e74c3c", fg="white", relief="flat", cursor="hand2",
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
+            padx=6, pady=0, activebackground="#c0392b",
+        )
+        del_btn.pack(side=tk.RIGHT)
+        row_data["del_btn"] = del_btn  # 存储引用以便后续设置状态
+
+        # ---- 复制按钮 ----
+        dup_btn = tk.Button(
+            ln3, text="复制", command=lambda: self._dup_sys_row(row_data),
+            bg="#ecf0f1", fg="#2c3e50", relief="flat", cursor="hand2",
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
+            padx=6, pady=0, activebackground="#d5dbdb",
+        )
+        dup_btn.pack(side=tk.RIGHT, padx=(0, 3))
+
+        # 如果只剩一行，隐藏删除按钮
+        self._refresh_delete_buttons()
+        return row_data
+
+    def _remove_sys_row(self, row_data: dict):
+        """删除指定系统行（至少保留一行）。
+
+        Args:
+            row_data: _add_sys_row 返回的行数据字典。
+        """
+        if len(self._sys_rows_list) <= 1:
+            return  # 至少保留一行
+        if row_data in self._sys_rows_list:
+            self._sys_rows_list.remove(row_data)
+        row_data["frame"].destroy()
+        self._refresh_delete_buttons()
+
+    def _dup_sys_row(self, row_data: dict):
+        """复制指定系统行的数据并添加为新行。
+
+        Args:
+            row_data: 源行数据字典（来自 _add_sys_row）。
+        """
+        copy_data = {
+            "system_name": row_data["system_var"].get(),
+            "level": row_data["level_var"].get(),
+            "cert_number": row_data["cert_var"].get(),
+            "issue_date": row_data["issue_date_var"].get(),
+            "province": row_data["province_var"].get(),
+            "city": row_data["city_var"].get(),
+        }
+        self._add_sys_row(copy_data)
+
+    def _on_row_province_change(self, prov_combo, city_combo, keep_city: str = ""):
+        """省级下拉变更时更新对应行的市级下拉选项。
+
+        Args:
+            prov_combo: 该行的省级 ttk.Combobox 控件。
+            city_combo: 该行的市级 ttk.Combobox 控件。
+            keep_city: 期望保留选中的市级名称（编辑模式预填时使用）。
+        """
+        province = prov_combo.get()
+        cities = PROVINCE_CITIES.get(province, [])
+        if not cities:
+            cities = ["请先选择省区"]
+        city_combo["values"] = cities
+        city_combo.set(keep_city if keep_city in cities else "")
+
+    def _refresh_delete_buttons(self):
+        """根据当前行数刷新所有删除按钮的可见性。
+
+        至少保留一行——当只有一行时，隐藏所有删除按钮。
+        """
+        single = len(self._sys_rows_list) <= 1
+        for rd in self._sys_rows_list:
+            btn = rd.get("del_btn")
+            if btn and btn.winfo_exists():
+                btn.pack_forget()
+                if not single:
+                    btn.pack(side=tk.RIGHT)
+
+    # =========================================================================
     # 数据加载
     # =========================================================================
 
@@ -549,6 +737,7 @@ class ProjectDialog(tk.Toplevel):
         """加载数据到表单字段。
 
         编辑模式下：将现有项目对象的各属性值填入对应表单控件。
+        多系统（_all_projects）时：为每个项目创建一行系统数据。
         新增模式下：将阶段下拉框默认选中第一个阶段。
 
         最后将输入焦点设置到公司名称输入框，方便用户立即开始输入。
@@ -556,17 +745,47 @@ class ProjectDialog(tk.Toplevel):
         if self._project:
             # ---- 编辑模式：预填现有项目数据 ----
             self._company_var.set(self._project.company_name)   # 填入公司名称
-            self._system_var.set(self._project.system_name)     # 填入系统名称
-            self._cert_var.set(self._project.cert_number)       # 填入证书编号
-            self._issue_date_var.set(self._project.issue_date)  # 填入下证日期
-            if self._project.level:                              # 填入系统等级（非空时）
-                self._level_var.set(self._project.level)
-            # 属地数据：格式为 "省区-市区"，按 "-" 拆分并分别设置省级和市级下拉
-            if self._project.location:
-                parts = self._project.location.rsplit("-", 1)   # 从右侧按第一个 "-" 分割
-                if len(parts) == 2:
-                    self._province_var.set(parts[0])            # 设置省级
-                    self._on_province_change(keep_city=parts[1]) # 加载市级选项并选中
+
+            # 决定系统行数据来源：优先使用 _all_projects（合并卡片多系统），
+            # 否则从单个 _project 提取数据填入第一行
+            if self._all_projects and len(self._all_projects) > 1:
+                # 清除 _build_form 创建的默认空行
+                for rd in list(self._sys_rows_list):
+                    rd["frame"].destroy()
+                self._sys_rows_list.clear()
+
+                # 为每个项目创建一行
+                for p in self._all_projects:
+                    prov, city = "", ""
+                    if p.location:
+                        parts = p.location.rsplit("-", 1)
+                        if len(parts) == 2:
+                            prov, city = parts[0], parts[1]
+                    self._add_sys_row({
+                        "system_name": p.system_name,
+                        "level": p.level,
+                        "cert_number": p.cert_number,
+                        "issue_date": p.issue_date,
+                        "province": prov,
+                        "city": city,
+                    })
+            else:
+                # 单系统：直接填充第一行（_build_form 已创建）
+                first = self._sys_rows_list[0]
+                first["system_var"].set(self._project.system_name)
+                first["cert_var"].set(self._project.cert_number)
+                first["issue_date_var"].set(self._project.issue_date)
+                if self._project.level:
+                    first["level_var"].set(self._project.level)
+                if self._project.location:
+                    parts = self._project.location.rsplit("-", 1)
+                    if len(parts) == 2:
+                        first["province_var"].set(parts[0])
+                        self._on_row_province_change(
+                            first["province_combo"], first["city_combo"],
+                            keep_city=parts[1],
+                        )
+
             self._deadline_var.set(self._project.deadline)      # 填入交付日期
             self._folder_path_var.set(self._project.folder_path or "")  # 填入文件夹路径
 
@@ -605,37 +824,40 @@ class ProjectDialog(tk.Toplevel):
             self._deadline_var.set(result)                   # 将选中日期填入输入框
 
     def _open_issue_calendar(self):
-        """打开日历选择器并填入下证日期输入框。
+        """打开日历选择器并填入第一行下证日期输入框（向后兼容）。"""
+        if self._sys_rows_list:
+            self._open_row_issue_calendar(self._sys_rows_list[0]["issue_date_var"])
 
-        以下证日期输入框的当前值作为日历的初始日期；
-        若用户选中了日期则写入下证日期字段。
+    def _open_row_issue_calendar(self, date_var):
+        """打开日历选择器并将选中日期填入指定的 StringVar。
+
+        Args:
+            date_var: 目标日期的 tk.StringVar 实例。
         """
-        result = pick_date(self, self._issue_date_var.get()) # 弹出日历面板
+        result = pick_date(self, date_var.get())
         if result is not None:
-            self._issue_date_var.set(result)                 # 将选中日期填入输入框
+            date_var.set(result)
 
     # =========================================================================
     # 属地联动
     # =========================================================================
 
     def _on_province_change(self, event=None, keep_city=""):
-        """省级下拉变更时的处理函数：更新市级下拉选项列表。
+        """省级下拉变更时的处理函数（向后兼容，操作第一行系统数据）。
 
-        根据选中的省级行政区，从 PROVINCE_CITIES 查询对应的市级列表，
-        并更新市级下拉框。若传入 keep_city 参数且该市级存在于列表中，
-        则自动选中该市。
+        根据选中的省级行政区，更新第一行系统数据的市级下拉选项。
+        若传入 keep_city 参数且该市级存在于列表中，则自动选中该市。
 
         Args:
-            event: Tk 事件对象（绑定 <<ComboboxSelected>> 时传入），可为 None。
+            event: Tk 事件对象（可为 None）。
             keep_city: 期望保留选中的市级名称（编辑模式预填时使用）。
         """
-        province = self._province_var.get()                  # 获取当前选中的省级名称
-        cities = PROVINCE_CITIES.get(province, [])           # 查询对应的市级列表
-        if not cities:
-            cities = ["请先选择省区"]                         # 无匹配时给出占位提示
-        self._city_combo["values"] = cities                  # 更新市级下拉框的选项列表
-        # 如果 keep_city 在市级列表中则选中它，否则清空
-        self._city_combo.set(keep_city if keep_city in cities else "")
+        if self._sys_rows_list:
+            self._on_row_province_change(
+                self._sys_rows_list[0]["province_combo"],
+                self._sys_rows_list[0]["city_combo"],
+                keep_city=keep_city,
+            )
 
     # =========================================================================
     # 快捷日期设置
@@ -659,62 +881,89 @@ class ProjectDialog(tk.Toplevel):
         """确认按钮处理：验证表单输入并收集数据到 self.result。
 
         验证规则：
-          - 公司名称和系统名称至少需要填写一个。
+          - 多系统表格中至少有一行填写了系统名称（或公司名称非空）。
           - 交付日期如果填写了，必须为合法的 YYYY-MM-DD 格式。
-          - 证书编号如果非空，必须符合 "11位数字 - 5位数字" 格式。
+          - 每行的证书编号如果非空，必须符合 "11位数字 - 5位数字" 格式。
 
-        通过验证后，将所有表单字段的值收集到一个字典中，赋值给 self.result，
+        通过验证后，收集所有表单字段到结果字典，包括新增的 "systems" 数组
+        和向后兼容的顶层字段（取自第一行系统数据）。
         然后调用 destroy() 关闭对话框。
         """
         # 获取并去除输入字符串的首尾空白字符
         company_name = self._company_var.get().strip()
-        system_name = self._system_var.get().strip()
 
-        # ① 验证：公司名称和系统名称至少填写一个
-        if not company_name and not system_name:
-            messagebox.showwarning("输入提示", "公司名称和系统名称至少填写一个",
+        # ① 收集所有系统行数据
+        systems = []
+        for rd in self._sys_rows_list:
+            s_name = rd["system_var"].get().strip()
+            s_level = rd["level_var"].get().strip()
+            s_cert = rd["cert_var"].get().strip()
+            s_issue = rd["issue_date_var"].get().strip()
+            s_prov = rd["province_var"].get().strip()
+            s_city = rd["city_var"].get().strip()
+            s_loc = ""
+            if s_prov and s_city and s_city != "请先选择省区":
+                s_loc = f"{s_prov}-{s_city}"
+            systems.append({
+                "system_name": s_name,
+                "level": s_level,
+                "cert_number": s_cert,
+                "issue_date": s_issue,
+                "location": s_loc,
+            })
+
+        # ② 验证：至少有一个系统名称或公司名称
+        first_sys_name = systems[0]["system_name"] if systems else ""
+        has_system = any(s["system_name"] for s in systems)
+        if not company_name and not has_system:
+            messagebox.showwarning("输入提示",
+                                   "公司名称和系统名称至少填写一个",
                                    parent=self)
-            self._company_entry.focus_set()                  # 焦点回到公司名称输入框
+            self._company_entry.focus_set()
             return
 
-        # ② 日期格式验证（仅当填写了交付日期时进行）
+        # ③ 日期格式验证（仅当填写了交付日期时进行）
         deadline = self._deadline_var.get().strip()
         if deadline:
             try:
-                date.fromisoformat(deadline)                 # 尝试解析日期，无效则抛异常
+                date.fromisoformat(deadline)
             except (ValueError, TypeError):
                 messagebox.showwarning("输入提示",
                                        "日期格式不正确，请使用 YYYY-MM-DD 格式",
                                        parent=self)
                 return
 
-        # ③ 证书编号格式验证（非空时须符合 11位数字-5位数字 格式）
-        cert_number = self._cert_var.get().strip()
-        valid_cert, cert_msg = validate_cert_number(cert_number)
-        if not valid_cert:
-            messagebox.showwarning("输入提示", cert_msg, parent=self)
-            return
+        # ④ 验证每行的证书编号格式
+        for i, s in enumerate(systems):
+            if s["cert_number"]:
+                valid_cert, cert_msg = validate_cert_number(s["cert_number"])
+                if not valid_cert:
+                    messagebox.showwarning("输入提示",
+                                           f"系统 #{i + 1}：{cert_msg}",
+                                           parent=self)
+                    return
 
-        # ④ 获取阶段 ID：按阶段名称在阶段列表中匹配对应的 ID
+        # ⑤ 获取阶段 ID：按阶段名称在阶段列表中匹配对应的 ID
         stage_name = self._stage_var.get()
         stage_id = ""
         for s in self._stages:
             if s.name == stage_name:
-                stage_id = s.id                            # 找到匹配的阶段 ID
+                stage_id = s.id
                 break
 
-        # ⑤ 收集所有表单数据到结果字典
+        # ⑥ 收集所有表单数据到结果字典（含向后兼容顶层字段）
         self.result = {
-            "company_name": company_name,                    # 公司名称
-            "system_name": system_name,                      # 系统名称
-            "cert_number": cert_number,                      # 证书编号
-            "issue_date": self._issue_date_var.get().strip(),# 下证日期
-            "level": self._level_var.get().strip(),          # 系统等级
-            "location": self._get_location(),                # 属地（省-市格式）
-            "deadline": deadline,                            # 交付日期
-            "notes": self._notes_text.get("1.0", "end-1c").strip(),  # 备注内容
-            "stage_id": stage_id,                            # 阶段 ID
-            "folder_path": self._folder_path_var.get().strip(), # 项目文件夹路径
+            "company_name": company_name,
+            "system_name": first_sys_name,
+            "cert_number": systems[0]["cert_number"] if systems else "",
+            "issue_date": systems[0]["issue_date"] if systems else "",
+            "level": systems[0]["level"] if systems else "",
+            "location": systems[0]["location"] if systems else "",
+            "deadline": deadline,
+            "notes": self._notes_text.get("1.0", "end-1c").strip(),
+            "stage_id": stage_id,
+            "folder_path": self._folder_path_var.get().strip(),
+            "systems": systems,
         }
         self.destroy()  # 关闭对话框
 
