@@ -98,30 +98,44 @@ def fill_cert_result(dialog, result: dict, file_path: str = ""):
         archive_cert_file(dialog, file_path)
 
 
-def archive_cert_file(dialog, src_path: str):
-    """将备案证文件复制到项目归档目录。
+def archive_cert_file(dialog, src_path: str, row_idx: int = 0):
+    """将备案证文件重命名并移动到项目文件夹。
 
-    目标路径: {项目文件夹}/01-其他归档文件/01-备案证-往期测评报告/
-    文件命名: {公司名称}-{系统名称}-备案证.{原扩展名}
+    文件命名: {公司}-{系统}-{证书编号}.{ext}
+    多系统: 移动到 {root}/{系统名称}/
+    单系统: 移动到 {root}/
     """
     try:
         root = dialog._folder_path_var.get().strip()
         if not root or not os.path.isdir(root):
-            return  # 项目文件夹未设置或不存在，跳过归档
+            return
         cname = dialog._company_var.get().strip()
-        sname = dialog._system_var.get().strip()
-        if not cname and not sname:
-            return  # 无公司/系统名称，跳过
+        if not cname:
+            return
+        # 获取当前系统行数据
+        sys_rows = getattr(dialog, '_sys_rows_list', [])
+        if sys_rows and row_idx < len(sys_rows):
+            r = sys_rows[row_idx]
+            sname = r["system_var"].get().strip()
+            cert = r["cert_var"].get().strip()
+        else:
+            sname = dialog._system_var.get().strip()
+            cert = dialog._cert_var.get().strip()
         ext = os.path.splitext(src_path)[1] or ".pdf"
-        safe_name = f"{cname or '未知'}-{sname or '未知'}-备案证{ext}"
+        cert_part = cert or "未备案"
+        safe_name = f"{cname}-{sname or '未命名'}-{cert_part}{ext}"
         safe_name = safe_name.replace("/", "_").replace("\\", "_").replace(":", "_")
-        dest_dir = os.path.join(root, "01-其他归档文件", "01-备案证-往期测评报告")
+        # 多系统→子目录, 单系统→根目录
+        if len(sys_rows) > 1 and sname:
+            dest_dir = os.path.join(root, sname)
+        else:
+            dest_dir = root
         os.makedirs(dest_dir, exist_ok=True)
         dest_path = os.path.join(dest_dir, safe_name)
         if not os.path.exists(dest_path):
             shutil.copy2(src_path, dest_path)
     except OSError:
-        pass  # 归档失败不影响主流程
+        pass
 
 
 def ocr_failed(dialog, error: str):
