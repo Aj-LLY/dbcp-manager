@@ -227,19 +227,19 @@ class DetailDialog(tk.Toplevel):
                        or getattr(self, '_saved_all_projects', None)
                        or [self._project])
         if len(all_projects) > 1:
-            # 使用 grid 布局确保列对齐
+            # 在独立子 Frame 中用 grid 布局（避免与 info_frame 的 pack 冲突）
+            tbl_frame = tk.Frame(info_frame, bg="#f8f9fa")
+            tbl_frame.pack(fill=tk.X, pady=(4, 2))
             columns = [("系统名称", 24), ("证书编号", 18), ("下证日期", 12), ("等级", 8)]
-            # 表头
             for ci, (txt, w) in enumerate(columns):
-                tk.Label(info_frame, text=txt, bg="#e9ecef", fg="#2c3e50",
+                tk.Label(tbl_frame, text=txt, bg="#e9ecef", fg="#2c3e50",
                          font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL, "bold"),
                          width=w, anchor="w", padx=2).grid(row=0, column=ci, sticky="w")
-            # 数据行
             for ri, p in enumerate(all_projects, 1):
                 vals = [p.system_name or "-", p.cert_number or "-",
                         p.issue_date or "-", p.level or "-"]
                 for ci, (val, (_, w)) in enumerate(zip(vals, columns)):
-                    tk.Label(info_frame, text=val, bg="#f8f9fa", fg="#2c3e50",
+                    tk.Label(tbl_frame, text=val, bg="#f8f9fa", fg="#2c3e50",
                              font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
                              width=w, anchor="w", padx=2).grid(row=ri, column=ci, sticky="w")
         else:
