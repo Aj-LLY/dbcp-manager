@@ -1017,17 +1017,18 @@ class ProjectDialog(tk.Toplevel):
                 folder_name = f"001-{cname}-{date_str}"
             full_root = os.path.join(root, folder_name)
             os.makedirs(full_root, exist_ok=True)
-            # 子目录
+            # 子目录：01-其他归档文件 + 每个系统一个子目录
             subdirs = ["01-其他归档文件"]
-            for sn in (sys_names or [""]):
-                subdirs.append(f"00-{cname}-{sn}-报告打印")
-            if sys_names:
-                subdirs.append(f"13-{cname}-{sys_names[0]}-渗透测试报告")
+            for sn in sys_names:
+                subdirs.append(sn)
+            created = 0
             for d in subdirs:
-                os.makedirs(os.path.join(full_root, d), exist_ok=True)
-            # 更新文件夹路径
+                dpath = os.path.join(full_root, d)
+                if not os.path.exists(dpath):
+                    os.makedirs(dpath, exist_ok=True)
+                    created += 1
             self._folder_path_var.set(full_root)
-            messagebox.showinfo("完成", f"项目目录已创建:\n{full_root}", parent=self)
+            messagebox.showinfo("完成", f"已创建 {created} 个子目录\n{full_root}", parent=self)
         except OSError as e:
             messagebox.showerror("错误", f"创建失败: {e}", parent=self)
 
