@@ -204,12 +204,11 @@ def on_card_detail(main_window, card: ProjectCard):
 
 
 def on_card_edit(main_window, card: ProjectCard):
-    """处理卡片编辑/双击。合并卡片先选系统再编辑。"""
-    project = pick_project_from_card(main_window, card)
-    if not project:
-        return
+    """处理卡片编辑/双击。多系统时编辑当前项目，表格展示所有系统。"""
+    project = card.projects[0] if card.projects else card.project
+    all_proj = card.projects if card.projects and len(card.projects) > 1 else None
     stages = main_window._workflow_service.get_all_stages()
-    result = show_project_dialog(main_window, "编辑项目", project, stages)
+    result = show_project_dialog(main_window, "编辑项目", project, stages, all_projects=all_proj)
     if result:
         success, msg = main_window._project_service.update_project(
             project.id, company_name=result.get("company_name"),

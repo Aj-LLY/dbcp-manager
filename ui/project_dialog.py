@@ -98,26 +98,23 @@ class ProjectDialog(tk.Toplevel):
 
     def __init__(self, parent, title: str = "新增项目",
                  project: Project = None,
-                 stages: list[WorkflowStage] = None):
+                 stages: list[WorkflowStage] = None,
+                 all_projects: list = None):
         """初始化项目新增/编辑对话框。
 
         Args:
-            parent: 父级窗口（通常为 Tk 根窗口或 MainWindow 实例）。
-            title: 对话框标题字符串。新增时默认为 "新增项目"，编辑时传入 "编辑项目"。
-            project: 待编辑的现有项目对象。为 None 表示新增模式，非空表示编辑模式。
-            stages: 流程阶段列表。用于填充阶段下拉选择框。默认空列表。
+            parent: 父级窗口。
+            title: 对话框标题。
+            project: 待编辑的现有项目对象（None=新增）。
+            stages: 流程阶段列表。
+            all_projects: 合并卡片中的所有项目（用于多系统表格展示）。
         """
-        # 调用父类 Tk.Toplevel 构造器，创建独立顶层窗口
         super().__init__(parent)
-        # 设置对话框标题
         self.title(title)
-        # 初始化结果变量：None 表示用户取消，确认后将被赋值为表单数据字典
         self.result = None
-        # 保存待编辑的项目对象引用（编辑模式使用；新增模式为 None）
         self._project = project
-        # 保存流程阶段列表（若未传入则使用空列表兜底）
+        self._all_projects = all_projects  # 多系统表格数据
         self._stages = stages or []
-        # 判断当前是否为编辑模式（project 非空则为编辑，否则为新增）
         self._is_edit = project is not None
 
         # ---- 按顺序执行窗口初始化步骤 ----
@@ -262,10 +259,32 @@ class ProjectDialog(tk.Toplevel):
         tk.Label(main_frame, text=self.title(),
                  bg="#ffffff", fg="#2c3e50",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_HEADER, "bold"),
-                 ).pack(anchor="w", pady=(0, 15))
+                 ).pack(anchor="w", pady=(0, 10))
+
+        # 多系统表格（编辑合并卡片时显示）
+        if self._all_projects and len(self._all_projects) > 1:
+            sys_frame = tk.Frame(main_frame, bg="#f0f2f5", padx=6, pady=4)
+            sys_frame.pack(fill=tk.X, pady=(0, 10))
+            tk.Label(sys_frame, text="同公司其他系统", bg="#f0f2f5",
+                     font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL, "bold"),
+                     fg="#2c3e50").pack(anchor="w")
+            hdr = tk.Frame(sys_frame, bg="#f0f2f5")
+            hdr.pack(fill=tk.X, pady=(4, 0))
+            for txt, w in [("系统名称", 20), ("等级", 8), ("证书编号", 16), ("属地", 12)]:
+                tk.Label(hdr, text=txt, bg="#e9ecef", fg="#2c3e50",
+                         font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL, "bold"),
+                         width=w, anchor="w").pack(side=tk.LEFT, padx=1)
+            for p in self._all_projects:
+                row = tk.Frame(sys_frame, bg="#f0f2f5")
+                row.pack(fill=tk.X, pady=1)
+                for val, w in [(p.system_name or "-", 20), (p.level or "-", 8),
+                               (p.cert_number or "-", 16), (p.location or "-", 12)]:
+                    tk.Label(row, text=val, bg="#f0f2f5", fg="#5d6d7e",
+                             font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
+                             width=w, anchor="w").pack(side=tk.LEFT, padx=1)
 
         # =====================================================================
-        # 1. 公司名称（必填字段，红色星号 * 标记）
+        # 1. 公司名称（必填字段）
         # =====================================================================
         tk.Label(main_frame, text="公司名称 *", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
@@ -813,7 +832,8 @@ class ProjectDialog(tk.Toplevel):
 
 def show_project_dialog(parent, title: str = "新增项目",
                         project: Project = None,
-                        stages: list[WorkflowStage] = None) -> dict | None:
+                        stages: list[WorkflowStage] = None,
+                        all_projects: list = None) -> dict | None:
     """显示项目编辑对话框并返回用户输入结果。
 
     这是外部调用项目对话框的推荐方式。函数内部创建 ProjectDialog 实例，
@@ -830,6 +850,6 @@ def show_project_dialog(parent, title: str = "新增项目",
             用户点击"保存"后返回包含所有表单字段的字典（详见 ProjectDialog.result）。
             用户点击"取消"或关闭窗口返回 None。
     """
-    dialog = ProjectDialog(parent, title, project, stages)   # 创建对话框实例
+    dialog = ProjectDialog(parent, title, project, stages, all_projects=all_projects)
     parent.wait_window(dialog)                               # 阻塞等待对话框关闭
     return dialog.result                                     # 返回用户操作结果
