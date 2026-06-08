@@ -18,17 +18,15 @@ from ui.file_ops.folder_ops import find_project_folder
 # on_init_click - 项目初始化
 # =============================================================================
 
-def on_init_click(project: Project, parent=None):
+def on_init_click(project: Project, parent=None, all_projects: list = None):
     """项目初始化：创建标准子目录和保密承诺书模板
 
-    创建内容：
-      1. "01-其他归档文件" 子目录
-      2. "00-{公司}-{系统}-报告打印" 子目录
-      3. "02-{公司}-{系统}-保密承诺书.docx" 模板文件（从模板复制并替换公司名和日期）
+    多系统: 02-{公司}-保密承诺书.docx  单系统: 02-{公司}-{系统}-保密承诺书.docx
 
     Args:
         project: 项目实体对象
-        parent: 父级窗口（用于消息弹窗的模态绑定）
+        parent: 父级窗口
+        all_projects: 合并卡片的所有项目（用于判断多系统）
     """
     try:
         root = find_project_folder(project)
@@ -45,8 +43,9 @@ def on_init_click(project: Project, parent=None):
             os.makedirs(dpath, exist_ok=True); created.append(dname)
         else:
             existed.append(dname)
-        # 02-保密承诺书（单系统加系统名，多系统只有公司名）
-        nda_name = f"02-{cname}-{sname}-保密承诺书.docx" if sname else f"02-{cname}-保密承诺书.docx"
+        # 02-保密承诺书：多系统→02-公司-保密承诺书，单系统→02-公司-系统-保密承诺书
+        is_multi = all_projects and len(all_projects) > 1
+        nda_name = f"02-{cname}-保密承诺书.docx" if is_multi else f"02-{cname}-{sname}-保密承诺书.docx"
         nda_path = os.path.join(root, nda_name)
         if os.path.exists(nda_path):
             existed.append(nda_name)

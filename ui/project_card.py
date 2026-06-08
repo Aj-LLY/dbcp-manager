@@ -534,7 +534,7 @@ class ProjectCard(tk.Frame):
 
         委托给独立模块 ui.card_file_ops.on_init_click。
         """
-        on_init_click(self.project, self)
+        on_init_click(self.project, self, all_projects=self.projects)
 
     def _on_zip_click(self):
         """处理"打包过程文档"按钮点击 - 将项目过程文件压缩为 ZIP
