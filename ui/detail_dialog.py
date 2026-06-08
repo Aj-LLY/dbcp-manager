@@ -223,7 +223,9 @@ class DetailDialog(tk.Toplevel):
         self._add_info_row(info_frame, "公司名称",
                            self._project.company_name or "-")
         # 系统列表表格（若有关联项目则展示多行）
-        all_projects = getattr(self, '_all_projects', None) or [self._project]
+        all_projects = (getattr(self, '_all_projects', None)
+                       or getattr(self, '_saved_all_projects', None)
+                       or [self._project])
         if len(all_projects) > 1:
             # 使用 grid 布局确保列对齐
             columns = [("系统名称", 24), ("证书编号", 18), ("下证日期", 12), ("等级", 8)]
@@ -415,6 +417,9 @@ class DetailDialog(tk.Toplevel):
         self._project = project                                # 更新项目引用
         self._stages = stages                                  # 更新阶段列表
         self._logs = logs                                      # 更新日志列表
+        # 保留多系统数据引用（移动阶段后不丢失）
+        if not hasattr(self, '_saved_all_projects'):
+            self._saved_all_projects = getattr(self, '_all_projects', None)
         self.title(f"项目详情 - {project.name}")               # 刷新标题
         # 销毁所有子组件
         for w in self.winfo_children():
