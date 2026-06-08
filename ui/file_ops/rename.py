@@ -20,67 +20,66 @@ from ui.file_ops.folder_ops import find_project_folder
 # on_rename_click - 批量重命名功能
 # =============================================================================
 
-def on_rename_click(project: Project, parent=None):
-    """处理"一键重命名"按钮点击 - 批量修正项目过程文件的命名
+def on_rename_click(project: Project, parent=None, all_projects: list = None):
+    """批量重命名项目过程文件。
 
-    此方法是系统的核心自动化功能之一，执行以下流程：
-
-    1. 查找项目文件夹（按 folder_path 或关键词搜索）
-    2. 解压 ZIP 文件并重命名内容：
-       - "测评方案评审记录表.zip" -> 解压提取文件
-       - "测评报告评审表.zip" -> 解压提取文件（保留终审，删除初审）
-    3. 删除包含"初审"的文件
-    4. 修正文件命名格式为：{编号}-{公司}-{系统}-{标准名称}.{扩展名}
-       - 已带编号的文件（如 "07-测评方案.docx"）：匹配关键词后更正编号和名称
-       - 无编号的文件：自动添加编号和名称前缀
-    5. 修正子目录命名格式：
-       - "报告打印" -> "00-{公司}-{系统}-报告打印"
-       - "渗透测试报告" -> "13-{公司}-{系统}-渗透测试报告"
-    6. 输出操作报告（显示处理了多少文件、跳过多少文件）
-
-    关键字映射表（key_map）：
-      {匹配关键词: (编号, 标准化名称)}，按关键词长度倒序匹配避免误匹配
+    多系统: 公司级文件(02/04/05/09/14/15/18/19)→公司名前缀,
+           系统级文件(03/06/07/08/10/11/12/13/16/17)→公司-系统前缀
 
     Args:
         project: 项目实体对象
-        parent: 父级窗口（用于消息弹窗的模态绑定）
+        parent: 父级窗口
+        all_projects: 合并卡片的所有项目（用于判断多系统）
     """
     try:
-        root = find_project_folder(project)  # 查找项目文件夹路径
-        if not root or not os.path.isdir(root):  # 文件夹不存在
+        root = find_project_folder(project)
+        if not root or not os.path.isdir(root):
             messagebox.showinfo("提示", "未找到项目文件夹")
             return
 
-        # 生成文件名的前导前缀
         cname = (project.company_name or "未命名").replace("/", "_").replace("\\", "_")
         sname = (project.system_name or "").replace("/", "_").replace("\\", "_")
-        new_prefix = f"{cname}-{sname}"  # 格式：公司名-系统名
+        is_multi = all_projects and len(all_projects) > 1
 
-        # ---- 关键字映射表 ----
-        # 格式：{文件名关键词: (编号, 标准化显示名称)}
-        # 按关键词长度倒序匹配，防止"测评方案评审表"误匹配为"测评方案"
-        key_map = {
-            "保密承诺书": ("02", "保密承诺书"),  # 02 号文件
-            "测评调研表": ("03", "测评调研表"),  # 03 号文件
-            "测评授权书": ("04", "测评授权书"),  # 04 号文件
-            "风险告知书": ("05", "风险告知书"),  # 05 号文件
-            "项目计划书": ("06", "项目计划书"),  # 06 号文件
-            "测评方案": ("07", "测评方案"),  # 07 号文件（注意：需放在"测评方案评审记录表"之后匹配）
-            "归档材料评审记录表": ("08", "测评方案评审表"),  # 08 号文件（历史名称）
-            "测评方案评审表": ("08", "测评方案评审表"),  # 08 号文件（标准名称）
-            "首次会议记录": ("09", "首次会议记录"),  # 09 号文件
-            "测评现场记录表": ("10", "测评现场记录表"),  # 10 号文件
-            "问题汇总": ("11", "问题汇总及整改建设书"),  # 11 号文件
-            "漏洞扫描报告": ("12", "漏洞扫描报告"),  # 12 号文件
-            "项目文档移交清单": ("14", "项目文档移交清单"),  # 14 号文件
-            "末次会议记录": ("15", "末次会议记录"),  # 15 号文件
-            "测评报告-终稿": ("16", "测评报告-终稿"),  # 16 号文件
-            "测评报告评审记录表": ("17", "测评报告评审表"),  # 17 号文件（历史名称）
-            "测评报告评审表": ("17", "测评报告评审表"),  # 17 号文件（标准名称）
-            "服务情况评价表": ("18", "服务情况评价表"),  # 18 号文件
-            "报备表": ("19", "报备表"),
-            "渗透测试报告": ("13", "渗透测试报告"),  # 渗透测试报告目录
-        }
+        # 前缀: 多系统时公司级文件只用公司名, 系统级文件用公司-系统
+        company_prefix = cname
+        system_prefix = f"{cname}-{sname}"
+
+        # 公司级文件关键词（多系统时共享）: 02,04,05,09,14,15,18,19
+        company_keys = {"保密承诺书", "测评授权书", "风险告知书", "首次会议记录",
+                        "项目文档移交清单", "末次会议记录", "服务情况评价表", "报备表"}
+
+        # ---- 关键字映射表 (关键词: (编号, 标准名, 是否公司级)) ----
+        key_map = {}
+        for kw, (num, name) in [
+            ("保密承诺书", ("02", "保密承诺书")),
+            ("测评调研表", ("03", "测评调研表")),
+            ("测评授权书", ("04", "测评授权书")),
+            ("风险告知书", ("05", "风险告知书")),
+            ("项目计划书", ("06", "项目计划书")),
+            ("测评方案", ("07", "测评方案")),
+            ("归档材料评审记录表", ("08", "测评方案评审表")),
+            ("测评方案评审表", ("08", "测评方案评审表")),
+            ("首次会议记录", ("09", "首次会议记录")),
+            ("测评现场记录表", ("10", "测评现场记录表")),
+            ("问题汇总", ("11", "问题汇总及整改建设书")),
+            ("漏洞扫描报告", ("12", "漏洞扫描报告")),
+            ("项目文档移交清单", ("14", "项目文档移交清单")),
+            ("末次会议记录", ("15", "末次会议记录")),
+            ("测评报告-终稿", ("16", "测评报告-终稿")),
+            ("测评报告评审记录表", ("17", "测评报告评审表")),
+            ("测评报告评审表", ("17", "测评报告评审表")),
+            ("服务情况评价表", ("18", "服务情况评价表")),
+            ("报备表", ("19", "报备表")),
+            ("渗透测试报告", ("13", "渗透测试报告")),
+        ]:
+            is_company = kw in company_keys
+            key_map[kw] = (num, name, is_company)
+
+        def _get_prefix(is_company_lvl):
+            if is_multi and is_company_lvl:
+                return company_prefix
+            return system_prefix
 
         renamed = 0  # 重命名计数器（累计处理了多少个项目）
         msgs = []  # 操作报告消息列表（每步操作一条记录）
@@ -118,24 +117,23 @@ def on_rename_click(project: Project, parent=None):
                     if len(items) == 1 and os.path.isdir(os.path.join(tmp_dir, items[0])):
                         # ZIP自带一个顶层目录 -> 直接移动该目录
                         src = os.path.join(tmp_dir, items[0])
-                        dst = os.path.join(root, f"13-{new_prefix}-渗透测试报告")
+                        dst = os.path.join(root, f"13-{system_prefix}-渗透测试报告")
                     else:
-                        # 文件散落 -> 创建目标目录，移入所有文件
-                        dst = os.path.join(root, f"13-{new_prefix}-渗透测试报告")
+                        dst = os.path.join(root, f"13-{system_prefix}-渗透测试报告")
                         if not os.path.exists(dst):
                             os.makedirs(dst)
                         for item in items:
                             shutil.move(os.path.join(tmp_dir, item), os.path.join(dst, item))
                         shutil.rmtree(tmp_dir)
                         renamed += 1
-                        msgs.append(f"解压: {fname} -> 13-{new_prefix}-渗透测试报告/")
+                        msgs.append(f"解压: {fname} -> 13-{system_prefix}-渗透测试报告/")
                         continue
                     if os.path.exists(dst):
                         shutil.rmtree(dst)
                     shutil.move(src, dst)
                     shutil.rmtree(tmp_dir)
                     renamed += 1
-                    msgs.append(f"解压: {fname} -> 13-{new_prefix}-渗透测试报告/")
+                    msgs.append(f"解压: {fname} -> 13-{system_prefix}-渗透测试报告/")
                 except Exception as e:
                     msgs.append(f"解压失败: {fname} ({e})")
 
@@ -173,40 +171,43 @@ def on_rename_click(project: Project, parent=None):
                 rest = name_no_ext[len(num) + 1:]  # 编号后面的剩余部分（如 "测评方案.docx"）
                 # 按关键词长度从大到小匹配，避免"测评方案评审表"被"测评方案"先匹配
                 for keyword in sorted(key_map, key=len, reverse=True):
-                    if keyword in rest:  # 剩余部分中包含关键字
-                        num, target_kw = key_map[keyword]  # 获取正确的编号和标准名称
-                        new_name = f"{num}-{new_prefix}-{target_kw}{ext}"  # 构建标准文件名
-                        if new_name != fname:  # 需要重命名
+                    if keyword in rest:
+                        num, target_kw, is_co = key_map[keyword]
+                        pfx = _get_prefix(is_co)
+                        new_name = f"{num}-{pfx}-{target_kw}{ext}"
+                        if new_name != fname:
                             new_path = os.path.join(root, new_name)
-                            if not os.path.exists(new_path):  # 目标文件不存在
-                                os.rename(fpath, new_path)  # 执行重命名
+                            if not os.path.exists(new_path):
+                                os.rename(fpath, new_path)
                                 renamed += 1
-                            else:  # 目标文件已存在（冲突）
+                            else:
                                 msgs.append(f"跳过(已存在): {new_name}")
-                        break  # 匹配到一个关键词后退出内层循环
+                        break
 
-            # ---- 情况 B: 文件名无编号（如 "测评调研表.docx"） ----
+            # ---- 情况 B: 文件名无编号 ----
             else:
-                for keyword in sorted(key_map, key=len, reverse=True):  # 按关键词长度倒序
-                    if keyword in name_no_ext:  # 文件名中包含关键字
-                        num, target_kw = key_map[keyword]  # 获取编号和标准名称
-                        new_name = f"{num}-{new_prefix}-{target_kw}{ext}"  # 构建标准名
+                for keyword in sorted(key_map, key=len, reverse=True):
+                    if keyword in name_no_ext:
+                        num, target_kw, is_co = key_map[keyword]
+                        pfx = _get_prefix(is_co)
+                        new_name = f"{num}-{pfx}-{target_kw}{ext}"
                         new_path = os.path.join(root, new_name)
-                        if not os.path.exists(new_path):  # 不冲突
-                            os.rename(fpath, new_path)  # 重命名
+                        if not os.path.exists(new_path):
+                            os.rename(fpath, new_path)
                             renamed += 1
                         else:
                             msgs.append(f"跳过(已存在): {new_name}")
-                        break  # 匹配到一个后退出
+                        break
 
         # ========== 步骤 4: 子目录重命名 ==========
         for dname in os.listdir(root):  # 遍历所有目录
             dpath = os.path.join(root, dname)
             if not os.path.isdir(dpath):  # 跳过文件
                 continue
-            for keyword, num in {"报告打印": "00", "渗透测试报告": "13"}.items():
-                if keyword in dname and (cname not in dname or sname not in dname):  # 需要更新前缀
-                    new_dname = f"{num}-{new_prefix}-{keyword}"  # 标准目录名
+            for keyword, num, is_co in [("报告打印", "00", True), ("渗透测试报告", "13", False)]:
+                pfx = _get_prefix(is_co)
+                if keyword in dname and (cname not in dname or (sname and sname not in dname)):
+                    new_dname = f"{num}-{pfx}-{keyword}"
                     new_dpath = os.path.join(root, new_dname)
                     if not os.path.exists(new_dpath):  # 不冲突
                         os.rename(dpath, new_dpath)  # 重命名目录
