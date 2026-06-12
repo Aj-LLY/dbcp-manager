@@ -76,143 +76,163 @@ def on_rename_click(project: Project, parent=None, all_projects: list = None):
             is_company = kw in company_keys
             key_map[kw] = (num, name, is_company)
 
-        def _get_prefix(is_company_lvl):
+        def _sys_prefix_for(scan_root):
+            """返回指定扫描目录对应的系统级前缀。"""
+            if scan_root == root:
+                return system_prefix
+            dname = os.path.basename(scan_root)
+            for p in (all_projects or []):
+                sn = (p.system_name or "").replace("/", "_").replace("\\", "_")
+                if sn and (sn in dname or dname in sn):
+                    return f"{cname}-{sn}"
+            return system_prefix
+
+        def _get_prefix(is_company_lvl, scan_root=root):
             if is_multi and is_company_lvl:
                 return company_prefix
+            if is_multi and scan_root != root:
+                return _sys_prefix_for(scan_root)
             return system_prefix
 
         renamed = 0  # 重命名计数器（累计处理了多少个项目）
         msgs = []  # 操作报告消息列表（每步操作一条记录）
 
+        # ---- 构建扫描目录列表 ----
+        # 多系统: 根目录(公司级) + 各系统子目录; 单系统: 仅根目录
+        scan_dirs = [root]
+        if is_multi:
+            for dname in os.listdir(root):
+                dpath = os.path.join(root, dname)
+                if os.path.isdir(dpath) and "报告打印" not in dname \
+                        and dname != "01-其他归档文件":
+                    scan_dirs.append(dpath)
+
         # ========== 步骤 1: ZIP 文件解压处理 ==========
-        for fname in os.listdir(root):  # 遍历项目根目录所有文件
-            fpath = os.path.join(root, fname)  # 拼接文件完整路径
-            if not os.path.isfile(fpath) or not fname.lower().endswith(".zip"):  # 跳过非 ZIP 文件
-                continue
+        for scan_root in scan_dirs:
+            for fname in os.listdir(scan_root):
+                fpath = os.path.join(scan_root, fname)
+                if not os.path.isfile(fpath) or not fname.lower().endswith(".zip"):
+                    continue
 
-            # 处理"测评方案评审记录表.zip" -> 解压并重命名内容为 08
-            if "测评方案评审记录表" in fname:
-                try:
-                    with zipfile.ZipFile(fpath, "r") as zf:  # 以读取模式打开 ZIP
-                        zf.extractall(root)  # 解压全部内容到项目根目录
-                    os.remove(fpath)  # 删除原 ZIP 文件
-                    renamed += 1  # 计数 +1
-                    msgs.append(f"解压: {fname} -> 提取文件")  # 记录操作
-                except Exception as e:  # 解压失败（损坏的 ZIP、权限不足等）
-                    msgs.append(f"解压失败: {fname} ({e})")
+                extract_dst = scan_root
 
-            # 处理"渗透测试报告.zip" -> 解压到独立文件夹后重命名
-            if "渗透测试报告" in fname and "评审" not in fname:
-                try:
-                    # 解压到临时目录
-                    tmp_dir = os.path.join(root, "_渗透测试报告_tmp")
-                    if os.path.exists(tmp_dir):
-                        shutil.rmtree(tmp_dir)
-                    os.makedirs(tmp_dir)
-                    with zipfile.ZipFile(fpath, "r") as zf:
-                        zf.extractall(tmp_dir)
-                    os.remove(fpath)
-                    # 去除 ZIP 内的公共顶层目录前缀
-                    items = os.listdir(tmp_dir)
-                    if len(items) == 1 and os.path.isdir(os.path.join(tmp_dir, items[0])):
-                        # ZIP自带一个顶层目录 -> 直接移动该目录
-                        src = os.path.join(tmp_dir, items[0])
-                        dst = os.path.join(root, f"13-{system_prefix}-渗透测试报告")
-                    else:
-                        dst = os.path.join(root, f"13-{system_prefix}-渗透测试报告")
-                        if not os.path.exists(dst):
-                            os.makedirs(dst)
-                        for item in items:
-                            shutil.move(os.path.join(tmp_dir, item), os.path.join(dst, item))
+                # "测评方案评审记录表.zip" -> 解压并重命名内容为 08
+                if "测评方案评审记录表" in fname:
+                    try:
+                        with zipfile.ZipFile(fpath, "r") as zf:
+                            zf.extractall(extract_dst)
+                        os.remove(fpath)
+                        renamed += 1
+                        msgs.append(f"解压: {fname} -> 提取文件")
+                    except Exception as e:
+                        msgs.append(f"解压失败: {fname} ({e})")
+
+                # "渗透测试报告.zip" -> 解压到独立文件夹后重命名
+                if "渗透测试报告" in fname and "评审" not in fname:
+                    try:
+                        tmp_dir = os.path.join(scan_root, "_渗透测试报告_tmp")
+                        if os.path.exists(tmp_dir):
+                            shutil.rmtree(tmp_dir)
+                        os.makedirs(tmp_dir)
+                        with zipfile.ZipFile(fpath, "r") as zf:
+                            zf.extractall(tmp_dir)
+                        os.remove(fpath)
+                        items = os.listdir(tmp_dir)
+                        dst = os.path.join(scan_root, f"13-{_sys_prefix_for(scan_root)}-渗透测试报告")
+                        if len(items) == 1 and os.path.isdir(os.path.join(tmp_dir, items[0])):
+                            src = os.path.join(tmp_dir, items[0])
+                            if os.path.exists(dst):
+                                shutil.rmtree(dst)
+                            shutil.move(src, dst)
+                        else:
+                            if not os.path.exists(dst):
+                                os.makedirs(dst)
+                            for item in items:
+                                shutil.move(os.path.join(tmp_dir, item), os.path.join(dst, item))
                         shutil.rmtree(tmp_dir)
                         renamed += 1
-                        msgs.append(f"解压: {fname} -> 13-{system_prefix}-渗透测试报告/")
-                        continue
-                    if os.path.exists(dst):
-                        shutil.rmtree(dst)
-                    shutil.move(src, dst)
-                    shutil.rmtree(tmp_dir)
-                    renamed += 1
-                    msgs.append(f"解压: {fname} -> 13-{system_prefix}-渗透测试报告/")
-                except Exception as e:
-                    msgs.append(f"解压失败: {fname} ({e})")
+                        msgs.append(f"解压: {fname} -> 13-{_sys_prefix_for(scan_root)}-渗透测试报告/")
+                    except Exception as e:
+                        msgs.append(f"解压失败: {fname} ({e})")
 
-            # 处理"测评报告评审表.zip" -> 解压（后续会删除初审版本）
-            elif "测评报告评审表" in fname:
-                try:
-                    with zipfile.ZipFile(fpath, "r") as zf:  # 以读取模式打开
-                        zf.extractall(root)  # 解压到项目根目录
-                    os.remove(fpath)  # 删除原 ZIP
-                    renamed += 1
-                    msgs.append(f"解压: {fname} -> 提取文件")
-                except Exception as e:
-                    msgs.append(f"解压失败: {fname} ({e})")
+                # "测评报告评审表.zip" -> 解压（后续会删除初审版本）
+                elif "测评报告评审表" in fname:
+                    try:
+                        with zipfile.ZipFile(fpath, "r") as zf:
+                            zf.extractall(extract_dst)
+                        os.remove(fpath)
+                        renamed += 1
+                        msgs.append(f"解压: {fname} -> 提取文件")
+                    except Exception as e:
+                        msgs.append(f"解压失败: {fname} ({e})")
 
         # ========== 步骤 2: 删除初审版本文件 ==========
-        for fname in os.listdir(root):
-            if "初审" in fname:  # 包含"初审"的文件（如测评报告评审表-初审.docx）
-                try:
-                    os.remove(os.path.join(root, fname))  # 直接删除
-                    msgs.append(f"删除初审: {fname}")
-                except Exception:  # 删除失败（权限等），静默跳过
-                    pass
+        for scan_root in scan_dirs:
+            for fname in os.listdir(scan_root):
+                if "初审" in fname:
+                    try:
+                        os.remove(os.path.join(scan_root, fname))
+                        msgs.append(f"删除初审: {fname}")
+                    except Exception:
+                        pass
 
         # ========== 步骤 3: 批量重命名文件 ==========
-        for fname in os.listdir(root):  # 遍历根目录所有文件
-            fpath = os.path.join(root, fname)
-            if not os.path.isfile(fpath) or fname.endswith(".zip"):  # 跳过 ZIP 和目录
-                continue
-            name_no_ext, ext = os.path.splitext(fname)  # 分离文件名和扩展名（"07-测评方案", ".docx"）
+        for scan_root in scan_dirs:
+            for fname in os.listdir(scan_root):
+                fpath = os.path.join(scan_root, fname)
+                if not os.path.isfile(fpath) or fname.endswith(".zip"):
+                    continue
+                name_no_ext, ext = os.path.splitext(fname)
 
-            # ---- 情况 A: 文件名已有编号前缀（如 "07-测评方案.docx"） ----
-            m = re.match(r"^(\d{2})-(.+)", name_no_ext)  # 匹配 "###-内容" 格式
-            if m:  # 已有编号前缀
-                num = m.group(1)  # 当前编号（如 "07"）
-                rest = name_no_ext[len(num) + 1:]  # 编号后面的剩余部分（如 "测评方案.docx"）
-                # 按关键词长度从大到小匹配，避免"测评方案评审表"被"测评方案"先匹配
-                for keyword in sorted(key_map, key=len, reverse=True):
-                    if keyword in rest:
-                        num, target_kw, is_co = key_map[keyword]
-                        pfx = _get_prefix(is_co)
-                        new_name = f"{num}-{pfx}-{target_kw}{ext}"
-                        if new_name != fname:
-                            new_path = os.path.join(root, new_name)
+                # ---- 情况 A: 文件名已有编号前缀 ----
+                m = re.match(r"^(\d{2})-(.+)", name_no_ext)
+                if m:
+                    num = m.group(1)
+                    rest = name_no_ext[len(num) + 1:]
+                    for keyword in sorted(key_map, key=len, reverse=True):
+                        if keyword in rest:
+                            num, target_kw, is_co = key_map[keyword]
+                            pfx = _get_prefix(is_co, scan_root)
+                            new_name = f"{num}-{pfx}-{target_kw}{ext}"
+                            if new_name != fname:
+                                new_path = os.path.join(scan_root, new_name)
+                                if not os.path.exists(new_path):
+                                    os.rename(fpath, new_path)
+                                    renamed += 1
+                                else:
+                                    msgs.append(f"跳过(已存在): {new_name}")
+                            break
+
+                # ---- 情况 B: 文件名无编号 ----
+                else:
+                    for keyword in sorted(key_map, key=len, reverse=True):
+                        if keyword in name_no_ext:
+                            num, target_kw, is_co = key_map[keyword]
+                            pfx = _get_prefix(is_co, scan_root)
+                            new_name = f"{num}-{pfx}-{target_kw}{ext}"
+                            new_path = os.path.join(scan_root, new_name)
                             if not os.path.exists(new_path):
                                 os.rename(fpath, new_path)
                                 renamed += 1
                             else:
                                 msgs.append(f"跳过(已存在): {new_name}")
-                        break
-
-            # ---- 情况 B: 文件名无编号 ----
-            else:
-                for keyword in sorted(key_map, key=len, reverse=True):
-                    if keyword in name_no_ext:
-                        num, target_kw, is_co = key_map[keyword]
-                        pfx = _get_prefix(is_co)
-                        new_name = f"{num}-{pfx}-{target_kw}{ext}"
-                        new_path = os.path.join(root, new_name)
-                        if not os.path.exists(new_path):
-                            os.rename(fpath, new_path)
-                            renamed += 1
-                        else:
-                            msgs.append(f"跳过(已存在): {new_name}")
-                        break
+                            break
 
         # ========== 步骤 4: 子目录重命名 ==========
-        for dname in os.listdir(root):  # 遍历所有目录
-            dpath = os.path.join(root, dname)
-            if not os.path.isdir(dpath):  # 跳过文件
-                continue
-            for keyword, num, is_co in [("报告打印", "00", True), ("渗透测试报告", "13", False)]:
-                pfx = _get_prefix(is_co)
-                if keyword in dname and (cname not in dname or (sname and sname not in dname)):
-                    new_dname = f"{num}-{pfx}-{keyword}"
-                    new_dpath = os.path.join(root, new_dname)
-                    if not os.path.exists(new_dpath):  # 不冲突
-                        os.rename(dpath, new_dpath)  # 重命名目录
-                        renamed += 1
-                    break  # 匹配到一个关键词后退出
+        for scan_root in scan_dirs:
+            for dname in os.listdir(scan_root):
+                dpath = os.path.join(scan_root, dname)
+                if not os.path.isdir(dpath):
+                    continue
+                for keyword, num, is_co in [("报告打印", "00", True), ("渗透测试报告", "13", False)]:
+                    pfx = _get_prefix(is_co, scan_root)
+                    if keyword in dname and (cname not in dname or (sname and sname not in dname)):
+                        new_dname = f"{num}-{pfx}-{keyword}"
+                        new_dpath = os.path.join(scan_root, new_dname)
+                        if not os.path.exists(new_dpath):
+                            os.rename(dpath, new_dpath)
+                            renamed += 1
+                        break
 
         # ========== 步骤 5: 显示操作报告 ==========
         if msgs:  # 有详细操作记录

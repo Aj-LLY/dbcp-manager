@@ -115,21 +115,26 @@ def show_report_dialog(parent, cname="", sname="", location="", deadline=""):
 
     # ========== 创建表单字段的工具函数 ==========
     def _make_row(label, default=""):
-        """创建一行表单：标签 + 带边框的输入框
+        tk.Label(main, text=label, bg="#ffffff",
+                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL)).pack(anchor="w")
+        var = tk.StringVar(value=default)
+        _, outer = bordered_entry(main, textvariable=var)
+        outer.pack(fill=tk.X, pady=(2, 6))
+        return var
 
-        Args:
-            label: 字段标签文字（如"客户公司全称"）
-            default: 输入框的默认值
-
-        Returns:
-            tk.StringVar: 输入框绑定的文本变量（用于读取用户输入）
-        """
-        tk.Label(main, text=label, bg="#ffffff",  # 字段标签，白色背景
-                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL)).pack(anchor="w")  # 左对齐
-        var = tk.StringVar(value=default)  # 创建文本变量并设置默认值
-        _, outer = bordered_entry(main, textvariable=var)  # 创建带边框的输入框
-        outer.pack(fill=tk.X, pady=(2, 6))  # 水平填充，上下边距
-        return var  # 返回文本变量供后续读取
+    def _make_text_row(label, default="", height=3):
+        """创建多行文本框：标签 + 带边框的 Text 组件，用于多系统字段。"""
+        tk.Label(main, text=label, bg="#ffffff",
+                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL)).pack(anchor="w")
+        outer = tk.Frame(main, bg="#d0d5dd")
+        inner = tk.Frame(outer, bg="#ffffff")
+        inner.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
+        text = tk.Text(inner, font=("Microsoft YaHei", 10), relief="flat",
+                       borderwidth=0, height=height, wrap="word")
+        text.pack(fill=tk.BOTH, expand=True)
+        text.insert("1.0", default)
+        outer.pack(fill=tk.X, pady=(2, 6))
+        return text
 
     # ========== 对话框标题 ==========
     tk.Label(main, text="报告打印信息确认", bg="#ffffff", fg="#2c3e50",  # 深色标题文字
@@ -141,7 +146,7 @@ def show_report_dialog(parent, cname="", sname="", location="", deadline=""):
     v_cname = _make_row("客户公司全称", defaults.get("cname") or cname)
     v_contract = _make_row("合同编号或项目名称", defaults.get("contract") or f"{cname}网络安全等级保护测评服务项目")
     v_location = _make_row("所属地", defaults.get("location") or location)
-    v_sname = _make_row("系统名称", defaults.get("sname") or sname)
+    t_sname = _make_text_row("系统名称", defaults.get("sname") or sname, height=3)
     v_crm = _make_row("是否录入CRM", defaults.get("crm") or "是")  # 默认"是"
     v_deadline = _make_row("编制/审核/批准日期", defaults.get("deadline") or deadline)
     v_author = _make_row("编制人", defaults.get("author") or "")
@@ -161,10 +166,10 @@ def show_report_dialog(parent, cname="", sname="", location="", deadline=""):
             dict: 包含所有字段名称-值映射的字典
         """
         return {
-            "cname": v_cname.get().strip(),  # 去除首尾空白
+            "cname": v_cname.get().strip(),
             "contract": v_contract.get().strip(),
             "location": v_location.get().strip(),
-            "sname": v_sname.get().strip(),
+            "sname": t_sname.get("1.0", "end-1c").strip(),
             "crm": v_crm.get().strip(),
             "deadline": v_deadline.get().strip(),
             "author": v_author.get().strip(),
@@ -253,7 +258,8 @@ def show_report_dialog(parent, cname="", sname="", location="", deadline=""):
         dedit.bind("<MouseWheel>", lambda e: dcanvas.yview_scroll(int(-e.delta/120), "units"))
 
         # --- 创建 14 个字段的输入行 ---
-        dvars = {}  # 存储所有字段的 tk.StringVar
+        text_keys = {"sname"}  # 多行文本框字段
+        dvars = {}
         for label, key in [
             ("客户公司全称", "cname"), ("合同编号或项目名称", "contract"),
             ("所属地", "location"), ("系统名称", "sname"), ("是否录入CRM", "crm"),
@@ -264,34 +270,55 @@ def show_report_dialog(parent, cname="", sname="", location="", deadline=""):
             ("实际报告编制人", "actual_author"),
         ]:
             tk.Label(dmain, text=label, bg="#ffffff",
-                     font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL)).pack(anchor="w")  # 字段标签
-            var = tk.StringVar(value=saved.get(key) or "")  # 文本变量，填充保存值或空
-            _, outer = bordered_entry(dmain, textvariable=var, width=40)  # 创建输入框，宽 40 字符
-            outer.pack(fill=tk.X, pady=(2, 5))  # 水平填充
-            dvars[key] = var  # 存储变量引用
+                     font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL)).pack(anchor="w")
+            if key in text_keys:
+                outer = tk.Frame(dmain, bg="#d0d5dd")
+                inner = tk.Frame(outer, bg="#ffffff")
+                inner.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
+                w = tk.Text(inner, font=("Microsoft YaHei", 10), relief="flat",
+                            borderwidth=0, height=3, wrap="word", width=40)
+                w.pack(fill=tk.BOTH, expand=True)
+                w.insert("1.0", saved.get(key) or "")
+                outer.pack(fill=tk.X, pady=(2, 5))
+                dvars[key] = w
+            else:
+                var = tk.StringVar(value=saved.get(key) or "")
+                _, outer = bordered_entry(dmain, textvariable=var, width=40)
+                outer.pack(fill=tk.X, pady=(2, 5))
+                dvars[key] = var
 
         def _save_and_close():
-            """保存默认值并关闭编辑窗口"""
-            data = {k: v.get().strip() for k, v in dvars.items()}  # 收集所有字段值
-            os.makedirs(os.path.dirname(path), exist_ok=True)  # 确保目录存在
-            with open(path, "w", encoding="utf-8") as f:  # 写入 JSON 文件
-                json.dump(data, f, ensure_ascii=False, indent=2)  # 保留中文，2 空格缩进
+            data = {}
+            for k, v in dvars.items():
+                if isinstance(v, tk.Text):
+                    data[k] = v.get("1.0", "end-1c").strip()
+                else:
+                    data[k] = v.get().strip()
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
 
-            # 回填到主对话框的对应字段
-            for key, var in dvars.items():
-                target = {
+            # 回填到主对话框
+            for key, val in dvars.items():
+                target_map = {
                     "cname": v_cname, "contract": v_contract, "location": v_location,
-                    "sname": v_sname, "crm": v_crm, "deadline": v_deadline,
+                    "sname": t_sname, "crm": v_crm, "deadline": v_deadline,
                     "author": v_author, "reviewer": v_reviewer, "pentester": v_pentester,
                     "conclusion": v_conclusion, "seal": v_seal,
                     "print_req": v_print_req, "leader": v_leader,
                     "actual_author": v_actual,
-                }.get(key)  # 根据 key 获取主对话框的对应字段变量
-                if target:  # 找到对应字段
-                    target.set(data[key])  # 将保存的值设置到主对话框
+                }
+                target = target_map.get(key)
+                if target is None:
+                    continue
+                if isinstance(target, tk.Text):
+                    target.delete("1.0", "end")
+                    target.insert("1.0", data[key])
+                else:
+                    target.set(data[key])
 
-            messagebox.showinfo("提示", "默认值已保存", parent=dedit)  # 提示保存成功
-            dedit.destroy()  # 关闭编辑窗口
+            messagebox.showinfo("提示", "默认值已保存", parent=dedit)
+            dedit.destroy()
 
         # --- 编辑窗口的按钮 ---
         tk.Button(dbtn_inner, text="取消", command=dedit.destroy,
@@ -352,7 +379,8 @@ def show_report_dialog(parent, cname="", sname="", location="", deadline=""):
 # _create_report_xlsx_data / _create_report_xlsx - XLSX 生成
 # =============================================================================
 
-def _create_report_xlsx_data(project, path, data, report_dir, root):
+def _create_report_xlsx_data(project, path, data, report_dir, root,
+                             all_projects: list = None):
     """根据编辑框提交的数据创建测评报告打印信息 XLSX 文件
 
     这是两步 XLSX 生成流程的入口：
@@ -365,74 +393,83 @@ def _create_report_xlsx_data(project, path, data, report_dir, root):
         data: 用户确认的 14 个字段字典（来自 show_report_dialog 返回值）
         report_dir: 报告打印目录路径（用于附件超链接）
         root: 项目根目录路径（用于附件超链接查找）
+        all_projects: 合并卡片的所有项目（用于判断多系统）
     """
-    # 第一步：创建基础 XLSX（表头 + 固定列数据 + 附件超链接）
-    _create_report_xlsx(project, path, data["cname"], data["sname"], report_dir, root)
+    wb, ws, ole_entries = _create_report_xlsx(project, data["cname"], data["sname"],
+                                                report_dir, root, all_projects=all_projects)
 
-    # 第二步：用编辑框数据二次写入（覆盖用户编辑的字段）
-    import openpyxl  # Excel 文件操作库
-    wb = openpyxl.load_workbook(path)  # 加载刚创建的基础 XLSX
-    ws = wb.active  # 获取活动工作表
-    from openpyxl.styles import Alignment, Border, Side  # Excel 样式
+    from openpyxl.styles import Alignment, Border, Side
 
-    # 定义细线边框（统一所有数据单元格的边框样式）
     thin_border = Border(
-        left=Side(style='thin'), right=Side(style='thin'),  # 左右细线
-        top=Side(style='thin'), bottom=Side(style='thin'))  # 上下细线
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin'))
 
-    # 编辑框额外数据与单元格的映射关系
-    extra = {
-        'B3': data.get("contract", ""),  # 合同编号或项目名称 -> B 列第 3 行
-        'D3': data.get("crm", "是"),  # 是否录入 CRM -> D 列第 3 行
-        'J3': data.get("author", ""),  # 编制人 -> J 列第 3 行
-        'K3': data.get("reviewer", ""),  # 审核人 -> K 列第 3 行
-        'L3': data.get("pentester", ""),  # 渗透人员 -> L 列第 3 行
-        'M3': data.get("conclusion", ""),  # 测评结论 -> M 列第 3 行
-        'N3': data.get("seal", ""),  # 盖章 -> N 列第 3 行
-        'S3': data.get("print_req", ""),  # 打印要求 -> S 列第 3 行
-        'T3': data.get("leader", ""),  # 项目组长 -> T 列第 3 行
-        'U3': data.get("actual_author", ""),  # 实际编制人 -> U 列第 3 行
+    is_multi = all_projects and len(all_projects) > 1
+    num_rows = len(all_projects) if is_multi else 1
+
+    shared_cols = {
+        'B': data.get("contract", ""),
+        'D': data.get("crm", "是"),
+        'J': data.get("author", ""),
+        'K': data.get("reviewer", ""),
+        'L': data.get("pentester", ""),
+        'M': data.get("conclusion", ""),
+        'N': data.get("seal", ""),
+        'S': data.get("print_req", ""),
+        'T': data.get("leader", ""),
+        'U': data.get("actual_author", ""),
     }
-    for ref, val in extra.items():  # 遍历映射写入数据
-        cell = ws[ref]  # 获取单元格
-        cell.value = val  # 写入值
-        cell.border = thin_border  # 设置边框
-        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)  # 设置对齐
+    for row_idx in range(num_rows):
+        row_num = 3 + row_idx
+        for col, val in shared_cols.items():
+            cell = ws[f'{col}{row_num}']
+            cell.value = val
+            cell.border = thin_border
+            cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
 
-    wb.save(path)  # 保存 XLSX 文件
+    wb.save(path)
+    wb.close()
+
+    if ole_entries:
+        _embed_oles_in_xlsx(path, ole_entries)
 
 
-def _create_report_xlsx(project, path, cname, sname, report_dir, root):
+def _embed_oles_in_xlsx(xlsx_path, ole_entries):
+    """通过 IOleEmbedService 接口嵌入 OLE 对象（原则 #5 技术隔离）。"""
+    from services.ole_service import Win32ComOleEmbedService
+    from services.interfaces import OleEmbedError
+
+    svc = Win32ComOleEmbedService()
+    if not svc.is_available():
+        return  # OLE 服务不可用时静默跳过，表格仍有文件名
+
+    try:
+        svc.embed_files(xlsx_path, ole_entries)
+    except OleEmbedError:
+        pass  # 嵌入失败不阻塞报告打印主流程
+
+
+def _create_report_xlsx(project, cname, sname, report_dir, root,
+                        all_projects: list = None):
     """创建测评报告打印信息 XLSX 的基础结构
 
-    生成一个符合测评报告打印规范的 Excel 文件，包含：
-
-    表结构：
-      - 行 1 (G1)：提示文字 "(需要签入报告，请确认)"（红色粗体）
-      - 行 2：表头行（21 列，蓝底白字粗体）
-      - 行 3：数据行（项目实际数据）
+    多系统: 附件搜索覆盖根目录 + 各系统子目录。
 
     表头列（A~U 共 21 列）：
       A: 序号 | B: 合同编号 | C: 客户公司 | D: 是否录入CRM | E: 所属地
       F: 系统名称 | G: 编制日期 | H: 审核日期 | I: 批准日期
-      J: 编制人 | K: 审核人 | L: 渗透人员
-      M: 测评结论数量 | N: 盖章
+      J: 编制人 | K: 审核人 | L: 渗透人员 | M: 测评结论数量 | N: 盖章
       O: 基本情况表附件 | P: 授权书附件 | Q: 报告附件 | R: 归档附件
       S: 打印要求 | T: 项目组长 | U: 实际编制人
 
-    附件超链接（O~R 列）：
-      O: 附件"基本情况表" -> 超链接到对应文件
-      P: 附件"测评授权书" + "风险告知书" -> 超链接到对应文件
-      Q: 附件"测评报告-终稿" -> 超链接到对应 PDF
-      R: 附件"过程文档.zip" -> 超链接到 ZIP 文件
-
     Args:
-        project: 项目实体对象（用于获取 deadline、location 等字段）
+        project: 项目实体对象
         path: XLSX 文件保存路径
         cname: 客户公司全称
         sname: 系统名称
         report_dir: 报告打印目录（优先搜索附件）
         root: 项目根目录（兜底搜索附件）
+        all_projects: 合并卡片的所有项目（用于判断多系统）
     """
     import os as _os  # 操作系统模块（使用别名避免与外部 os 冲突）
     import openpyxl  # Excel 文件操作库
@@ -479,65 +516,113 @@ def _create_report_xlsx(project, path, cname, sname, report_dir, root):
         cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)  # 居中自动换行
     ws.row_dimensions[2].height = 35  # 表头行高 35px
 
-    # ---- 数据行 (第 3 行，紧接表头无空行) ----
-    date_val = project.deadline or date.today().strftime('%Y-%m-%d')  # 日期取截止日或当天
-    data = [
-        (1, 'A'),  # 序号：固定为 1
-        (f'{cname}网络安全等级保护测评服务项目', 'B'),  # 合同编号
-        (cname, 'C'),  # 客户公司全称
-        ('是', 'D'),  # 是否录入 CRM（默认"是"）
-        ((project.location or '').split('-')[0] if project.location else '', 'E'),  # 所属地
-        (sname, 'F'),  # 系统名称
-        (date_val, 'G'), (date_val, 'H'), (date_val, 'I'),  # 编制/审核/批准日期（统一）
-        ('双击打开附件', 'O'), ('双击打开附件', 'P'),  # 附件提示
-        ('双击打开附件', 'Q'), ('双击打开附件', 'R'),  # 附件提示
-    ]
-    for val, col in data:  # 遍历写入每个数据项
-        cell = ws[f'{col}3']  # 定位到第 3 行对应列
-        cell.value = val  # 设置值
-        cell.border = thin_border  # 设置边框
-        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)  # 居中
+    # ---- 数据行 ----
+    is_multi = all_projects and len(all_projects) > 1
+    date_val = project.deadline or date.today().strftime('%Y-%m-%d')
+    num_rows = len(all_projects) if is_multi else 1
 
-    # 为所有 A~U 列第 3 行设置完整边框（包括编辑框数据将覆盖的单元格）
-    for col_idx in range(1, 22):  # Excel 列 1~21（A~U）
-        cell = ws.cell(row=3, column=col_idx)  # 获取第 3 行该列的单元格
-        cell.border = thin_border  # 设置边框
-        if not cell.value:  # 空单元格也设置对齐
+    for row_idx in range(num_rows):
+        row_num = 3 + row_idx
+        cur = all_projects[row_idx] if is_multi else project
+
+        sys_loc = (cur.location or "").split("-")[0] if cur.location else ""
+        sys_name = cur.system_name or ""
+
+        row_data = [
+            (row_idx + 1, 'A'),
+            (f'{cname}网络安全等级保护测评服务项目', 'B'),
+            (cname, 'C'),
+            ('是', 'D'),
+            (sys_loc, 'E'),
+            (sys_name, 'F'),
+            (date_val, 'G'), (date_val, 'H'), (date_val, 'I'),
+            ('双击打开附件', 'O'), ('双击打开附件', 'P'),
+            ('双击打开附件', 'Q'), ('双击打开附件', 'R'),
+        ]
+        for val, col in row_data:
+            cell = ws[f'{col}{row_num}']
+            cell.value = val
+            cell.border = thin_border
             cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
 
-    ws.row_dimensions[3].height = 25  # 数据行高 25px
+        for col_idx in range(1, 22):
+            cell = ws.cell(row=row_num, column=col_idx)
+            cell.border = thin_border
+            if not cell.value:
+                cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+
+        ws.row_dimensions[row_num].height = 25
 
     # ---- 合并单元格 G1-U1（提示行合并为一整行） ----
     ws.merge_cells('G1:U1')  # 将 G1 到 U1 合并为一个单元格
 
-    # ---- 附件超链接设置 ----
-    # O~R 列：分别对应基本情况表、授权书+风险告知书、测评报告、过程文档
+    # ---- 附件搜索与 OLE 嵌入 ----
     link_map = {
-        'O': ['基本情况表'],  # O 列 -> 查找包含"基本情况表"的文件
-        'P': ['测评授权书', '风险告知书'],  # P 列 -> 查找授权书或风险告知书
-        'Q': ['测评报告-终稿'],  # Q 列 -> 查找终稿 PDF
-        'R': ['过程文档.zip'],  # R 列 -> 查找过程文档 ZIP
+        'O': ['基本情况表'],
+        'P': ['测评授权书', '风险告知书', '放弃工具测试声明'],
+        'Q': ['测评报告-终稿'],
+        'R': ['过程文档.zip'],
+    }
+    # Q 列限定 PDF / R 列限定 ZIP
+    ext_filter = {
+        'Q': lambda fn: fn.lower().endswith('.pdf'),
+        'R': lambda fn: fn.lower().endswith('.zip'),
     }
 
-    for col, keywords in link_map.items():  # 遍历每个附件列
-        found = False  # 是否已找到并设置超链接
-        for kw in keywords:  # 遍历该列的关键词
-            for d in [report_dir, root]:  # 先查报告打印目录，再查项目根目录
-                if not _os.path.isdir(d):  # 目录不存在
-                    continue
-                for fname in _os.listdir(d):  # 遍历目录中的所有文件
-                    if kw in fname:  # 文件名匹配关键词
-                        fpath = _os.path.join(d, fname)  # 拼接完整路径
-                        cell = ws[f'{col}3']  # 获取对应列的单元格
-                        cell.value = fname  # 设置单元格显示为文件名
-                        cell.hyperlink = fpath  # 设置为文件超链接
-                        cell.font = Font(color='0563C1', underline='single', size=10)  # 蓝色下划线样式
-                        found = True  # 标记已找到
-                        break  # 跳出文件遍历
-                if found:  # 已找到
-                    break  # 跳出目录遍历
-            if found:  # 已找到
-                break  # 跳出关键词遍历
+    # 收集系统子目录（多系统时用于按系统优先匹配附件）
+    sys_subdirs = []
+    if is_multi:
+        for dname in _os.listdir(root):
+            dpath = _os.path.join(root, dname)
+            if _os.path.isdir(dpath) and "报告打印" not in dname \
+                    and dname != "01-其他归档文件":
+                sys_subdirs.append(dpath)
 
-    # ---- 保存文件 ----
-    wb.save(path)  # 保存 XLSX 文件到指定路径
+    ole_entries = []
+
+    for row_idx in range(num_rows):
+        row_num = 3 + row_idx
+
+        # 确定当前系统行对应的子目录（按系统名匹配）
+        cur_sys_dir = None
+        if is_multi:
+            cur_sys = (all_projects[row_idx].system_name or "").replace("/", "_").replace("\\", "_")
+            for sd in sys_subdirs:
+                sd_name = _os.path.basename(sd)
+                if cur_sys and (cur_sys in sd_name or sd_name in cur_sys):
+                    cur_sys_dir = sd
+                    break
+
+        # 每行独立搜索: 报告打印目录 > 本系统子目录 > 根目录 > 其他子目录
+        row_dirs = [report_dir]
+        if cur_sys_dir:
+            row_dirs.append(cur_sys_dir)
+        row_dirs.append(root)
+        for sd in sys_subdirs:
+            if sd not in row_dirs:
+                row_dirs.append(sd)
+
+        for col, keywords in link_map.items():
+            found = False
+            for kw in keywords:
+                for d in row_dirs:
+                    if not _os.path.isdir(d):
+                        continue
+                    for fname in _os.listdir(d):
+                        if kw in fname:
+                            if col in ext_filter and not ext_filter[col](fname):
+                                continue  # 跳过不符合扩展名要求的文件
+                            fpath = _os.path.join(d, fname)
+                            cell = ws[f'{col}{row_num}']
+                            cell.value = fname
+                            cell.font = Font(color='0563C1', underline='single', size=10)
+                            ole_entries.append((col, row_num, fpath))
+                            found = True
+                            break
+                    if found:
+                        break
+                if found:
+                    break
+
+    # 返回未保存的 workbook，由 _create_report_xlsx_data 统一保存
+    return wb, ws, ole_entries

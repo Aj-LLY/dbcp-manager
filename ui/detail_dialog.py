@@ -255,17 +255,18 @@ class DetailDialog(tk.Toplevel):
 
         # ---- 交付日期 -- 附带超期 / 即将到期预警 ----
         deadline = self._project.deadline or "未设置"
-        days_left = days_until_deadline(self._project.deadline) if self._project.deadline else None
-        if days_left is not None:
-            if days_left < 0:
-                # 已超期：显示警告图标和超期天数
-                deadline += f"  \u26a0\ufe0f 已超期 {abs(days_left)} 天"
-            elif days_left <= Config.DEADLINE_WARNING_DAYS:
-                # 即将到期：显示闪电图标和剩余天数
-                deadline += f"  \u26a1 剩余 {days_left} 天"
-            else:
-                # 正常：显示剩余天数
-                deadline += f"  剩余 {days_left} 天"
+        is_last = self._stages and self._project.stage_id == self._stages[-1].id
+        if is_last:
+            deadline += "  \u2705 \u5df2\u5b8c\u6210"  # ✅ 已完成
+        else:
+            days_left = days_until_deadline(self._project.deadline) if self._project.deadline else None
+            if days_left is not None:
+                if days_left < 0:
+                    deadline += f"  \u26a0\ufe0f \u5df2\u8d85\u671f {abs(days_left)} \u5929"
+                elif days_left <= Config.DEADLINE_WARNING_DAYS:
+                    deadline += f"  \u26a1 \u5269\u4f59 {days_left} \u5929"
+                else:
+                    deadline += f"  \u5269\u4f59 {days_left} \u5929"
         self._add_info_row(info_frame, "交付日期", deadline)
 
         # 创建时间和最后更新时间的格式化展示
