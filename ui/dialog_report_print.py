@@ -435,7 +435,22 @@ def _create_report_xlsx_data(project, path, data, report_dir, root,
 
 
 def _embed_oles_in_xlsx(xlsx_path, ole_entries):
-    """通过 IOleEmbedService 接口嵌入 OLE 对象（原则 #5 技术隔离）。"""
+    """通过 OLE 嵌入服务将附件文件作为 OLE 对象嵌入 XLSX 文件。
+
+    使用 Win32 COM 接口（Win32ComOleEmbedService）将指定的文件列表
+    作为嵌入式 OLE 对象链接到 XLSX 的指定单元格位置。
+
+    该功能属于技术隔离层（原则 #5），OLE 服务不可用时静默跳过，
+    不影响 XLSX 文件本身的生成——此时单元格仍显示附件文件名文本。
+
+    Args:
+        xlsx_path: 已生成并保存的 XLSX 文件完整路径
+        ole_entries: OLE 嵌入条目列表，每项为 (列字母, 行号, 文件路径) 元组，
+            例如 [("O", 3, "C:\\reports\\基本情况表.docx"), ...]
+
+    Returns:
+        None: OLE 嵌入失败不阻塞报告打印主流程，静默返回
+    """
     from services.ole_service import Win32ComOleEmbedService
     from services.interfaces import OleEmbedError
 

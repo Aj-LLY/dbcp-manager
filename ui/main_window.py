@@ -222,6 +222,12 @@ class MainWindow(tk.Tk):
     # ==================================================================================
 
     def _on_add_project(self):
+        """处理"新增项目"按钮点击事件
+
+        委托给 controllers.project_handlers.on_add_project 处理。
+        该函数打开 ProjectDialog 收集用户输入，创建新的 Project 对象，
+        保存到数据服务并刷新看板。
+        """
         on_add_project(self)
 
     def _on_edit_workflow(self):
@@ -281,12 +287,29 @@ class MainWindow(tk.Tk):
         show_log_dialog(self, logs)  # 打开日志查看对话框，展示日志内容
 
     def _on_console(self):
+        """处理"控制台"按钮点击事件
+
+        委托给 controllers.startup_handlers.on_console 处理。
+        打开系统控制台窗口（用于调试和开发者操作）。
+        """
         on_console(self)
 
     def _on_backup(self):
+        """处理"WebDAV 备份"按钮点击事件
+
+        委托给 controllers.startup_handlers.on_backup 处理。
+        打开 BackupDialog 备份管理对话框，支持 WebDAV 服务器配置、
+        备份上传、恢复下载和文件管理。
+        """
         on_backup(self)
 
     def _on_delete_selected(self):
+        """处理"删除项目"按钮点击事件
+
+        委托给 controllers.project_handlers.on_delete_selected 处理。
+        获取当前选中的项目卡片，弹出二次确认对话框，确认后永久删除项目
+        并从数据服务和看板中移除。
+        """
         on_delete_selected(self)
 
     # ==================================================================================
@@ -294,30 +317,114 @@ class MainWindow(tk.Tk):
     # ==================================================================================
 
     def _on_card_selected(self, card: ProjectCard | None):
+        """处理卡片选中/取消选中事件
+
+        委托给 controllers.project_handlers.on_card_selected 处理。
+        当看板中某张卡片被单击选中或取消选中时触发，更新工具栏按钮状态
+        （如"删除项目"按钮仅在选中时可用）。
+
+        Args:
+            card: 被选中的卡片组件，None 表示取消所有选中
+        """
         on_card_selected(self, card)
 
     def _pick_project_from_card(self, card: ProjectCard) -> Project | None:
+        """从卡片组件中提取关联的 Project 实体对象
+
+        委托给 controllers.project_handlers.pick_project_from_card 处理。
+        根据卡片的 project 属性查找数据服务中的对应项目。
+
+        Args:
+            card: 项目卡片组件
+
+        Returns:
+            Project | None: 找到的项目实体，未找到返回 None
+        """
         return pick_project_from_card(self, card)
 
     def _on_card_detail(self, card: ProjectCard):
+        """处理"详情"按钮点击事件 - 打开项目详情窗口
+
+        委托给 controllers.project_handlers.on_card_detail 处理。
+        获取卡片的关联项目数据和操作日志，打开 DetailDialog 详情窗口。
+
+        Args:
+            card: 被点击"详情"按钮的项目卡片组件
+        """
         on_card_detail(self, card)
 
     def _on_card_edit(self, card: ProjectCard):
+        """处理"编辑"按钮点击事件 - 打开项目编辑对话框
+
+        委托给 controllers.project_handlers.on_card_edit 处理。
+        获取卡片的关联项目数据，打开 ProjectDialog 编辑对话框，
+        保存后刷新看板显示。
+
+        Args:
+            card: 被点击"编辑"按钮的项目卡片组件
+        """
         on_card_edit(self, card)
 
     def _on_card_move_stage(self, card: ProjectCard, target_stage_id: str):
+        """处理卡片箭头移动事件 - 将项目移至目标流程阶段
+
+        委托给 controllers.project_handlers.on_card_move_stage 处理。
+        更新项目的 stage_id，调用看板的局部移动方法更新 UI，
+        保存操作日志并更新排序顺序。
+
+        Args:
+            card: 被移动的项目卡片组件
+            target_stage_id: 目标阶段的唯一标识符（UUID 字符串）
+        """
         on_card_move_stage(self, card, target_stage_id)
 
     def _on_card_copy(self, card: ProjectCard):
+        """处理"复制"按钮点击事件 - 创建项目的副本
+
+        委托给 controllers.project_handlers.on_card_copy 处理。
+        复制当前项目的所有属性（公司名称后缀追加" - 副本"），
+        保存新项目到数据服务并刷新看板。
+
+        Args:
+            card: 被点击"复制"按钮的项目卡片组件
+        """
         on_card_copy(self, card)
 
     def _on_column_resize(self, stage_id: str, new_width: int):
+        """处理列宽拖拽完成事件 - 保存调整后的列宽
+
+        委托给 controllers.project_handlers.on_column_resize 处理。
+        将新的列宽值通过 WorkflowService 保存到数据文件，
+        确保下次启动时恢复用户的列宽偏好。
+
+        Args:
+            stage_id: 被调整宽度的阶段唯一标识符
+            new_width: 调整后的列宽度（像素值）
+        """
         on_column_resize(self, stage_id, new_width)
 
     def _create_project_folder(self, project):
+        """为项目创建本地文件夹结构
+
+        委托给 controllers.project_handlers.create_project_folder 处理。
+        在项目根目录下创建子目录结构（如测评方案、测评报告等）。
+
+        Args:
+            project: 项目实体对象，用于获取路径和名称信息
+        """
         create_project_folder(self, project)
 
     def _generate_nda_template(self, root, cname_clean, company_name):
+        """生成保密承诺书（NDA）模板文件
+
+        委托给 controllers.project_handlers.generate_nda_template 处理。
+        在指定目录下创建 .docx 格式的保密承诺书模板文件。
+
+        Args:
+            root: 目标目录路径
+            cname_clean: 清理后的公司名称（去掉特殊字符）
+            company_name: 原始公司名称
+        """
         generate_nda_template(self, root, cname_clean, company_name)
 
     # ==================================================================================
@@ -337,9 +444,24 @@ class MainWindow(tk.Tk):
         pass  # 当前无需额外处理，pack 布局自动完成自适应
 
     def _on_close(self):
+        """处理窗口关闭事件 - 在退出前保存数据
+
+        委托给 controllers.startup_handlers.on_close 处理。
+        在用户点击窗口关闭按钮或按 Alt+F4 时触发，执行以下操作：
+          1. 保存当前窗口的几何信息（位置和尺寸）到 window_geometry.json
+          2. 确保数据文件已保存
+          3. 销毁所有子窗口，退出应用程序
+        """
         on_close(self)
 
     def _check_restore_on_startup(self):
+        """应用启动后延迟检测云端备份（延时 1000ms 后执行）
+
+        委托给 controllers.startup_handlers.check_restore_on_startup 处理。
+        在 UI 完全加载后，检查 WebDAV 服务器上是否有比本地更新的备份文件，
+        如果有则提示用户是否恢复。
+        延迟 1 秒执行是为了确保主窗口已经完全渲染完毕。
+        """
         check_restore_on_startup(self)
 
     # ==================================================================================

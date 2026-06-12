@@ -35,6 +35,16 @@ class LogService:
     封装操作日志的记录和查询逻辑，作为 UI 层与底层日志实现之间的
     抽象层。创建时自动从 Config 获取日志文件路径并初始化底层记录器。
 
+    日志数据结构（由 OperationLogger 保证）:
+        - timestamp: 操作时间戳（ISO 8601 格式）。
+        - action: 操作类型（新增项目 / 阶段变更 / 编辑流程 等）。
+        - detail: 人类可读的操作描述。
+        - project_id / project_name: 关联的项目信息。
+        - from_stage / to_stage: 阶段变更的前后阶段名称。
+
+    日志文件路径:
+        通过 Config.get_log_file_path() 获取，位于用户数据目录下。
+
     提供的接口：
     - add_log(): 记录一条操作日志。
     - get_recent_logs(): 获取最近的 N 条日志。

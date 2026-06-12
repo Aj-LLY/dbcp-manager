@@ -243,6 +243,7 @@ class ProjectService(IProjectService):
         old_stage = self._get_stage_name(old_stage_id)
 
         # 执行项目属性的部分更新（Project.update 只更新非 None 的字段）
+        # 不传递 None 值的字段，保证未传入的参数在 Project 对象中保持不变
         project.update(company_name=company_name, system_name=system_name,
                        cert_number=cert_number, issue_date=issue_date,
                        level=level, location=location,

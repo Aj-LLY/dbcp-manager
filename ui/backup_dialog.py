@@ -149,7 +149,15 @@ class BackupDialog(tk.Toplevel):
         nb.bind("<<NotebookTabChanged>>", self._on_tab_changed)
 
     def _on_tab_changed(self, event=None):
-        """标签页切换时自动刷新备份列表"""
+        """Notebook 标签页切换事件处理 -- 切换到备份恢复页时自动刷新远端文件列表。
+
+        监听 ttk.Notebook 的 <<NotebookTabChanged>> 虚拟事件。
+        当用户从"服务器配置"标签页切换到"备份 & 恢复"标签页（索引 1）时，
+        自动调用 _refresh_file_list() 从 WebDAV 服务器获取最新的备份文件列表。
+
+        Args:
+            event: Tkinter 的 NotebookTabChanged 事件对象（可为 None，供手动调用）
+        """
         try:
             nb = event.widget
             if nb.index(nb.select()) == 1:  # 切换到备份恢复标签页

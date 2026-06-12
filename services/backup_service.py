@@ -86,6 +86,22 @@ class BackupService:
     封装与远程 WebDAV 服务器的全部通信逻辑，提供高层次的备份/恢复操作接口。
     所有 HTTP 请求通过 _make_request() 核心方法发出，统一处理认证、超时和错误。
 
+    支持的 WebDAV 方法:
+    - PROPFIND: 获取远程目录属性 / 列出文件列表
+    - PUT: 上传备份文件到远程服务器
+    - GET: 从远程服务器下载备份文件（恢复）
+    - DELETE: 删除远程服务器上的备份文件
+    - MKCOL: 创建远程目录（首次连接测试时自动创建）
+
+    认证方式:
+        HTTP Basic 认证（用户名:密码 Base64 编码），通过 Authorization 头传递。
+
+    超时设置:
+        所有 HTTP 请求统一设置为 30 秒超时。
+
+    备份文件命名规则:
+        dap_backup_YYYYMMDD_HHMMSS.json（时间戳采用本地时间）。
+
     属性说明:
         _cfg (WebDAVConfig): WebDAV 连接配置对象，包含服务器地址和认证凭据。
     """
@@ -211,29 +227,33 @@ class BackupService:
         if "403" in msg:
             return False, "权限不足：服务器拒绝访问"
 
-        # 404 未找到：目标目录不存在，尝试创建
+        # 404 Not Found: 目标目录不存在，尝试用 MKCOL 自动创建
+        # 这是首次连接的常见情况 —— 远程还没有备份目录
         if "404" in msg:
-            # 用 MKCOL 方法尝试创建远程目录
+            # 用 MKCOL 方法尝试创建远程目录（WebDAV 创建目录的标准方法）
             ok2, msg2, _ = self._make_request("MKCOL", self._cfg.remote_path)
             if ok2 or "405" in msg2 or "409" in msg2:
-                # MKCOL 成功，或目录已存在（405 Method Not Allowed, 409 Conflict）
+                # MKCOL 成功返回 201 Created
+                # 405 Method Not Allowed: 目录创建权限不足但目录可能存在
+                # 409 Conflict: 目录已存在（被其他客户端创建）
                 return True, "连接成功（目录已创建）"
             if "401" in msg2:
+                # MKCOL 时认证失败：用户名或密码错误
                 return False, "认证失败：用户名或密码错误"
             return False, f"创建目录失败: {msg2}"
 
-        # 其他错误：尝试识别具体原因并提供中文提示
-        # DNS 解析失败
+        # 其他未分类错误：尝试从错误消息中识别常见网络问题并给出中文提示
+        # DNS 解析失败（地址拼写错误 / 域名不存在 / 无法解析）
         if "DNS" in msg or "getaddrinfo" in msg or "Name or service" in msg:
             return False, "无法解析服务器地址，请检查URL是否正确"
-        # 连接被拒绝
+        # 连接被拒绝（端口错误 / 防火墙拦截 / 服务未运行）
         if "Connection refused" in msg or "Connection reset" in msg:
             return False, "服务器拒绝连接，请检查地址和端口"
-        # 连接超时
+        # 连接超时（网络不可达 / 服务器响应过慢 / 被防火墙丢包）
         if "timeout" in msg.lower():
             return False, "连接超时，请检查网络和服务器状态"
 
-        # 无法归类的错误：返回原始消息
+        # 无法归类的错误：透传原始消息给用户
         return False, msg
 
     # ========================================================================
@@ -328,17 +348,32 @@ class BackupService:
 
         try:
             # 使用标准库 xml.etree.ElementTree 解析 PROPFIND 的 XML 响应
+            # PROPFIND 响应示例结构:
+            # <d:multistatus xmlns:d="DAV:">
+            #   <d:response>
+            #     <d:href>/remote.php/dav/files/user/dap_backup_20240101_120000.json</d:href>
+            #     <d:propstat>
+            #       <d:prop>
+            #         <d:getcontentlength>12345</d:getcontentlength>
+            #         <d:getlastmodified>Mon, 01 Jan 2024 12:00:00 GMT</d:getlastmodified>
+            #       </d:prop>
+            #       <d:status>HTTP/1.1 200 OK</d:status>
+            #     </d:propstat>
+            #   </d:response>
+            # </d:multistatus>
             import xml.etree.ElementTree as ET
 
             # WebDAV 属性使用的 XML 命名空间
+            # DAV: 是所有 WebDAV 标准属性的命名空间前缀
             ns = {"d": "DAV:"}
 
             # 解析 XML 响应体
             root = ET.fromstring(body)
 
-            # 遍历每个 <d:response> 元素（每个元素代表目录中的一个文件/子目录）
+            # 遍历每个 <d:response> 元素 —— 每个 response 对应远程目录中的一个文件或子目录
             for resp in root.findall("d:response", ns):
-                # 提取文件的 href（路径）
+                # 提取文件的 href（即文件的远程相对路径）
+                # 例如: /remote.php/dav/files/user/dap_backup_20240101_120000.json
                 href = resp.find("d:href", ns)
                 if href is None:
                     # 没有 href 的条目：跳过
@@ -350,24 +385,27 @@ class BackupService:
                 if not href_text.endswith(".json"):
                     continue
 
-                # 提取文件属性：大小和修改时间
+                # 提取文件属性：内容长度和最后修改时间
+                # props 位于 d:propstat/d:prop 路径下
                 props = resp.find("d:propstat/d:prop", ns)
-                size = "?"       # 文件大小，默认为未知
-                modified = ""    # 修改时间，默认为空
+                size = "?"       # 文件大小（字节），默认为未知（"?" 显示为 ?）
+                modified = ""    # 修改时间，默认为空字符串
 
                 if props is not None:
-                    # 提取文件内容长度（字节数）
+                    # 提取文件内容长度（getcontentlength = 文件字节数）
                     cl = props.find("d:getcontentlength", ns)
                     if cl is not None and cl.text:
                         size = cl.text
 
-                    # 提取最后修改时间（GMT 格式）
+                    # 提取最后修改时间（getlastmodified = RFC 2822 GMT 格式）
+                    # 例如: "Mon, 01 Jan 2024 12:00:00 GMT"
                     lm = props.find("d:getlastmodified", ns)
                     if lm is not None and lm.text:
-                        # 转换为中国标准时间供显示使用
+                        # 通过 _gmt_to_cst 转换为中国标准时间（UTC+8）供 UI 显示
                         modified = _gmt_to_cst(lm.text)
 
-                # 从路径末尾提取纯文件名
+                # 从 href 路径末尾提取纯文件名（去掉目录前缀）
+                # 例如: "/path/to/dap_backup_20240101_120000.json" -> "dap_backup_20240101_120000.json"
                 fname = href_text.rstrip("/").split("/")[-1]
 
                 # 构建相对路径（remote_path + filename），用于后续的 GET/DELETE 操作

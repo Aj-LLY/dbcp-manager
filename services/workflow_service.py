@@ -42,6 +42,13 @@ class WorkflowService:
     封装所有流程阶段（看板列）相关的业务逻辑。对流程阶段的所有写操作
     （增、删、改、重排序、重置）都会自动记录操作日志。
 
+    等保测评标准流程的 8 个阶段（由 Config.DEFAULT_WORKFLOW_STAGES 定义）：
+    项目启动 -> 现状调研 -> 差距评估 -> 安全测评 -> 整改加固 ->
+    复测验证 -> 报告编制 -> 项目归档
+
+    流程阶段的 order 字段从 0 开始连续编号，决定看板列从左到右的排列顺序。
+    删除或重排序后会自动重新编号保持连续。
+
     属性说明:
         _ds (DataService): 数据持久化服务引用（单例），用于底层数据读写。
         _log (Callable): 日志回调函数，签名为 (action, detail, **kwargs)，
@@ -149,9 +156,11 @@ class WorkflowService:
         if not name or not name.strip():
             return False, "阶段名称不能为空", None
 
-        # 获取现有阶段列表，计算最大的 order 值
+        # 获取现有阶段列表，计算当前最大的 order 值
         stages = self.get_all_stages()
-        # max() 的 default=-1: 空列表时返回 -1，确保新阶段 order 从 0 开始
+        # 使用生成器表达式提取所有阶段的 order 值
+        # max() 的 default=-1: 空列表时返回 -1，因此新阶段 order = -1 + 1 = 0
+        # 这确保了在任何情况下（包括首次添加阶段）order 都从 0 开始
         max_order = max((s.order for s in stages), default=-1)
 
         # 创建新阶段对象：order 为最大值 + 1（追加到末尾）
@@ -260,10 +269,11 @@ class WorkflowService:
         self._ds.delete_stage(stage_id)
 
         # 删除后重新排列剩余阶段的 order，确保 0, 1, 2, ... 连续排列
-        # 这样看板列不会出现空洞
+        # 不重置的话会出现例如 [0, 2, 3] 的情况（order 1 缺失），看板列有空洞
         remaining = self.get_all_stages()
         for i, s in enumerate(remaining):
             # 将第 i 个阶段的 order 设为 i（紧凑连续排列）
+            # 例如删除 order=1 的阶段后，原先 order=2 的阶段变为 order=1
             self._ds.update_stage(s.id, {"order": i})
 
         # 记录删除阶段日志
