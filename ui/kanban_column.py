@@ -328,6 +328,23 @@ class KanbanColumn(tk.Frame):
 
     def add_card(self, project: Project, position: str = "bottom",
                  last_stage_id: str = None) -> ProjectCard:
+        """在列中添加一张项目卡片
+
+        创建 ProjectCard 实例并放置在列的卡片容器中。支持两种插入位置：
+          - "top"：插入到列顶部（卡片列表索引 0），用于项目阶段移动后置顶
+          - "bottom"：追加到列底部（默认），用于初始化加载
+
+        插入后自动调整所有卡片的视觉层叠顺序（pack_configure）确保
+        order 与列表一致，并更新列标题的计数字段。
+
+        Args:
+            project: 要关联到卡片的项目实体对象
+            position: 插入位置，"top" 表示顶部插入，"bottom" 表示底部追加
+            last_stage_id: 最后一个阶段的 ID（用于判断是否为已完成阶段）
+
+        Returns:
+            ProjectCard: 新创建的卡片组件实例，已设置 on_click 和 on_double_click 回调
+        """
         card = ProjectCard(self._cards_frame, project, last_stage_id=last_stage_id)
         card.on_click = self.on_card_click
         card.on_double_click = self.on_card_double_click

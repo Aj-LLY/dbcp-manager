@@ -106,6 +106,18 @@ class ProjectCard(tk.Frame):
     """
 
     def __init__(self, parent, project: Project, last_stage_id: str = None, **kwargs):
+        """初始化项目卡片组件
+
+        创建卡片 Frame（白色背景 + 灰色边框），保存项目引用，
+        依次构建 UI 布局和绑定鼠标交互事件。
+
+        Args:
+            parent: 父级容器（KanbanColumn 的 cards_frame）
+            project: 关联的项目实体对象，包含名称、截止日期、阶段等所有字段
+            last_stage_id: 流程中最后一个阶段的 ID，用于判断是否为已完成阶段
+                （已完成阶段的项目在日期显示中标注"(已完成)"）
+            **kwargs: 传递给父类 tk.Frame 的额外关键字参数
+        """
         super().__init__(parent, bg=Config.CARD_BG,
                          highlightbackground=Config.CARD_BORDER,
                          highlightthickness=1,
@@ -136,10 +148,18 @@ class ProjectCard(tk.Frame):
         """构建卡片完整布局
 
         布局顺序（从左到右）：
-          1. 左侧颜色条（4px，状态指示）
-          2. 左箭头按钮（◀）
-          3. 中间内容区域（项目信息 + 操作按钮）
-          4. 右箭头按钮（▶）
+          1. 左侧颜色条（8px，状态指示 -- 绿/蓝/黄/红/灰）
+          2. 左箭头按钮（◀）-- 移动项目到前一阶段
+          3. 中间内容区域：
+             a. 公司名称（粗体主标题，居中，超 14 字截断）
+             b. 系统行：系统名称 + 等级 + 证书状态图标（✅ 已备案 / ⚠️ 未备案）
+             c. 证书编号或备案状态标签（📜 已备案/未备案）
+             d. 交付截止日期（含剩余天数或超期天数提示）
+             e. 操作按钮第 1 行：详情 | 编辑 | 复制
+             f. 操作按钮第 2 行：📂 打开文件夹 | 🔧 初始化 | 📝 重命名 | 📦 打包 | 📄 报告打印
+          4. 右箭头按钮（▶）-- 移动项目到下一阶段
+
+        提示：左右箭头按钮在最后一阶段/第一阶段的列中仍然显示但不会响应。
         """
         # 根据截止日期获取状态指示颜色
         status_color = self._get_status_color()
@@ -399,7 +419,18 @@ class ProjectCard(tk.Frame):
         return text
 
     def _get_status_color(self) -> str:
-        """左侧颜色条：绿=已完成｜蓝=进行中｜黄=延期风险｜红=严重延误｜灰=无日期"""
+        """计算左侧颜色条的状态指示颜色
+
+        状态与颜色的对应关系（从 Config.STATUS_COLORS 读取）：
+          - 已完成（completed）：项目处于最后一阶段 -> 绿色
+          - 正常（normal）：截止日期在预警天数之外 -> 蓝色/绿色
+          - 临近（warning）：距离截止日期 <= DEADLINE_WARNING_DAYS 天 -> 黄色/橙色
+          - 超期（overdue）：已超过截止日期 -> 红色
+          - 未激活（inactive）：未设置截止日期 -> 灰色
+
+        Returns:
+            str: 十六进制颜色字符串（如 "#27ae60"）
+        """
         if self.last_stage_id and self.project.stage_id == self.last_stage_id:
             return Config.STATUS_COLORS["completed"]
         if not self.project.deadline:

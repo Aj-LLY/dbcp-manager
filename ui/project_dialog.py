@@ -817,7 +817,15 @@ class ProjectDialog(tk.Toplevel):
             self._deadline_var.set(result)                   # 将选中日期填入输入框
 
     def _open_issue_calendar(self):
-        """打开日历选择器并填入第一行下证日期输入框（向后兼容）。"""
+        """打开日历选择器并填入第一行系统数据的下证日期输入框（向后兼容方法）。
+
+        该方法将操作委托给 _open_row_issue_calendar，目标为 _sys_rows_list
+        中第一行的 issue_date_var。当 OCR 模块或其他旧代码直接调用此方法时，
+        依然可以正确将选中日期填入第一行系统的下证日期字段。
+
+        Returns:
+            None
+        """
         if self._sys_rows_list:
             self._open_row_issue_calendar(self._sys_rows_list[0]["issue_date_var"])
 
@@ -857,12 +865,20 @@ class ProjectDialog(tk.Toplevel):
     # =========================================================================
 
     def _set_one_week_later(self):
-        """将交付日期设置为当前日期的一周后（+7天）。"""
+        """将交付日期设置为当前日期的一周后（+7天）。
+
+        使用 timedelta 计算偏移，格式化为 ISO 日期字符串 (YYYY-MM-DD)
+        并写入交付日期的 StringVar 变量。
+        """
         d = date.today() + timedelta(days=7)                 # 计算 7 天后的日期
         self._deadline_var.set(d.strftime("%Y-%m-%d"))       # 格式化为 YYYY-MM-DD 并设置
 
     def _set_one_month_later(self):
-        """将交付日期设置为当前日期的一个月后（+30天）。"""
+        """将交付日期设置为当前日期的一个月后（+30天）。
+
+        使用 timedelta 计算偏移，格式化为 ISO 日期字符串 (YYYY-MM-DD)
+        并写入交付日期的 StringVar 变量。
+        """
         d = date.today() + timedelta(days=30)                # 计算 30 天后的日期
         self._deadline_var.set(d.strftime("%Y-%m-%d"))       # 格式化为 YYYY-MM-DD 并设置
 
@@ -983,16 +999,34 @@ class ProjectDialog(tk.Toplevel):
     def _on_browse_folder(self):
         """打开系统文件夹选择对话框，将选中的路径写入文件夹输入框。
 
-        用户点击"选择"按钮时触发。若用户取消选择（返回空路径），则不更新输入框。
+        用户点击"选择"按钮时触发。调用 tkinter.filedialog.askdirectory
+        弹出系统原生文件夹选择对话框。若用户取消选择（返回空路径），
+        则不更新输入框内容，保留之前的值。
+
+        Raises:
+            无显式异常抛出（askdirectory 本身是安全的）。
         """
         path = filedialog.askdirectory(parent=self, title="选择项目文件夹")
         if path:
             self._folder_path_var.set(path)                  # 将选中路径填入输入框
 
     def _on_create_folders(self):
-        """在指定路径下创建项目子目录结构。
+        """在指定根路径下创建项目的标准化子目录结构。
 
-        多系统: {序号}-{公司}-{日期}/ 单系统: {序号}-{公司}-{系统}-{日期}/
+        文件夹命名规则：
+          - 多系统（>1 个系统名称）：{序号}-{公司}-{日期}/
+          - 单系统（恰好 1 个系统名称）：{序号}-{公司}-{系统}-{日期}/
+          - 无系统名称：{序号}-{公司}-{日期}/
+
+        子目录结构：
+          - 01-其他归档文件/（必建）
+          - {系统名称}/（每个系统单独一个子目录）
+
+        创建完成后将完整路径 (root/folder_name) 写入文件夹路径输入框，
+        并弹出成功提示显示创建的子目录数量和路径。
+
+        Raises:
+            OSError: 目录创建失败时弹出错误消息框（文件权限不足或路径无效）。
         """
         from datetime import date
         try:
@@ -1037,11 +1071,30 @@ class ProjectDialog(tk.Toplevel):
     # =========================================================================
 
     def _on_upload_cert(self):
-        """上传备案证文件并启动后台线程进行 OCR 识别。（委托）"""
+        """上传备案证文件并启动后台线程进行 OCR 识别（委托方法）。
+
+        该方法委托给 ui.dialog_project_ocr.on_upload_cert(self) 处理。
+        打开文件选择对话框让用户选择备案证图片或 PDF 文件，
+        选中后在后台线程中调用 CertOCRService 进行识别，
+        识别结果通过 after 回调回主线程填充第一行系统数据的表单字段。
+
+        支持的文件格式：PDF、PNG、JPG、JPEG、BMP。
+        """
         on_upload_cert(self)
 
     def _on_row_upload_cert(self, row_idx: int):
-        """为指定系统行上传备案证并进行 OCR 识别。"""
+        """为指定的多系统表格行上传备案证并进行 OCR 识别。
+
+        打开文件选择对话框，在后台线程中调用 CertOCRService 识别备案证信息，
+        识别结果通过 after 回调回主线程，调用 _fill_row_cert_result 填充
+        到指定行索引的表单字段中。
+
+        Args:
+            row_idx: 目标系统行的索引（0-based，对应 _sys_rows_list 索引）。
+
+        Raises:
+            识别异常时通过 ocr_failed 函数显示错误信息。
+        """
         import threading
         from tkinter import filedialog
         file_path = filedialog.askopenfilename(
@@ -1061,7 +1114,21 @@ class ProjectDialog(tk.Toplevel):
         threading.Thread(target=_run, daemon=True).start()
 
     def _fill_row_cert_result(self, result, row_idx, file_path):
-        """将 OCR 结果填入指定系统行。"""
+        """将 OCR 识别结果填充到指定系统行的表单字段。
+
+        逐字段填充：公司名称（写入全局 _company_var）、系统名称、证书编号、
+        下证日期和系统等级分别写入对应行的 StringVar 变量。
+
+        填充后更新 OCR 状态标签显示已识别的字段列表（绿色）或提示"识别结果不完整"
+        （橙色）。若提供了源文件路径且有有效识别结果，自动调用 archive_cert_file
+        将备案证文件归档到项目目录。
+
+        Args:
+            result: OCR 识别结果字典，可能包含的键：
+                company_name, system_name, cert_number, issue_date, level
+            row_idx: 目标系统行的索引（0-based）
+            file_path: 备案证源文件路径，用于后续归档
+        """
         if row_idx < len(self._sys_rows_list):
             r = self._sys_rows_list[row_idx]
             filled = []
