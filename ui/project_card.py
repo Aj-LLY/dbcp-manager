@@ -105,38 +105,28 @@ class ProjectCard(tk.Frame):
         on_move_next: 右箭头回调 -> (card)
     """
 
-    def __init__(self, parent, project: Project, **kwargs):
-        """初始化项目卡片组件
-
-        Args:
-            parent: 父级容器（通常为 KanbanColumn 中的 cards_frame）
-            project: 关联的项目实体对象（包含所有业务字段）
-            **kwargs: 传递给父类 tk.Frame 的额外关键字参数
-        """
-        # 调用父类构造方法，设置卡片默认样式
-        super().__init__(parent, bg=Config.CARD_BG,  # 白色卡片背景
-                         highlightbackground=Config.CARD_BORDER,  # 浅灰边框
-                         highlightthickness=1,  # 1px 边框宽度
-                         cursor="hand2",  # 手型光标提示可点击
+    def __init__(self, parent, project: Project, last_stage_id: str = None, **kwargs):
+        super().__init__(parent, bg=Config.CARD_BG,
+                         highlightbackground=Config.CARD_BORDER,
+                         highlightthickness=1,
+                         cursor="hand2",
                          **kwargs)
 
-        # ---- 公共属性 ----
-        self.project = project  # 主项目引用（向后兼容，等价于 projects[0]）
-        self.projects = [project]  # 合并后的项目列表（同公司同阶段的全部项目）
+        self.project = project
+        self.projects = [project]
         self.is_selected = False
 
-        # ---- 回调函数指针（由 KanbanBoard 创建卡片后设置） ----
-        self.on_click = None  # 单击 -> 选中/取消选中
-        self.on_double_click = None  # 双击 -> 打开编辑对话框
-        self.on_detail = None  # "详情"按钮 -> 打开详情窗口
-        self.on_edit = None  # "编辑"按钮 -> 打开编辑对话框
-        self.on_copy = None  # "复制"按钮 -> 创建项目副本
-        self.on_move_prev = None  # ◀ 左箭头 -> 移至上一阶段
-        self.on_move_next = None  # ▶ 右箭头 -> 移至下一阶段
+        self.on_click = None
+        self.on_double_click = None
+        self.on_detail = None
+        self.on_edit = None
+        self.on_copy = None
+        self.on_move_prev = None
+        self.on_move_next = None
+        self.last_stage_id = last_stage_id  # 构造时即确定，_build_ui 中可用
 
-        # ---- 构建 UI 和绑定事件 ----
-        self._build_ui()  # 构建卡片内部的完整 UI 布局
-        self._bind_events()  # 为所有子组件递归绑定鼠标事件
+        self._build_ui()
+        self._bind_events()
 
     # ==================================================================================
     # UI 构建
@@ -152,29 +142,29 @@ class ProjectCard(tk.Frame):
           4. 右箭头按钮（▶）
         """
         # 根据截止日期获取状态指示颜色
-        status_color = self._get_status_color()  # 绿色=正常 / 橙色=临近 / 红色=超期 / 灰色=无日期
+        status_color = self._get_status_color()
 
-        # ========== 1. 左侧颜色条（4px 宽垂直色条） ==========
-        self._color_bar = tk.Frame(self, bg=status_color, width=4)  # 状态色背景，固定 4px 宽
-        self._color_bar.pack(side=tk.LEFT, fill=tk.Y)  # 左侧，垂直填充
-        self._color_bar.pack_propagate(False)  # 禁止内容撑开，保持 4px 宽度
+        # ========== 1. 左侧颜色条（8px） ==========
+        self._color_bar = tk.Frame(self, bg=status_color, width=8)
+        self._color_bar.pack(side=tk.LEFT, fill=tk.Y)
+        self._color_bar.pack_propagate(False)
 
         # ========== 2. 左箭头按钮（◀） ==========
         self._prev_btn = tk.Button(
-            self, text="\u25c0",  # Unicode ◀ 字符
-            command=self._on_prev_click,  # 点击 -> 调用左箭头处理
-            bg=Config.CARD_BG, fg="#b0b8c1",  # 卡片背景色，浅灰文字
-            font=(Config.FONT_FAMILY, 8),  # 小号字体
-            relief="flat", borderwidth=0,  # 扁平样式，无边框
-            cursor="hand2", padx=3, pady=0,  # 手型光标，紧凑内边距
-            activebackground=Config.CARD_HOVER_BG, activeforeground="#2c3e50",  # 悬停时高亮
+            self, text="\u25c0",
+            command=self._on_prev_click,
+            bg=Config.CARD_BG, fg="#b0b8c1",
+            font=(Config.FONT_FAMILY, 8),
+            relief="flat", borderwidth=0,
+            cursor="hand2", padx=3, pady=0,
+            activebackground=Config.CARD_HOVER_BG, activeforeground="#2c3e50",
         )
-        self._prev_btn.pack(side=tk.LEFT, fill=tk.Y)  # 左侧，垂直填充
+        self._prev_btn.pack(side=tk.LEFT, fill=tk.Y)
 
         # ========== 3. 中间内容区域 ==========
-        self._content = tk.Frame(self, bg=Config.CARD_BG)  # 内容容器，白色背景
-        self._content.pack(side=tk.LEFT, fill=tk.BOTH, expand=True,  # 填充剩余空间
-                           padx=6, pady=(8, 4))  # 水平 6px 内边距，上方 8px 下方 4px
+        self._content = tk.Frame(self, bg=Config.CARD_BG)
+        self._content.pack(side=tk.LEFT, fill=tk.BOTH, expand=True,
+                           padx=6, pady=(8, 4))
 
         # --- 3a. 公司名称（居中、粗体主标题） ---
         company_display = self.project.company_name or self.project.system_name or "\u65e0\u540d\u79f0"
@@ -391,62 +381,39 @@ class ProjectCard(tk.Frame):
     # ==================================================================================
 
     def _format_deadline(self) -> str:
-        """格式化截止日期显示文本
+        """格式化截止日期文本。
 
-        根据剩余天数生成带图标和提示的日期字符串：
-          - 无截止日期：显示"无截止日期"
-          - 已超期：日期后显示"(已超期)"
-          - 临近截止（<= 7 天）：日期后显示"(剩N天)"
-          - 正常：仅显示日期
-
-        Returns:
-            str: 格式化后的日期文本，格式如 📅 2026-06-15 (剩5天)
-        """
-        if not self.project.deadline:  # 项目没有设置截止日期
-            return "\u65e0\u622a\u6b62\u65e5\u671f"  # \u65e0\u622a\u6b62\u65e5\u671f = 无截止日期
-        text = "\U0001f4c5 " + self.project.deadline  # 📅 日历图标 + 日期字符串
-        days_left = self._days_until_deadline()  # 计算距离截止日期的天数
-        if days_left < 0:  # 已超过截止日期
-            text += " (\u5df2\u8d85\u671f)"  # \u5df2\u8d85\u671f = 已超期
-        elif days_left <= Config.DEADLINE_WARNING_DAYS:  # 在预警天数范围内（默认 7 天）
-            text += f" (\u5269{days_left}\u5929)"  # \u5269 = 剩, \u5929 = 天
-        return text  # 返回完整格式化文本
-
-    def _get_status_color(self) -> str:
-        """根据项目截止日期获取左侧颜色条的显示颜色
-
-        颜色含义：
-          - 灰色 (#95a5a6): 无截止日期，状态不明
-          - 红色 (#e74c3c): 已超期，紧急
-          - 橙色 (#f39c12): 临近截止日期（<=7 天），需要关注
-          - 绿色 (#2ecc71): 时间充裕，正常进行
-
-        Returns:
-            str: CSS 颜色代码
-        """
-        if not self.project.deadline:  # 无截止日期
-            return "#95a5a6"  # 灰色
-        days_left = self._days_until_deadline()  # 计算剩余天数
-        if days_left < 0:  # 已过期
-            return "#e74c3c"  # 红色
-        elif days_left <= Config.DEADLINE_WARNING_DAYS:  # 临近截止（<= 7 天）
-            return "#f39c12"  # 橙色警告
-        return "#2ecc71"  # 绿色正常
-
-    def _get_deadline_color(self) -> str:
-        """根据截止日期获取日期标签的文字颜色
-
-        Returns:
-            str: CSS 颜色代码（绿/橙/红/灰，与状态色条略有不同的色调）
+        已结项 → "(已完成)"；超期 → "(已超期N天)"；临近 → "(剩N天)"；正常 → 仅日期。
         """
         if not self.project.deadline:
-            return "#95a5a6"  # 灰色
+            return "\u65e0\u622a\u6b62\u65e5\u671f"
+        text = "\U0001f4c5 " + self.project.deadline
+        if self.last_stage_id and self.project.stage_id == self.last_stage_id:
+            text += " (\u5df2\u5b8c\u6210)"  # 已完成
+            return text
         days_left = self._days_until_deadline()
         if days_left < 0:
-            return "#e74c3c"  # 红色
+            text += f" (\u5df2\u8d85\u671f{abs(days_left)}\u5929)"
         elif days_left <= Config.DEADLINE_WARNING_DAYS:
-            return "#e67e22"  # 橙色
-        return "#27ae60"  # 绿色
+            text += f" (\u5269{days_left}\u5929)"
+        return text
+
+    def _get_status_color(self) -> str:
+        """左侧颜色条：绿=已完成｜蓝=进行中｜黄=延期风险｜红=严重延误｜灰=无日期"""
+        if self.last_stage_id and self.project.stage_id == self.last_stage_id:
+            return Config.STATUS_COLORS["completed"]
+        if not self.project.deadline:
+            return Config.STATUS_COLORS["inactive"]
+        days_left = self._days_until_deadline()
+        if days_left < 0:
+            return Config.STATUS_COLORS["overdue"]
+        elif days_left <= Config.DEADLINE_WARNING_DAYS:
+            return Config.STATUS_COLORS["warning"]
+        return Config.STATUS_COLORS["normal"]
+
+    def _get_deadline_color(self) -> str:
+        """日期文字颜色：与状态色条一致"""
+        return self._get_status_color()
 
     def _days_until_deadline(self) -> int:
         """计算距离截止日期的剩余天数
@@ -541,7 +508,7 @@ class ProjectCard(tk.Frame):
 
         委托给独立模块 ui.card_file_ops.on_zip_click。
         """
-        on_zip_click(self.project, self)
+        on_zip_click(self.project, self, all_projects=self.projects)
 
     # ==================================================================================
     # _on_report_print_click - 报告打印功能
@@ -552,7 +519,7 @@ class ProjectCard(tk.Frame):
 
         委托给独立模块 ui.card_file_ops.on_report_print_click。
         """
-        on_report_print_click(self.project, self)
+        on_report_print_click(self.project, self, all_projects=self.projects)
 
     # ==================================================================================
     # 事件绑定 - 鼠标交互事件的递归绑定
@@ -658,7 +625,9 @@ class ProjectCard(tk.Frame):
                           "#9b59b6", "#e74c3c", "#1abc9c",
                           "#f39c12", "#95a5a6",
                           "#ecf0f1", "#d5dbdb", "#2980b9",
-                          "#b0b8c1", "white"):
+                          "#b0b8c1", "white",
+                          "#92d050", "#00b0f0", "#ffc000",
+                          "#ff0000", "#d9d9d9"):
                 widget.configure(bg=color)  # 设置新背景色
         except tk.TclError:  # 某些组件可能不支持 bg 属性（如 Canvas 等的特殊子项）
             pass  # 忽略错误，继续处理其他组件

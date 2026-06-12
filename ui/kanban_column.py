@@ -326,31 +326,14 @@ class KanbanColumn(tk.Frame):
     # 卡片管理 - 增删改查
     # ==================================================================================
 
-    def add_card(self, project: Project, position: str = "bottom") -> ProjectCard:
-        """向列中添加项目卡片
+    def add_card(self, project: Project, position: str = "bottom",
+                 last_stage_id: str = None) -> ProjectCard:
+        card = ProjectCard(self._cards_frame, project, last_stage_id=last_stage_id)
+        card.on_click = self.on_card_click
+        card.on_double_click = self.on_card_double_click
+        card.pack(fill=tk.X, padx=4, pady=2, ipady=2)
 
-        根据项目实体创建新的 ProjectCard 组件，并添加到列的 cards 列表中。
-        支持两种插入位置：
-          - "top"：插入到列表顶部（卡片显示在列的最上方）
-          - "bottom"：追加到列表末尾（默认，卡片显示在列的最下方）
-
-        添加后自动更新计数，并按列表顺序重新调整所有卡片的视觉位置。
-
-        Args:
-            project: 项目实体对象（包含名称、编号、截止日期等所有字段）
-            position: 插入位置，"top" 或 "bottom"（默认）
-
-        Returns:
-            ProjectCard: 新创建的卡片组件实例（供外部设置回调使用）
-        """
-        card = ProjectCard(self._cards_frame, project)  # 创建项目卡片实例
-        card.on_click = self.on_card_click  # 传递单击回调（来自 KanbanBoard）
-        card.on_double_click = self.on_card_double_click  # 传递双击回调（来自 KanbanBoard）
-
-        # 打包到卡片容器中
-        card.pack(fill=tk.X, padx=4, pady=2, ipady=2)  # 水平填充，边距和内边距
-
-        if position == "top":  # 置顶插入
+        if position == "top":
             self.cards.insert(0, card)  # 插入到列表索引 0（最顶部位置）
         else:  # 底部追加
             self.cards.append(card)  # 追加到列表末尾

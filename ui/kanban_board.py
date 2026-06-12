@@ -257,15 +257,16 @@ class KanbanBoard(tk.Frame):
         """
         proj_list = project if isinstance(project, list) else [project]
         sid = proj_list[0].stage_id
+        last_sid = self.columns[-1].stage.id if self.columns else None
         for col in self.columns:
             if col.stage.id == sid:
-                card = col.add_card(proj_list[0])
-                card.projects = proj_list  # 存储合并的项目列表
+                card = col.add_card(proj_list[0], last_stage_id=last_sid)
+                card.projects = proj_list
                 self._setup_card_callbacks(card)
                 return
         if self.columns:
-            card = self.columns[0].add_card(project)  # 添加到第一列
-            self._setup_card_callbacks(card)  # 设置回调
+            card = self.columns[0].add_card(project, last_stage_id=last_sid)
+            self._setup_card_callbacks(card)
 
     def _setup_card_callbacks(self, card: ProjectCard):
         """为卡片组件统一绑定所有交互回调函数
@@ -497,8 +498,10 @@ class KanbanBoard(tk.Frame):
                 # 更新所有项目数据中的阶段 ID
                 for p in (card.projects or [card.project]):
                     p.stage_id = target_stage_id
-                new_card = col.add_card(card.projects[0] if card.projects else card.project, position="top")
-                new_card.projects = card.projects  # 保留合并的项目列表
+                last_sid = self.columns[-1].stage.id if self.columns else None
+                new_card = col.add_card(card.projects[0] if card.projects else card.project,
+                                        position="top", last_stage_id=last_sid)
+                new_card.projects = card.projects
                 self._setup_card_callbacks(new_card)
                 return
 
