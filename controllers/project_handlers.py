@@ -392,25 +392,25 @@ def on_card_edit(main_window, card: ProjectCard):
         # 构建完整的项目列表（统一处理单系统和多系统）
         proj_list = card.projects if card.projects else [card.project]
 
-        # 逐个更新每个项目：用对应系统行数据 + 共享字段
         for i, p in enumerate(proj_list):
-            # 根据索引获取对应系统的独立字段，超出范围则降级使用原值
             sys_data = systems[i] if i < len(systems) else {}
-            main_window._project_service.update_project(
+            new_issue = sys_data.get("issue_date", p.issue_date)
+            print(f"[编辑] 系统#{i}: id={p.id[:8]} 旧日期={p.issue_date} 新日期={new_issue} sys_data={sys_data}", flush=True)
+            success, msg = main_window._project_service.update_project(
                 p.id,
-                company_name=shared["company_name"],  # 共享：公司名称
-                system_name=sys_data.get("system_name", p.system_name),  # 独立：系统名称
-                cert_number=sys_data.get("cert_number", p.cert_number),  # 独立：证书编号
-                issue_date=sys_data.get("issue_date", p.issue_date),
+                company_name=shared["company_name"],
+                system_name=sys_data.get("system_name", p.system_name),
+                cert_number=sys_data.get("cert_number", p.cert_number),
+                issue_date=new_issue,
                 level=sys_data.get("level", p.level),
-                location=shared["location"],  # 共享：公司级属地
+                location=shared["location"],
                 deadline=shared["deadline"],
-                notes=shared["notes"],  # 共享：备注
-                stage_id=shared["stage_id"],  # 共享：流程阶段
-                folder_path=shared["folder_path"],  # 共享：文件夹路径
+                notes=shared["notes"],
+                stage_id=shared["stage_id"],
+                folder_path=shared["folder_path"],
             )
+            print(f"[编辑] 系统#{i}: 结果={success} {msg}", flush=True)
 
-        # 所有项目更新完毕后刷新看板
         main_window._refresh_kanban()
 
 
