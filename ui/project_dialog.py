@@ -169,31 +169,23 @@ class ProjectDialog(tk.Toplevel):
 
     @property
     def _province_var(self):
-        """向后兼容：返回第一行系统数据的 province StringVar。"""
-        if self._sys_rows_list:
-            return self._sys_rows_list[0]["province_var"]
-        return tk.StringVar()
+        """向后兼容：返回公司级属地的省级 StringVar。"""
+        return self._location_prov_var
 
     @property
     def _city_var(self):
-        """向后兼容：返回第一行系统数据的 city StringVar。"""
-        if self._sys_rows_list:
-            return self._sys_rows_list[0]["city_var"]
-        return tk.StringVar()
+        """向后兼容：返回公司级属地的市级 StringVar。"""
+        return self._location_city_var
 
     @property
     def _province_combo(self):
-        """向后兼容：返回第一行系统数据的 province ttk.Combobox。"""
-        if self._sys_rows_list:
-            return self._sys_rows_list[0]["province_combo"]
-        return None
+        """向后兼容：返回公司级属地的省级 Combobox。"""
+        return self._location_prov_combo
 
     @property
     def _city_combo(self):
-        """向后兼容：返回第一行系统数据的 city ttk.Combobox。"""
-        if self._sys_rows_list:
-            return self._sys_rows_list[0]["city_combo"]
-        return None
+        """向后兼容：返回公司级属地的市级 Combobox。"""
+        return self._location_city_combo
 
     # =========================================================================
     # 窗口配置
@@ -343,7 +335,34 @@ class ProjectDialog(tk.Toplevel):
         c_outer.pack(fill=tk.X, pady=(2, 5))
 
         # =====================================================================
-        # 2. 可编辑多系统表格
+        # 2. 属地（公司级，所有系统共用）
+        # =====================================================================
+        tk.Label(main_frame, text="属地", bg="#ffffff",
+                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
+                 ).pack(anchor="w")
+        loc_frame = tk.Frame(main_frame, bg="#ffffff")
+        loc_frame.pack(fill=tk.X, pady=(2, 8))
+        self._location_prov_var = tk.StringVar()
+        self._location_prov_combo = ttk.Combobox(
+            loc_frame, textvariable=self._location_prov_var, values=PROVINCES,
+            state="readonly", width=10,
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
+        )
+        self._location_prov_combo.pack(side=tk.LEFT, padx=(0, 4))
+        self._location_city_var = tk.StringVar()
+        self._location_city_combo = ttk.Combobox(
+            loc_frame, textvariable=self._location_city_var,
+            values=["请先选择省区"], state="readonly", width=10,
+            font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL),
+        )
+        self._location_city_combo.pack(side=tk.LEFT)
+        self._location_prov_combo.bind(
+            "<<ComboboxSelected>>",
+            lambda e: self._on_location_prov_change(),
+        )
+
+        # =====================================================================
+        # 3. 可编辑多系统表格
         # =====================================================================
         tk.Label(main_frame, text="系统列表", bg="#ffffff",
                  font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
@@ -593,36 +612,9 @@ class ProjectDialog(tk.Toplevel):
             padx=4, pady=1, activebackground="#219a52",
         ).pack(side=tk.LEFT, padx=(4, 0))
 
-        # ---- 第3行：属地（省/市） + 复制/删除按钮 ----
+        # ---- 第3行：复制/删除按钮 ----
         ln3 = tk.Frame(row_frame, bg="#f0f2f5")
         ln3.pack(fill=tk.X, pady=(2, 0))
-        tk.Label(ln3, text="属地", bg="#f0f2f5",
-                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-                 fg="#7f8c8d", width=3, anchor="e").pack(side=tk.LEFT)
-        prov_var = tk.StringVar(value=data.get("province", ""))
-        prov_combo = ttk.Combobox(
-            ln3, textvariable=prov_var, values=PROVINCES,
-            state="readonly", width=8,
-            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-        )
-        prov_combo.pack(side=tk.LEFT, padx=(2, 2))
-        init_cities = []
-        if data.get("province"):
-            init_cities = PROVINCE_CITIES.get(data["province"], [])
-        city_var = tk.StringVar(value=data.get("city", ""))
-        city_combo = ttk.Combobox(
-            ln3, textvariable=city_var,
-            values=init_cities if init_cities else ["请先选择省区"],
-            state="readonly", width=8,
-            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-        )
-        city_combo.pack(side=tk.LEFT)
-
-        # 省级下拉变更时，联动更新市级选项
-        prov_combo.bind(
-            "<<ComboboxSelected>>",
-            lambda e, pc=prov_combo, cc=city_combo: self._on_row_province_change(pc, cc),
-        )
 
         # 将行数据存入集合
         row_data = {
@@ -635,10 +627,6 @@ class ProjectDialog(tk.Toplevel):
             "cert_entry": cert_entry,
             "issue_date_var": issue_var,
             "issue_date_entry": issue_entry,
-            "province_var": prov_var,
-            "province_combo": prov_combo,
-            "city_var": city_var,
-            "city_combo": city_combo,
         }
         self._sys_rows_list.append(row_data)
 
@@ -737,47 +725,35 @@ class ProjectDialog(tk.Toplevel):
         """
         if self._project:
             # ---- 编辑模式：预填现有项目数据 ----
-            self._company_var.set(self._project.company_name)   # 填入公司名称
+            self._company_var.set(self._project.company_name)
 
-            # 决定系统行数据来源：优先使用 _all_projects（合并卡片多系统），
-            # 否则从单个 _project 提取数据填入第一行
+            # 公司级属地预填
+            if self._project.location:
+                parts = self._project.location.rsplit("-", 1)
+                if len(parts) == 2 and parts[0] in PROVINCES:
+                    self._location_prov_var.set(parts[0])
+                    self._on_location_prov_change()
+                    self._location_city_var.set(parts[1])
+
             if self._all_projects and len(self._all_projects) > 1:
-                # 清除 _build_form 创建的默认空行
                 for rd in list(self._sys_rows_list):
                     rd["frame"].destroy()
                 self._sys_rows_list.clear()
 
-                # 为每个项目创建一行
                 for p in self._all_projects:
-                    prov, city = "", ""
-                    if p.location:
-                        parts = p.location.rsplit("-", 1)
-                        if len(parts) == 2:
-                            prov, city = parts[0], parts[1]
                     self._add_sys_row({
                         "system_name": p.system_name,
                         "level": p.level,
                         "cert_number": p.cert_number,
                         "issue_date": p.issue_date,
-                        "province": prov,
-                        "city": city,
                     })
             else:
-                # 单系统：直接填充第一行（_build_form 已创建）
                 first = self._sys_rows_list[0]
                 first["system_var"].set(self._project.system_name)
                 first["cert_var"].set(self._project.cert_number)
                 first["issue_date_var"].set(self._project.issue_date)
                 if self._project.level:
                     first["level_var"].set(self._project.level)
-                if self._project.location:
-                    parts = self._project.location.rsplit("-", 1)
-                    if len(parts) == 2:
-                        first["province_var"].set(parts[0])
-                        self._on_row_province_change(
-                            first["province_combo"], first["city_combo"],
-                            keep_city=parts[1],
-                        )
 
             self._deadline_var.set(self._project.deadline)      # 填入交付日期
             self._folder_path_var.set(self._project.folder_path or "")  # 填入文件夹路径
@@ -843,22 +819,19 @@ class ProjectDialog(tk.Toplevel):
     # 属地联动
     # =========================================================================
 
+    def _on_location_prov_change(self):
+        """公司级属地省级变更：联动更新市级下拉选项。"""
+        province = self._location_prov_var.get()
+        cities = PROVINCE_CITIES.get(province, ["请先选择省区"])
+        self._location_city_combo["values"] = cities
+        self._location_city_var.set("")
+
     def _on_province_change(self, event=None, keep_city=""):
-        """省级下拉变更时的处理函数（向后兼容，操作第一行系统数据）。
-
-        根据选中的省级行政区，更新第一行系统数据的市级下拉选项。
-        若传入 keep_city 参数且该市级存在于列表中，则自动选中该市。
-
-        Args:
-            event: Tk 事件对象（可为 None）。
-            keep_city: 期望保留选中的市级名称（编辑模式预填时使用）。
-        """
-        if self._sys_rows_list:
-            self._on_row_province_change(
-                self._sys_rows_list[0]["province_combo"],
-                self._sys_rows_list[0]["city_combo"],
-                keep_city=keep_city,
-            )
+        """向后兼容：公司级属地省级变更。"""
+        province = self._location_prov_var.get()
+        cities = PROVINCE_CITIES.get(province, ["请先选择省区"])
+        self._location_city_combo["values"] = cities
+        self._location_city_var.set(keep_city if keep_city in cities else "")
 
     # =========================================================================
     # 快捷日期设置
@@ -908,17 +881,11 @@ class ProjectDialog(tk.Toplevel):
             s_level = rd["level_var"].get().strip()
             s_cert = rd["cert_var"].get().strip()
             s_issue = rd["issue_date_var"].get().strip()
-            s_prov = rd["province_var"].get().strip()
-            s_city = rd["city_var"].get().strip()
-            s_loc = ""
-            if s_prov and s_city and s_city != "请先选择省区":
-                s_loc = f"{s_prov}-{s_city}"
             systems.append({
                 "system_name": s_name,
                 "level": s_level,
                 "cert_number": s_cert,
                 "issue_date": s_issue,
-                "location": s_loc,
             })
 
         # ② 验证：至少有一个系统名称或公司名称
@@ -960,14 +927,21 @@ class ProjectDialog(tk.Toplevel):
                 stage_id = s.id
                 break
 
-        # ⑥ 收集所有表单数据到结果字典（含向后兼容顶层字段）
+        # ⑥ 收集公司级属地
+        loc_prov = self._location_prov_var.get().strip()
+        loc_city = self._location_city_var.get().strip()
+        location = ""
+        if loc_prov and loc_city and loc_city != "请先选择省区":
+            location = f"{loc_prov}-{loc_city}"
+
+        # ⑦ 收集所有表单数据到结果字典（含向后兼容顶层字段）
         self.result = {
             "company_name": company_name,
             "system_name": first_sys_name,
             "cert_number": systems[0]["cert_number"] if systems else "",
             "issue_date": systems[0]["issue_date"] if systems else "",
             "level": systems[0]["level"] if systems else "",
-            "location": systems[0]["location"] if systems else "",
+            "location": location,
             "deadline": deadline,
             "notes": self._notes_text.get("1.0", "end-1c").strip(),
             "stage_id": stage_id,
