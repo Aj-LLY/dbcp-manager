@@ -2,12 +2,17 @@
 项目初始化模块 -- 等保测评进度管理系统
 
 ============ 本模块职责 ============
-为新建项目创建标准化的本地文件结构，包括：
-  1. 标准归档子目录 "01-其他归档文件"
-  2. 保密承诺书模板文件（基于 docx 模板自动生成）
+为新建项目创建标准化的本地文件结构：
+  {序号}-{公司}-{系统}-{YYMMDD}/
+    ├── 01-其他归档文件/
+    │   ├── 00-网安报备
+    │   ├── 01-备案材料
+    │   ├── 02-往期测评报告
+    │   ├── 03-现场测评
+    │   └── 04-渗透漏扫
+    └── 02-{公司}-{系统}-保密承诺书.docx  (基于 docx 模板自动生成)
 
 ============ 命名规范 ============
-  - 子目录：01-其他归档文件（所有项目统一使用此名称）
   - 保密承诺书（多系统合并项目）：02-{公司名称}-保密承诺书.docx
   - 保密承诺书（单系统项目）：02-{公司名称}-{系统名称}-保密承诺书.docx
 
@@ -73,14 +78,21 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
         existed = []  # 之前已存在的文件/文件夹
 
         # ========== 阶段 2：创建标准归档子目录 ==========
-        # "01-其他归档文件" 用于存放不归入其他分类的零散项目材料
-        dname = "01-其他归档文件"
-        dpath = os.path.join(root, dname)
-        if not os.path.exists(dpath):
-            os.makedirs(dpath, exist_ok=True)  # exist_ok=True 避免并发创建时的竞态异常
-            created.append(dname)
-        else:
-            existed.append(dname)
+        archive_root = os.path.join(root, "01-其他归档文件")
+        archive_subdirs = [
+            "00-网安报备",
+            "01-备案材料",
+            "02-往期测评报告",
+            "03-现场测评",
+            "04-渗透漏扫",
+        ]
+        for dname in archive_subdirs:
+            dpath = os.path.join(archive_root, dname)
+            if not os.path.exists(dpath):
+                os.makedirs(dpath, exist_ok=True)
+                created.append(f"01-其他归档文件/{dname}")
+            else:
+                existed.append(f"01-其他归档文件/{dname}")
 
         # ========== 阶段 3：生成保密承诺书 docx ==========
         # 判断是否为多系统合并项目（合并卡片中项目数 > 1）
