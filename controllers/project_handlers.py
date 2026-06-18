@@ -578,9 +578,15 @@ def create_project_folder(main_window, project):
         # 递归创建文件夹目录（exist_ok=True 避免并发创建时报 FileExistsError）
         os.makedirs(root, exist_ok=True)
 
-        # 创建子目录列表
-        subdirs = ["01-其他归档文件"]
-        for d in subdirs:
+        # 创建归档子目录结构
+        archive_subdirs = [
+            "01-其他归档文件/00-网安报备",
+            "01-其他归档文件/01-备案材料",
+            "01-其他归档文件/02-往期测评报告",
+            "01-其他归档文件/03-现场测评",
+            "01-其他归档文件/04-渗透漏扫",
+        ]
+        for d in archive_subdirs:
             os.makedirs(os.path.join(root, d), exist_ok=True)
 
         # 生成保密承诺书模板（复制模板文件并替换公司名称和日期）

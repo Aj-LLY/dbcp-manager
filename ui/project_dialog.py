@@ -1051,8 +1051,14 @@ class ProjectDialog(tk.Toplevel):
                 folder_name = f"001-{cname}-{date_str}"
             full_root = os.path.join(root, folder_name)
             os.makedirs(full_root, exist_ok=True)
-            # 子目录：01-其他归档文件 + 每个系统一个子目录
-            subdirs = ["01-其他归档文件"]
+            # 子目录：01-其他归档文件(含5个子目录) + 每个系统一个子目录
+            subdirs = [
+                "01-其他归档文件/00-网安报备",
+                "01-其他归档文件/01-备案材料",
+                "01-其他归档文件/02-往期测评报告",
+                "01-其他归档文件/03-现场测评",
+                "01-其他归档文件/04-渗透漏扫",
+            ]
             for sn in sys_names:
                 subdirs.append(sn)
             created = 0
