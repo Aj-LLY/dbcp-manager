@@ -383,8 +383,8 @@ def on_card_edit(main_window, card: ProjectCard):
     result = show_project_dialog(main_window, "编辑项目", project, stages, all_projects=all_proj)
     if result:
         # 提取共享字段：所有项目共同使用的字段
-        shared = {k: result.get(k) for k in ("company_name", "deadline", "notes",
-            "stage_id", "folder_path")}
+        shared = {k: result.get(k) for k in ("company_name", "location",
+            "deadline", "notes", "stage_id", "folder_path")}
 
         # 提取各系统独立字段（仅多系统场景下有值）
         systems = result.get("systems", [])
@@ -401,10 +401,10 @@ def on_card_edit(main_window, card: ProjectCard):
                 company_name=shared["company_name"],  # 共享：公司名称
                 system_name=sys_data.get("system_name", p.system_name),  # 独立：系统名称
                 cert_number=sys_data.get("cert_number", p.cert_number),  # 独立：证书编号
-                issue_date=sys_data.get("issue_date", p.issue_date),  # 独立：签发日期
-                level=sys_data.get("level", p.level),  # 独立：安全等级
-                location=sys_data.get("location", p.location),  # 独立：所属地
-                deadline=shared["deadline"],  # 共享：截止日期
+                issue_date=sys_data.get("issue_date", p.issue_date),
+                level=sys_data.get("level", p.level),
+                location=shared["location"],  # 共享：公司级属地
+                deadline=shared["deadline"],
                 notes=shared["notes"],  # 共享：备注
                 stage_id=shared["stage_id"],  # 共享：流程阶段
                 folder_path=shared["folder_path"],  # 共享：文件夹路径
