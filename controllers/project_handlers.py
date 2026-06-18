@@ -326,24 +326,31 @@ def on_card_detail(main_window, card: ProjectCard):
     if action == "edit":
         systems = data.get("systems", [])
         proj_list = card.projects if card.projects and len(card.projects) > 1 else [project]
+        print(f"[详情编辑] 原始项目={len(proj_list)} 返回系统={len(systems)}", flush=True)
+        for i, s in enumerate(systems):
+            print(f"[详情编辑]   sys#{i}: name={s.get('system_name')}", flush=True)
         for i, p in enumerate(proj_list):
-            sys_data = systems[i] if i < len(systems) else {}
-            success, msg = main_window._project_service.update_project(
-                p.id,
-                company_name=data.get("company_name"),
-                system_name=sys_data.get("system_name", p.system_name),
-                cert_number=sys_data.get("cert_number", p.cert_number),
-                issue_date=sys_data.get("issue_date", p.issue_date),
-                level=sys_data.get("level", p.level),
-                location=data.get("location"),
-                deadline=data.get("deadline"),
-                notes=data.get("notes"),
-                stage_id=data.get("stage_id"),
-                folder_path=data.get("folder_path"),
-            )
-            if not success:
-                messagebox.showerror("错误", msg)
-                break
+            if i < len(systems):
+                sys_data = systems[i]
+                success, msg = main_window._project_service.update_project(
+                    p.id,
+                    company_name=data.get("company_name"),
+                    system_name=sys_data.get("system_name", p.system_name),
+                    cert_number=sys_data.get("cert_number", p.cert_number),
+                    issue_date=sys_data.get("issue_date", p.issue_date),
+                    level=sys_data.get("level", p.level),
+                    location=data.get("location"),
+                    deadline=data.get("deadline"),
+                    notes=data.get("notes"),
+                    stage_id=data.get("stage_id"),
+                    folder_path=data.get("folder_path"),
+                )
+                if not success:
+                    messagebox.showerror("错误", msg)
+                    break
+            else:
+                print(f"[详情编辑] 删除多余项目: {p.system_name}", flush=True)
+                main_window._project_service.delete_project(p.id)
         main_window._refresh_kanban()
     elif action == "delete":
         # 删除操作：永久删除项目
@@ -385,31 +392,34 @@ def on_card_edit(main_window, card: ProjectCard):
     # 显示编辑对话框，传入现有项目数据和项目列表
     result = show_project_dialog(main_window, "编辑项目", project, stages, all_projects=all_proj)
     if result:
-        # 提取共享字段：所有项目共同使用的字段
         shared = {k: result.get(k) for k in ("company_name", "location",
             "deadline", "notes", "stage_id", "folder_path")}
-
-        # 提取各系统独立字段（仅多系统场景下有值）
         systems = result.get("systems", [])
-
-        # 构建完整的项目列表（统一处理单系统和多系统）
         proj_list = card.projects if card.projects else [card.project]
+        print(f"[卡片编辑] 原始项目={len(proj_list)} 返回系统={len(systems)}", flush=True)
+        for i, s in enumerate(systems):
+            print(f"[卡片编辑]   sys#{i}: name={s.get('system_name')}", flush=True)
 
         for i, p in enumerate(proj_list):
-            sys_data = systems[i] if i < len(systems) else {}
-            success, msg = main_window._project_service.update_project(
-                p.id,
-                company_name=shared["company_name"],
-                system_name=sys_data.get("system_name", p.system_name),
-                cert_number=sys_data.get("cert_number", p.cert_number),
-                issue_date=sys_data.get("issue_date", p.issue_date),
-                level=sys_data.get("level", p.level),
-                location=shared["location"],
-                deadline=shared["deadline"],
-                notes=shared["notes"],
-                stage_id=shared["stage_id"],
-                folder_path=shared["folder_path"],
-            )
+            if i < len(systems):
+                sys_data = systems[i]
+                success, msg = main_window._project_service.update_project(
+                    p.id,
+                    company_name=shared["company_name"],
+                    system_name=sys_data.get("system_name", p.system_name),
+                    cert_number=sys_data.get("cert_number", p.cert_number),
+                    issue_date=sys_data.get("issue_date", p.issue_date),
+                    level=sys_data.get("level", p.level),
+                    location=shared["location"],
+                    deadline=shared["deadline"],
+                    notes=shared["notes"],
+                    stage_id=shared["stage_id"],
+                    folder_path=shared["folder_path"],
+                )
+            else:
+                # 对话框返回的系统数少于原始项目数 → 删除多余项目
+                print(f"[卡片编辑] 删除多余项目: {p.system_name}", flush=True)
+                main_window._project_service.delete_project(p.id)
 
         main_window._refresh_kanban()
 

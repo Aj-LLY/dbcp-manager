@@ -87,8 +87,9 @@ def on_rename_click(project: Project, parent=None, all_projects: list = None):
         # 清理路径非法字符（/ 和 \\ 替换为 _）
         cname = (project.company_name or "未命名").replace("/", "_").replace("\\", "_")
         sname = (project.system_name or "").replace("/", "_").replace("\\", "_")
-        # 多系统模式：合并卡片中有 2+ 个项目
         is_multi = all_projects and len(all_projects) > 1
+        if is_multi:
+            print(f"[重命名] 多系统模式, all_projects={len(all_projects)}个: {[p.system_name for p in all_projects]}", flush=True)
 
         # 构建两种前缀（多系统模式下的选择策略见 _get_prefix）
         # company_prefix：仅含公司名，用于多系统共享的公司级文件
