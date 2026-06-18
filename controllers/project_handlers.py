@@ -324,24 +324,27 @@ def on_card_detail(main_window, card: ProjectCard):
     # 解析对话框返回的操作类型和数据
     action, data = result
     if action == "edit":
-        # 编辑操作：更新项目各字段
-        success, msg = main_window._project_service.update_project(
-            project.id,
-            company_name=data.get("company_name"),
-            system_name=data.get("system_name"),
-            cert_number=data.get("cert_number"),
-            issue_date=data.get("issue_date"),
-            level=data.get("level"),
-            location=data.get("location"),
-            deadline=data.get("deadline"),
-            notes=data.get("notes"),
-            stage_id=data.get("stage_id"),
-            folder_path=data.get("folder_path"),
-        )
-        if success:
-            main_window._refresh_kanban()  # 刷新看板以反映编辑结果
-        else:
-            messagebox.showerror("错误", msg)
+        systems = data.get("systems", [])
+        proj_list = card.projects if card.projects and len(card.projects) > 1 else [project]
+        for i, p in enumerate(proj_list):
+            sys_data = systems[i] if i < len(systems) else {}
+            success, msg = main_window._project_service.update_project(
+                p.id,
+                company_name=data.get("company_name"),
+                system_name=sys_data.get("system_name", p.system_name),
+                cert_number=sys_data.get("cert_number", p.cert_number),
+                issue_date=sys_data.get("issue_date", p.issue_date),
+                level=sys_data.get("level", p.level),
+                location=data.get("location"),
+                deadline=data.get("deadline"),
+                notes=data.get("notes"),
+                stage_id=data.get("stage_id"),
+                folder_path=data.get("folder_path"),
+            )
+            if not success:
+                messagebox.showerror("错误", msg)
+                break
+        main_window._refresh_kanban()
     elif action == "delete":
         # 删除操作：永久删除项目
         success, msg = main_window._project_service.delete_project(project.id)
@@ -394,14 +397,12 @@ def on_card_edit(main_window, card: ProjectCard):
 
         for i, p in enumerate(proj_list):
             sys_data = systems[i] if i < len(systems) else {}
-            new_issue = sys_data.get("issue_date", p.issue_date)
-            print(f"[编辑] 系统#{i}: id={p.id[:8]} 旧日期={p.issue_date} 新日期={new_issue} sys_data={sys_data}", flush=True)
             success, msg = main_window._project_service.update_project(
                 p.id,
                 company_name=shared["company_name"],
                 system_name=sys_data.get("system_name", p.system_name),
                 cert_number=sys_data.get("cert_number", p.cert_number),
-                issue_date=new_issue,
+                issue_date=sys_data.get("issue_date", p.issue_date),
                 level=sys_data.get("level", p.level),
                 location=shared["location"],
                 deadline=shared["deadline"],
@@ -409,7 +410,6 @@ def on_card_edit(main_window, card: ProjectCard):
                 stage_id=shared["stage_id"],
                 folder_path=shared["folder_path"],
             )
-            print(f"[编辑] 系统#{i}: 结果={success} {msg}", flush=True)
 
         main_window._refresh_kanban()
 

@@ -741,7 +741,6 @@ class ProjectDialog(tk.Toplevel):
                 self._sys_rows_list.clear()
 
                 for p in self._all_projects:
-                    print(f"[对话框] 加载系统: name={p.system_name} issue={p.issue_date}", flush=True)
                     self._add_sys_row({
                         "system_name": p.system_name,
                         "level": p.level,
@@ -882,7 +881,6 @@ class ProjectDialog(tk.Toplevel):
             s_level = rd["level_var"].get().strip()
             s_cert = rd["cert_var"].get().strip()
             s_issue = rd["issue_date_var"].get().strip()
-            print(f"[对话框] 收集系统行: name={s_name} issue={s_issue}", flush=True)
             systems.append({
                 "system_name": s_name,
                 "level": s_level,
