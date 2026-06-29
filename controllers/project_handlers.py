@@ -351,6 +351,21 @@ def on_card_detail(main_window, card: ProjectCard):
             else:
                 print(f"[详情编辑] 删除多余项目: {p.system_name}", flush=True)
                 main_window._project_service.delete_project(p.id)
+        # 创建新增的系统
+        for i in range(len(proj_list), len(systems)):
+            sys_data = systems[i]
+            print(f"[详情编辑] 创建新系统: {sys_data.get('system_name')}", flush=True)
+            main_window._project_service.create_project(
+                company_name=data.get("company_name"),
+                system_name=sys_data.get("system_name", ""),
+                cert_number=sys_data.get("cert_number", ""),
+                issue_date=sys_data.get("issue_date", ""),
+                level=sys_data.get("level", ""),
+                location=data.get("location"),
+                deadline=data.get("deadline"),
+                notes=data.get("notes"),
+                stage_id=data.get("stage_id"),
+            )
         main_window._refresh_kanban()
     elif action == "delete":
         # 删除操作：永久删除项目
@@ -400,10 +415,11 @@ def on_card_edit(main_window, card: ProjectCard):
         for i, s in enumerate(systems):
             print(f"[卡片编辑]   sys#{i}: name={s.get('system_name')}", flush=True)
 
+        # 更新已有项目 / 删除多余项目
         for i, p in enumerate(proj_list):
             if i < len(systems):
                 sys_data = systems[i]
-                success, msg = main_window._project_service.update_project(
+                main_window._project_service.update_project(
                     p.id,
                     company_name=shared["company_name"],
                     system_name=sys_data.get("system_name", p.system_name),
@@ -417,9 +433,24 @@ def on_card_edit(main_window, card: ProjectCard):
                     folder_path=shared["folder_path"],
                 )
             else:
-                # 对话框返回的系统数少于原始项目数 → 删除多余项目
                 print(f"[卡片编辑] 删除多余项目: {p.system_name}", flush=True)
                 main_window._project_service.delete_project(p.id)
+
+        # 创建新增的系统（对话框返回的系统多于原始项目）
+        for i in range(len(proj_list), len(systems)):
+            sys_data = systems[i]
+            print(f"[卡片编辑] 创建新系统: {sys_data.get('system_name')}", flush=True)
+            main_window._project_service.create_project(
+                company_name=shared["company_name"],
+                system_name=sys_data.get("system_name", ""),
+                cert_number=sys_data.get("cert_number", ""),
+                issue_date=sys_data.get("issue_date", ""),
+                level=sys_data.get("level", ""),
+                location=shared["location"],
+                deadline=shared["deadline"],
+                notes=shared["notes"],
+                stage_id=shared["stage_id"],
+            )
 
         main_window._refresh_kanban()
 
