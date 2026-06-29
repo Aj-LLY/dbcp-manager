@@ -94,10 +94,24 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
             else:
                 existed.append(f"01-其他归档文件/{dname}")
 
-        # ========== 阶段 3：生成保密承诺书 docx ==========
-        # 判断是否为多系统合并项目（合并卡片中项目数 > 1）
-        # 多系统模式：文件名仅含公司名（多系统共享）；单系统模式：文件名含公司-系统
+        # ========== 阶段 2.5：创建各系统子目录 ==========
         is_multi = all_projects and len(all_projects) > 1
+        if is_multi:
+            sys_list = all_projects
+        else:
+            sys_list = [project]
+        for p in sys_list:
+            sn = (p.system_name or "").replace("/", "_").replace("\\", "_")
+            if sn:
+                dpath = os.path.join(root, sn)
+                if not os.path.exists(dpath):
+                    os.makedirs(dpath, exist_ok=True)
+                    created.append(sn)
+                else:
+                    existed.append(sn)
+
+        # ========== 阶段 3：生成保密承诺书 docx ==========
+        # 多系统模式：文件名仅含公司名（多系统共享）；单系统模式：文件名含公司-系统
         nda_name = f"02-{cname}-保密承诺书.docx" if is_multi else f"02-{cname}-{sname}-保密承诺书.docx"
         nda_path = os.path.join(root, nda_name)
 
