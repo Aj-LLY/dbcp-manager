@@ -325,16 +325,15 @@ def on_rename_click(project: Project, parent=None, all_projects: list = None):
                             if new_name != fname:
                                 new_path = os.path.join(scan_root, new_name)
                                 if not os.path.exists(new_path):
-                                    os.rename(fpath, new_path)   # 执行重命名
+                                    os.rename(fpath, new_path)
                                     renamed += 1
+                                    msgs.append(f"✓ {fname} → {new_name}")
                                 else:
-                                    # 目标名已存在：跳过（避免覆盖不同后缀的同名文件）
                                     msgs.append(f"跳过(已存在): {new_name}")
-                            break  # 匹配到关键词后跳出循环
+                            break
 
-                # ---- 情况 B：文件名无编号前缀（如 "测评方案.docx"） ----
+                # ---- 情况 B：文件名无编号前缀 ----
                 else:
-                    # 同样按长关键词优先匹配
                     for keyword in sorted(key_map, key=len, reverse=True):
                         if keyword in name_no_ext:
                             num, target_kw, is_co = key_map[keyword]
@@ -344,6 +343,7 @@ def on_rename_click(project: Project, parent=None, all_projects: list = None):
                             if not os.path.exists(new_path):
                                 os.rename(fpath, new_path)
                                 renamed += 1
+                                msgs.append(f"✓ {fname} → {new_name}")
                             else:
                                 msgs.append(f"跳过(已存在): {new_name}")
                             break
@@ -376,17 +376,35 @@ def on_rename_click(project: Project, parent=None, all_projects: list = None):
         # ==================================================================
         # 步骤 5：显示操作报告
         # ==================================================================
-        if msgs:
-            # 有详细操作记录：显示前 15 条（防止弹窗过高）
-            msg_text = "\n".join(msgs[:15])
-            if len(msgs) > 15:
-                msg_text += f"\n...共 {len(msgs)} 条"  # 超出部分显示汇总
-            messagebox.showinfo("操作报告", msg_text)
+        # 分类统计
+        renames = [m for m in msgs if m.startswith("✓")]
+        skips = [m for m in msgs if m.startswith("跳过")]
+        others = [m for m in msgs if not m.startswith("✓") and not m.startswith("跳过")]
+
+        lines = []
+        if renames:
+            lines.append(f"--- 重命名成功 ({len(renames)}个) ---")
+            lines.extend(renames[:20])
+            if len(renames) > 20:
+                lines.append(f"...还有 {len(renames)-20} 个")
+        if skips:
+            if lines: lines.append("")
+            lines.append(f"--- 跳过 ({len(skips)}个) ---")
+            lines.extend(skips[:5])
+            if len(skips) > 5:
+                lines.append(f"...还有 {len(skips)-5} 个")
+        if others:
+            if lines: lines.append("")
+            lines.append(f"--- 其他操作 ({len(others)}个) ---")
+            lines.extend(others[:5])
+            if len(others) > 5:
+                lines.append(f"...还有 {len(others)-5} 个")
+
+        if lines:
+            messagebox.showinfo("操作报告", "\n".join(lines))
         elif renamed:
-            # 没有详细记录但有重命名计数（如所有文件已在步骤 1/2 处理，无 msg 产生）
             messagebox.showinfo("完成", f"已处理 {renamed} 个项目")
         else:
-            # 没有任何修改
             messagebox.showinfo("提示", "所有文件名已是最新，无需修改")
 
     except Exception as e:
