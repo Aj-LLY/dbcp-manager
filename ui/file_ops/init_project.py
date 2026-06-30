@@ -98,25 +98,24 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
             else:
                 existed.append(f"01-其他归档文件/{dname}")
 
-        # ========== 阶段 2.5：创建各系统子目录 ==========
+        # ========== 阶段 2.5：多系统时创建各系统子目录 ==========
         if is_multi:
-            sys_list = all_projects
-        else:
-            sys_list = [project]
-        print(f"[初始化] 阶段2.5: 创建系统子目录, 共{len(sys_list)}个系统", flush=True)
-        for p in sys_list:
-            sn = (p.system_name or "").replace("/", "_").replace("\\", "_")
-            if sn:
-                dpath = os.path.join(root, sn)
-                if not os.path.exists(dpath):
-                    os.makedirs(dpath, exist_ok=True)
-                    created.append(sn)
-                    print(f"[初始化]   + 创建系统目录: {sn}", flush=True)
+            print(f"[初始化] 阶段2.5: 创建系统子目录, 共{len(all_projects)}个系统", flush=True)
+            for p in all_projects:
+                sn = (p.system_name or "").replace("/", "_").replace("\\", "_")
+                if sn:
+                    dpath = os.path.join(root, sn)
+                    if not os.path.exists(dpath):
+                        os.makedirs(dpath, exist_ok=True)
+                        created.append(sn)
+                        print(f"[初始化]   + 创建系统目录: {sn}", flush=True)
+                    else:
+                        existed.append(sn)
+                        print(f"[初始化]   = 已存在: {sn}", flush=True)
                 else:
-                    existed.append(sn)
-                    print(f"[初始化]   = 已存在: {sn}", flush=True)
-            else:
-                print(f"[初始化]   ⚠ 系统名为空，跳过", flush=True)
+                    print(f"[初始化]   ⚠ 系统名为空，跳过", flush=True)
+        else:
+            print(f"[初始化] 阶段2.5: 单系统，跳过系统子目录创建", flush=True)
 
         # ========== 阶段 3：生成保密承诺书 docx ==========
         nda_name = f"02-{cname}-保密承诺书.docx" if is_multi else f"02-{cname}-{sname}-保密承诺书.docx"
