@@ -7,3 +7,5 @@ __pycache__/
 data/
 projects/
 templates/
+build_tmp/
+release/

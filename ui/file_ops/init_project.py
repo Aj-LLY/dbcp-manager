@@ -63,21 +63,25 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
         None: 所有结果通过 messagebox 弹窗通知用户。
     """
     try:
-        # ========== 阶段 1：定位项目文件夹 ==========
-        root = find_project_folder(project)  # 通过项目信息搜索物理文件夹路径
+        root = find_project_folder(project)
         if not root or not os.path.isdir(root):
             messagebox.showinfo("提示", "未找到项目文件夹")
             return
 
-        # 清理项目名称中的路径非法字符（/ 和 \\ 不能出现在文件名中）
         cname = (project.company_name or "未命名").replace("/", "_").replace("\\", "_")
         sname = (project.system_name or "").replace("/", "_").replace("\\", "_")
+        is_multi = all_projects and len(all_projects) > 1
+        created = []
+        existed = []
 
-        # 记录已创建和已存在的项目列表（用于最终汇总报告）
-        created = []  # 本次新创建的文件/文件夹
-        existed = []  # 之前已存在的文件/文件夹
+        print(f"[初始化] root={root}", flush=True)
+        print(f"[初始化] cname={cname} sname={sname} is_multi={is_multi}", flush=True)
+        if all_projects:
+            for i, p in enumerate(all_projects):
+                print(f"[初始化]   all_projects[{i}]: system={p.system_name} id={p.id[:8]}", flush=True)
 
-        # ========== 阶段 2：创建标准归档子目录 ==========
+        # ========== 阶段 2：创建归档子目录 ==========
+        print("[初始化] 阶段2: 创建归档子目录...", flush=True)
         archive_root = os.path.join(root, "01-其他归档文件")
         archive_subdirs = [
             "00-网安报备",
@@ -95,11 +99,11 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
                 existed.append(f"01-其他归档文件/{dname}")
 
         # ========== 阶段 2.5：创建各系统子目录 ==========
-        is_multi = all_projects and len(all_projects) > 1
         if is_multi:
             sys_list = all_projects
         else:
             sys_list = [project]
+        print(f"[初始化] 阶段2.5: 创建系统子目录, 共{len(sys_list)}个系统", flush=True)
         for p in sys_list:
             sn = (p.system_name or "").replace("/", "_").replace("\\", "_")
             if sn:
@@ -107,12 +111,16 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
                 if not os.path.exists(dpath):
                     os.makedirs(dpath, exist_ok=True)
                     created.append(sn)
+                    print(f"[初始化]   + 创建系统目录: {sn}", flush=True)
                 else:
                     existed.append(sn)
+                    print(f"[初始化]   = 已存在: {sn}", flush=True)
+            else:
+                print(f"[初始化]   ⚠ 系统名为空，跳过", flush=True)
 
         # ========== 阶段 3：生成保密承诺书 docx ==========
-        # 多系统模式：文件名仅含公司名（多系统共享）；单系统模式：文件名含公司-系统
         nda_name = f"02-{cname}-保密承诺书.docx" if is_multi else f"02-{cname}-{sname}-保密承诺书.docx"
+        print(f"[初始化] 阶段3: 保密承诺书={nda_name}", flush=True)
         nda_path = os.path.join(root, nda_name)
 
         if os.path.exists(nda_path):
@@ -186,16 +194,17 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
                 pass
 
         # ========== 阶段 4：弹窗汇总报告 ==========
-        lines = []  # 构建多行报告文本
+        print(f"[初始化] 阶段4: 已创建{len(created)}项, 已存在{len(existed)}项", flush=True)
+        lines = []
         if created:
-            lines.append("--- 已创建 ---")        # 新创建项的分组标题
-            lines.extend(f"  + {x}" for x in created)  # + 前缀表示新增
+            lines.append("--- 已创建 ---")
+            lines.extend(f"  + {x}" for x in created)
         if existed:
-            lines.append("--- 已存在 ---")        # 已存在项的分组标题
-            lines.extend(f"  = {x}" for x in existed)  # = 前缀表示跳过
-        # 根据是否有操作项显示不同内容，全部已存在时提示"无需初始化"
+            lines.append("--- 已存在 ---")
+            lines.extend(f"  = {x}" for x in existed)
         messagebox.showinfo("初始化完成", "\n".join(lines) if lines else "无需初始化")
 
     except Exception as e:
-        # 捕获顶层异常（如权限不足、磁盘满等系统级错误）
+        import traceback
+        traceback.print_exc()
         messagebox.showerror("错误", f"初始化失败: {e}")
