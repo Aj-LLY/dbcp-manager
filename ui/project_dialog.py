@@ -543,8 +543,8 @@ class ProjectDialog(tk.Toplevel):
         Returns:
             dict: 行数据引用字典，包含所有 StringVar 和控件引用。
         """
-        data = data or {}
-        idx = len(self._sys_rows_list) + 1
+        data = data or {}  # 无预填数据时使用空字典
+        idx = len(self._sys_rows_list) + 1  # 行序号从 1 开始计数
 
         # ---- 行容器（浅灰背景，形成视觉分组）----
         row_frame = tk.Frame(self._sys_container, bg="#f0f2f5", padx=5, pady=3)
@@ -616,7 +616,7 @@ class ProjectDialog(tk.Toplevel):
         ln3 = tk.Frame(row_frame, bg="#f0f2f5")
         ln3.pack(fill=tk.X, pady=(2, 0))
 
-        # 将行数据存入集合
+        # 将行数据存入集合（收集所有可变引用，便于后续操作）
         row_data = {
             "frame": row_frame,
             "system_var": sys_var,
@@ -628,7 +628,7 @@ class ProjectDialog(tk.Toplevel):
             "issue_date_var": issue_var,
             "issue_date_entry": issue_entry,
         }
-        self._sys_rows_list.append(row_data)
+        self._sys_rows_list.append(row_data)  # 注册行数据到全局列表
 
         # ---- 删除按钮（右对齐） ----
         del_btn = tk.Button(
@@ -656,31 +656,41 @@ class ProjectDialog(tk.Toplevel):
     def _remove_sys_row(self, row_data: dict):
         """删除指定系统行（至少保留一行）。
 
+        先检查当前行数是否多于 1（保证至少保留一行），
+        然后从 _sys_rows_list 中移除该行数据引用，
+        销毁其对应的 Tkinter Frame 组件，
+        最后刷新所有删除按钮的可见性。
+
         Args:
             row_data: _add_sys_row 返回的行数据字典。
         """
         if len(self._sys_rows_list) <= 1:
-            return  # 至少保留一行
+            return  # 至少保留一行，不允许删除最后一行
         if row_data in self._sys_rows_list:
-            self._sys_rows_list.remove(row_data)
-        row_data["frame"].destroy()
-        self._refresh_delete_buttons()
+            self._sys_rows_list.remove(row_data)  # 从列表中移除引用
+        row_data["frame"].destroy()  # 销毁 UI 组件（释放 Tkinter 资源）
+        self._refresh_delete_buttons()  # 刷新按钮可见性（可能只剩一行则隐藏）
 
     def _dup_sys_row(self, row_data: dict):
         """复制指定系统行的数据并添加为新行。
 
+        读取源行中所有 StringVar 的当前值，
+        组装为预填数据字典，调用 _add_sys_row 创建新行。
+        注意：复制后的行不共享任何控件引用，为完全独立的新行。
+
         Args:
             row_data: 源行数据字典（来自 _add_sys_row）。
         """
+        # 从源行的 StringVar 中读取当前值，构建预填数据
         copy_data = {
-            "system_name": row_data["system_var"].get(),
-            "level": row_data["level_var"].get(),
-            "cert_number": row_data["cert_var"].get(),
-            "issue_date": row_data["issue_date_var"].get(),
-            "province": row_data["province_var"].get(),
-            "city": row_data["city_var"].get(),
+            "system_name": row_data["system_var"].get(),  # 系统名称
+            "level": row_data["level_var"].get(),  # 系统等级
+            "cert_number": row_data["cert_var"].get(),  # 证书编号
+            "issue_date": row_data["issue_date_var"].get(),  # 下证日期
+            "province": row_data["province_var"].get(),  # 省级属地
+            "city": row_data["city_var"].get(),  # 市级属地
         }
-        self._add_sys_row(copy_data)
+        self._add_sys_row(copy_data)  # 创建独立的新行
 
     def _on_row_province_change(self, prov_combo, city_combo, keep_city: str = ""):
         """省级下拉变更时更新对应行的市级下拉选项。
@@ -736,11 +746,13 @@ class ProjectDialog(tk.Toplevel):
                     self._location_city_var.set(parts[1])
 
             if self._all_projects and len(self._all_projects) > 1:
+                # 多系统编辑模式：清除默认空行，为每个关联项目创建独立的系统行
                 for rd in list(self._sys_rows_list):
-                    rd["frame"].destroy()
-                self._sys_rows_list.clear()
+                    rd["frame"].destroy()  # 销毁默认空行组件
+                self._sys_rows_list.clear()  # 清空行列表引用
 
                 for p in self._all_projects:
+                    # 为每个子系统项目创建预填行数据
                     self._add_sys_row({
                         "system_name": p.system_name,
                         "level": p.level,
@@ -748,12 +760,13 @@ class ProjectDialog(tk.Toplevel):
                         "issue_date": p.issue_date,
                     })
             else:
-                first = self._sys_rows_list[0]
-                first["system_var"].set(self._project.system_name)
-                first["cert_var"].set(self._project.cert_number)
-                first["issue_date_var"].set(self._project.issue_date)
+                # 单系统编辑模式：预填第一行（默认空行）的字段
+                first = self._sys_rows_list[0]  # 获取第一个系统行
+                first["system_var"].set(self._project.system_name)  # 系统名称
+                first["cert_var"].set(self._project.cert_number)  # 证书编号
+                first["issue_date_var"].set(self._project.issue_date)  # 下证日期
                 if self._project.level:
-                    first["level_var"].set(self._project.level)
+                    first["level_var"].set(self._project.level)  # 系统等级（可选）
 
             self._deadline_var.set(self._project.deadline)      # 填入交付日期
             self._folder_path_var.set(self._project.folder_path or "")  # 填入文件夹路径
@@ -1009,37 +1022,37 @@ class ProjectDialog(tk.Toplevel):
                 messagebox.showwarning("提示", "请先输入或选择文件夹路径", parent=self)
                 return
             cname = (self._company_var.get().strip() or "未命名").replace("/", "_").replace("\\", "_")
-            # 收集所有系统名称
+            # 收集所有系统名称（从多系统表格行中读取，去除非空）
             sys_names = []
             for rd in self._sys_rows_list:
                 sn = rd["system_var"].get().strip()
                 if sn:
-                    sys_names.append(sn.replace("/", "_").replace("\\", "_"))
-            # 判断多系统/单系统 → 决定文件夹名
-            date_str = date.today().strftime("%y%m%d")
+                    sys_names.append(sn.replace("/", "_").replace("\\", "_"))  # 安全文件名
+            # 判断多系统/单系统/无系统 → 决定文件夹命名规则
+            date_str = date.today().strftime("%y%m%d")  # 日期标识（YYMMDD 格式）
             if len(sys_names) > 1:
-                folder_name = f"001-{cname}-{date_str}"
+                folder_name = f"001-{cname}-{date_str}"  # 多系统：仅公司名+日期
             elif len(sys_names) == 1:
-                folder_name = f"001-{cname}-{sys_names[0]}-{date_str}"
+                folder_name = f"001-{cname}-{sys_names[0]}-{date_str}"  # 单系统：公司+系统+日期
             else:
-                folder_name = f"001-{cname}-{date_str}"
+                folder_name = f"001-{cname}-{date_str}"  # 无系统：公司+日期
             full_root = os.path.join(root, folder_name)
-            os.makedirs(full_root, exist_ok=True)
-            # 子目录：01-其他归档文件(含5个子目录) + 每个系统一个子目录
+            os.makedirs(full_root, exist_ok=True)  # 创建项目根目录（如已存在则跳过）
+            # 子目录清单：归档文件子目录 + 每个系统一个独立子目录
             subdirs = [
-                "01-其他归档文件/00-网安报备",
-                "01-其他归档文件/01-备案材料",
-                "01-其他归档文件/02-往期测评报告",
-                "01-其他归档文件/03-现场测评",
-                "01-其他归档文件/04-渗透漏扫",
+                "01-其他归档文件/00-网安报备",      # 网安部门报备材料
+                "01-其他归档文件/01-备案材料",      # 系统备案相关文档
+                "01-其他归档文件/02-往期测评报告",  # 历史测评报告存档
+                "01-其他归档文件/03-现场测评",      # 现场测评过程记录
+                "01-其他归档文件/04-渗透漏扫",      # 渗透测试和漏扫结果
             ]
             for sn in sys_names:
-                subdirs.append(sn)
-            created = 0
+                subdirs.append(sn)  # 每个系统名称作为一个独立子目录
+            created = 0  # 新创建的子目录计数
             for d in subdirs:
                 dpath = os.path.join(full_root, d)
                 if not os.path.exists(dpath):
-                    os.makedirs(dpath, exist_ok=True)
+                    os.makedirs(dpath, exist_ok=True)  # 递归创建缺失目录
                     created += 1
             self._folder_path_var.set(full_root)
             messagebox.showinfo("完成", f"已创建 {created} 个子目录\n{full_root}", parent=self)
@@ -1075,23 +1088,26 @@ class ProjectDialog(tk.Toplevel):
         Raises:
             识别异常时通过 ocr_failed 函数显示错误信息。
         """
-        import threading
-        from tkinter import filedialog
+        import threading  # 后台线程模块（避免阻塞 UI）
+        from tkinter import filedialog  # 文件选择对话框
+        # 打开文件选择对话框让用户选取备案证图片或 PDF
         file_path = filedialog.askopenfilename(
             parent=self, title="选择备案证文件",
             filetypes=[("图片和PDF", "*.pdf *.png *.jpg *.jpeg *.bmp")])
         if not file_path:
-            return
-        self._ocr_status.configure(text="正在识别...", fg="#f39c12")
+            return  # 用户取消了文件选择
+        self._ocr_status.configure(text="正在识别...", fg="#f39c12")  # 显示识别进度
 
         def _run():
+            """后台线程执行体：调用 OCR 服务识别备案证。"""
             try:
-                from services.cert_ocr import CertOCRService
-                result = CertOCRService().recognize(file_path)
+                from services.cert_ocr import CertOCRService  # 延迟导入避免循环依赖
+                result = CertOCRService().recognize(file_path)  # 执行 OCR 识别
+                # 使用 after(0) 将结果回调回主线程更新 UI（线程安全）
                 self.after(0, lambda: self._fill_row_cert_result(result, row_idx, file_path))
             except Exception as e:
-                self.after(0, lambda: ocr_failed(self, str(e)))
-        threading.Thread(target=_run, daemon=True).start()
+                self.after(0, lambda: ocr_failed(self, str(e)))  # 识别失败时显示错误
+        threading.Thread(target=_run, daemon=True).start()  # 启动守护线程（窗口关闭时自动终止）
 
     def _fill_row_cert_result(self, result, row_idx, file_path):
         """将 OCR 识别结果填充到指定系统行的表单字段。
@@ -1109,26 +1125,32 @@ class ProjectDialog(tk.Toplevel):
             row_idx: 目标系统行的索引（0-based）
             file_path: 备案证源文件路径，用于后续归档
         """
-        if row_idx < len(self._sys_rows_list):
-            r = self._sys_rows_list[row_idx]
-            filled = []
+        if row_idx < len(self._sys_rows_list):  # 行索引有效
+            r = self._sys_rows_list[row_idx]  # 获取目标行的控件引用字典
+            filled = []  # 记录已填充的字段名列表（用于状态提示）
             if result.get("company_name"):
-                self._company_var.set(result["company_name"]); filled.append("公司名称")
+                self._company_var.set(result["company_name"])
+                filled.append("公司名称")
             if result.get("system_name"):
-                r["system_var"].set(result["system_name"]); filled.append("系统名称")
+                r["system_var"].set(result["system_name"])  # 填入系统名称
+                filled.append("系统名称")
             if result.get("cert_number"):
-                r["cert_var"].set(result["cert_number"]); filled.append("证书编号")
+                r["cert_var"].set(result["cert_number"])  # 填入证书编号
+                filled.append("证书编号")
             if result.get("issue_date"):
-                r["issue_date_var"].set(result["issue_date"]); filled.append("下证日期")
+                r["issue_date_var"].set(result["issue_date"])  # 填入下证日期
+                filled.append("下证日期")
             if result.get("level"):
-                r["level_var"].set(result["level"]); filled.append("系统等级")
+                r["level_var"].set(result["level"])  # 填入系统等级
+                filled.append("系统等级")
+            # 更新 OCR 状态标签：展示已识别的字段列表或提示不完整
             self._ocr_status.configure(
                 text=f"已识别：{'、'.join(filled)}（请核对）" if filled else "识别结果不完整",
-                fg="#27ae60" if filled else "#e67e22")
+                fg="#27ae60" if filled else "#e67e22")  # 绿色=成功，橙色=不完整
             if file_path and filled:
-                archive_cert_file(self, file_path, row_idx)
+                archive_cert_file(self, file_path, row_idx)  # 归档源文件到项目目录
         else:
-            self._ocr_status.configure(text="识别失败：行索引无效", fg="#e74c3c")
+            self._ocr_status.configure(text="识别失败：行索引无效", fg="#e74c3c")  # 红色错误提示
 
     def _fill_cert_result(self, result: dict, file_path: str = ""):
         """将 OCR 识别结果填充到表单字段。（委托）"""

@@ -86,22 +86,22 @@ def on_report_print_click(project: Project, parent=None, all_projects: list = No
     """
     try:
         # ========== 前置：定位项目文件夹 ==========
-        proot = find_project_folder(project)
+        proot = find_project_folder(project)  # 查找项目文件夹路径
         if not proot or not os.path.isdir(proot):
             messagebox.showinfo("提示", "未找到项目文件夹")
             return
 
-        is_multi = all_projects and len(all_projects) > 1
+        is_multi = all_projects and len(all_projects) > 1  # 是否为多系统合并模式
 
-        # ---- 构建显示用的字段值 ----
-        # 多系统：系统名称换行拼接所有子系统的系统名
+        # ---- 构建显示用的字段值（预填到对话框） ----
+        # 多系统：系统名称用换行符拼接所有子系统的系统名（对话框多行文本框显示）
         # 单系统：直接取当前项目的系统名
         if is_multi:
             sname_display = "\n".join(p.system_name or "" for p in all_projects)
         else:
             sname_display = project.system_name or ""
 
-        # 所属地：取 "省-市" 中的省级名称（"广东-广州" → "广东"）
+        # 所属地：取 "省-市" 中的省级前缀（如 "广东-广州" → "广东"）
         location_display = (project.location or "").split("-")[0] \
             if project.location else ""
 

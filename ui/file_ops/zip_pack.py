@@ -68,24 +68,26 @@ def on_zip_click(project: Project, parent=None, all_projects: list = None):
     """
     try:
         # ========== 前置：定位项目文件夹 ==========
-        root = find_project_folder(project)
+        root = find_project_folder(project)  # 查找项目文件夹路径
         if not root or not os.path.isdir(root):
             messagebox.showinfo("提示", "未找到项目文件夹")
             return
 
-        # 清理路径非法字符
+        # 清理路径非法字符（确保 ZIP 文件名在操作系统中合法）
         cname = (project.company_name or "未命名").replace("/", "_").replace("\\", "_")
         sname = (project.system_name or "").replace("/", "_").replace("\\", "_")
-        is_multi = all_projects and len(all_projects) > 1
+        is_multi = all_projects and len(all_projects) > 1  # 是否为多系统合并模式
 
-        # 单系统：{公司}-{系统}-过程文档.zip
-        # 多系统：{公司}-过程文档.zip（包含所有子系统的文件）
+        # ZIP 文件命名规则：
+        #   单系统：{公司}-{系统}-过程文档.zip（明确到具体系统）
+        #   多系统：{公司}-过程文档.zip（包含所有子系统的文件）
         zip_name = f"{cname}-{sname}-过程文档.zip" if not is_multi else f"{cname}-过程文档.zip"
         zip_path = os.path.join(root, zip_name)
 
         # ---- 构建扫描目录列表 ----
-        # 单系统：仅根目录
-        # 多系统：根目录 + 各系统子目录（排除报告打印和归档目录）
+        # 单系统：仅扫描根目录（所有过程文件在一个文件夹中）
+        # 多系统：根目录（公司级文件）+ 各系统子目录（系统级文件）
+        # 排除：报告打印目录（辅助）和归档文件目录（内部存档）
         scan_dirs = [root]
         if is_multi:
             for dname in os.listdir(root):
@@ -95,8 +97,13 @@ def on_zip_click(project: Project, parent=None, all_projects: list = None):
                     scan_dirs.append(dpath)
 
         # ---- 定义打包关键词列表 ----
-        # 这些关键词对应等保测评过程中需要交付给客户的文件类型
-        # 注意：不包括保密承诺书(02)、服务情况评价表(18)、报备表(19)等内部文件
+        # 这些关键词对应等保测评过程中需要交付给客户的过程文件类型。
+        # 注意：以下文件不打包（属于公司内部文件，无需交付给客户）：
+        #   - 保密承诺书(02)：内部合规文件
+        #   - 测评报告-终稿(16)：通过报告打印流程单独交付
+        #   - 测评报告评审表(17)：内部质量管控
+        #   - 服务情况评价表(18)：内部管理记录
+        #   - 报备表(19)：内部归档用
         pack_keywords = [
             "测评调研表",        # 03-系统信息安全调研记录
             "测评授权书",        # 04-测评授权与委托书
@@ -113,47 +120,48 @@ def on_zip_click(project: Project, parent=None, all_projects: list = None):
 
         count = 0  # 已打包文件计数器
 
-        # 创建 ZIP 文件（使用 DEFLATED 压缩算法，平衡压缩率和速度）
+        # 创建 ZIP 文件（使用 DEFLATED 压缩算法，在压缩率和速度间取得平衡）
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
             # ========== 步骤 1：打包匹配关键词的单文件 ==========
             for scan_root in scan_dirs:
                 for fname in os.listdir(scan_root):
                     fpath = os.path.join(scan_root, fname)
-                    # 跳过目录、跳过打包生成的 ZIP 自身（避免循环打包）
+                    # 跳过目录和打包生成的 ZIP 自身（避免循环打包导致无限嵌套）
                     if not os.path.isfile(fpath) or fname == zip_name:
                         continue
                     # 用无扩展名的文件名进行关键词匹配
                     name_no_ext = os.path.splitext(fname)[0]
                     for kw in pack_keywords:
-                        if kw in name_no_ext:  # 关键词在文件名中
-                            # 计算相对于项目根目录的路径（ZIP 内部路径统一使用 / 分隔）
+                        if kw in name_no_ext:  # 关键词匹配成功
+                            # 计算相对于项目根目录的路径（统一使用 / 分隔以保证跨平台兼容）
                             arcname = os.path.relpath(fpath, root).replace("\\", "/")
-                            zf.write(fpath, arcname)  # 写入 ZIP
+                            zf.write(fpath, arcname)  # 写入 ZIP 归档
                             count += 1
-                            break  # 一个文件只匹配一次
+                            break  # 一个文件只匹配一个关键词，避免重复打包
 
-            # ========== 步骤 2：打包渗透测试报告目录（递归） ==========
-            # 渗透测试报告是一个目录（13-前缀-渗透测试报告），而非单文件
-            # 使用 os.walk 递归遍历目录树，将所有子文件和子目录写入 ZIP
+            # ========== 步骤 2：打包渗透测试报告目录（递归遍历） ==========
+            # 渗透测试报告是一个多文件的目录（如 13-{前缀}-渗透测试报告/），
+            # 而非单个文件，需要递归打包整个目录树。
+            # 使用 os.walk 遍历所有子文件和子目录，保持目录层级关系写入 ZIP。
             for scan_root in scan_dirs:
                 for dname in os.listdir(scan_root):
                     dpath = os.path.join(scan_root, dname)
                     if os.path.isdir(dpath) and "渗透测试报告" in dname:
-                        has_files = False  # 标记目录中是否有实际文件
-                        # 递归遍历目录树（os.walk 自动处理子目录）
+                        has_files = False  # 标记该目录中是否有实际文件（区分空目录）
+                        # 递归遍历目录树（os.walk 自动进入每一级子目录）
                         for dirpath, _, filenames in os.walk(dpath):
                             for fn in filenames:
                                 fp = os.path.join(dirpath, fn)
                                 arcname = os.path.relpath(fp, root).replace("\\", "/")
-                                zf.write(fp, arcname)  # 写入文件
+                                zf.write(fp, arcname)  # 写入单个文件（保持相对路径）
                                 count += 1
                                 has_files = True
-                        # 空目录处理：ZIP 格式支持仅目录条目（无内容）
-                        # 在客户解压时确保目录结构完整（即使目录为空）
+                        # 空目录处理：ZIP 格式允许创建仅目录条目（无文件内容），
+                        # 确保客户解压后目录结构完整，不会出现"缺少目录"的困惑
                         if not has_files:
                             arcname = os.path.relpath(dpath, root).replace("\\", "/") + "/"
-                            info = zipfile.ZipInfo(arcname)  # 创建目录条目
-                            zf.writestr(info, "")            # 写入空内容
+                            info = zipfile.ZipInfo(arcname)  # 创建目录条目元数据
+                            zf.writestr(info, "")            # 写入空字节（仅目录条目）
                             count += 1
 
         # ========== 步骤 3：报告打包结果 ==========

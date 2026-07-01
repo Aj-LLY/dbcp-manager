@@ -79,18 +79,18 @@ def on_rename_click(project: Project, parent=None, all_projects: list = None):
     """
     try:
         # ========== 前置：定位项目文件夹并准备变量 ==========
-        root = find_project_folder(project)
+        root = find_project_folder(project)  # 查找项目文件夹路径
         if not root or not os.path.isdir(root):
             messagebox.showinfo("提示", "未找到项目文件夹")
             return
 
-        # 清理路径非法字符（/ 和 \\ 替换为 _）
+        # 清理路径非法字符（/ 和 \\ 在路径中无效，替换为 _）
         cname = (project.company_name or "未命名").replace("/", "_").replace("\\", "_")
         sname = (project.system_name or "").replace("/", "_").replace("\\", "_")
-        is_multi = all_projects and len(all_projects) > 1
+        is_multi = all_projects and len(all_projects) > 1  # 是否为多系统合并模式
 
-        # 构建两种前缀（多系统模式下的选择策略见 _get_prefix）
-        # company_prefix：仅含公司名，用于多系统共享的公司级文件
+        # 构建两种前缀（多系统模式下的选用策略见 _get_prefix 函数）
+        # company_prefix：仅含公司名，用于多系统共享的公司级文件（如授权书、承诺书等）
         company_prefix = cname
         # system_prefix：含公司-系统，用于系统专属文件（及单系统模式的所有文件）
         system_prefix = f"{cname}-{sname}"
@@ -103,8 +103,8 @@ def on_rename_click(project: Project, parent=None, all_projects: list = None):
 
         # ---- 构建关键词→标准信息映射表 ----
         # 结构: {关键词字符串: (文件编号, 标准名称, 是否公司级)}
-        # 一个标准名称可能有多个关键词别名（如 "归档材料评审记录表" 和 "测评方案评审表"
-        # 都对应 08-测评方案评审表）
+        # 一个标准名称可能有多个关键词别名 — 例如 "归档材料评审记录表" 和 "测评方案评审表"
+        # 都映射到 08-测评方案评审表，匹配时按关键词长度降序确保长关键词优先
         key_map = {}
         for kw, (num, name) in [
             ("保密承诺书", ("02", "保密承诺书")),                   # 公司级文件
@@ -184,13 +184,13 @@ def on_rename_click(project: Project, parent=None, all_projects: list = None):
             return system_prefix
 
         # 操作统计计数器
-        renamed = 0   # 累计重命名/解压/移动的项目数
-        msgs = []     # 操作详情消息列表（每条一行）
+        renamed = 0   # 累计重命名/解压/移动的项目数（用于顶部摘要）
+        msgs = []     # 操作详情消息列表（每条一行，用于弹窗展示）
 
         # ---- 构建扫描目录列表 ----
-        # 单系统项目：仅扫描根目录
-        # 多系统合并：扫描根目录（公司级文件）+ 各系统子目录（系统级文件）
-        # 排除规则：跳过"报告打印"目录和"01-其他归档文件"目录
+        # 单系统项目：仅扫描根目录（所有文件在同一个文件夹中）
+        # 多系统合并：扫描根目录 + 各系统子目录（公司级文件在根目录，系统级文件在各子目录）
+        # 排除规则：跳过"报告打印"目录（辅助目录）和"01-其他归档文件"目录（归档存储）
         scan_dirs = [root]
         if is_multi:
             for dname in os.listdir(root):
@@ -202,21 +202,22 @@ def on_rename_click(project: Project, parent=None, all_projects: list = None):
         # ==================================================================
         # 步骤 1：ZIP 文件解压处理
         # ==================================================================
-        # 处理三种特殊 ZIP 包：
+        # 处理三种特殊 ZIP 包（客户通常以压缩包形式交付部分过程文件）：
         #   ① 测评方案评审记录表.zip → 直接解压到当前目录（后续步骤 3 会重命名）
         #   ② 渗透测试报告.zip → 解压到临时目录，移入 13-前缀-渗透测试报告/
-        #   ③ 测评报告评审表.zip → 解压到当前目录（步骤 2 会清理初审版本）
+        #   ③ 测评报告评审表.zip → 解压到当前目录（步骤 2 会清理其中的初审版本）
         for scan_root in scan_dirs:
             for fname in os.listdir(scan_root):
                 fpath = os.path.join(scan_root, fname)
-                # 仅处理文件类型的 ZIP
+                # 仅处理文件类型的 ZIP（跳过目录和非 ZIP 文件）
                 if not os.path.isfile(fpath) or not fname.lower().endswith(".zip"):
                     continue
 
                 extract_dst = scan_root  # 默认解压目标与 ZIP 同目录
 
                 # --- ① 测评方案评审记录表.zip ---
-                # 解压后的内容可能是编号不规范的评审表文件，交由步骤 3 统一重命名为 08
+                # 解压后的内容可能是编号不规范的评审表文件（如"评审记录表.docx"），
+                # 交由步骤 3 按关键词映射表统一重命名为标准的 08-{前缀}-测评方案评审表.ext
                 if "测评方案评审记录表" in fname:
                     try:
                         with zipfile.ZipFile(fpath, "r") as zf:
@@ -227,10 +228,10 @@ def on_rename_click(project: Project, parent=None, all_projects: list = None):
                     except Exception as e:
                         msgs.append(f"解压失败: {fname} ({e})")
 
-                # --- ② 渗透测试报告.zip（排除评审相关的 ZIP） ---
-                # 解压逻辑较复杂，因为 ZIP 结构不确定：
-                #   - 如果解压后只有 1 个子目录 → 该目录即渗透测试报告内容
-                #   - 如果解压后是多个散文件 → 创建新目录统一收纳
+                # --- ② 渗透测试报告.zip（排除评审相关的 ZIP 以避免误处理） ---
+                # 此类 ZIP 的内部结构不确定（可能包含子目录或散文件），需分情况处理：
+                #   - 如果解压后只有 1 个子目录 → 该子目录即报告内容，直接作为最终目录
+                #   - 如果解压后是多个散文件 → 创建新目录统一收纳所有文件
                 if "渗透测试报告" in fname and "评审" not in fname:
                     try:
                         # 创建临时解压目录（命名为 _渗透测试报告_tmp 避免冲突）
@@ -280,78 +281,82 @@ def on_rename_click(project: Project, parent=None, all_projects: list = None):
                         msgs.append(f"解压失败: {fname} ({e})")
 
         # ==================================================================
-        # 步骤 2：删除初审版本文件
+        # 步骤 2：删除初审版本文件（避免新旧版本混淆）
         # ==================================================================
-        # 遍历所有扫描目录，删除文件名中包含"初审"的文件
-        # 保留的将是最终版本（如 "17-测评报告评审表.docx"），
-        # 删除的是草稿版本（如 "17-测评报告评审表(初审).docx"）
+        # 遍历所有扫描目录，删除文件名中包含"初审"的旧版文件。
+        # 例如："17-测评报告评审表(初审).docx" 会被删除，
+        # 保留的将是最终版本 "17-{前缀}-测评报告评审表.docx"。
         for scan_root in scan_dirs:
             for fname in os.listdir(scan_root):
                 if "初审" in fname:
                     try:
-                        os.remove(os.path.join(scan_root, fname))
+                        os.remove(os.path.join(scan_root, fname))  # 删除文件
                         msgs.append(f"删除初审: {fname}")
                     except Exception:
-                        pass  # 删除失败不阻塞（可能文件已不存在或被锁定）
+                        pass  # 删除失败不阻塞（可能文件锁住、权限不足或已不存在）
 
         # ==================================================================
         # 步骤 3：批量重命名文件（核心步骤）
         # ==================================================================
-        # 遍历所有扫描目录中的每个文件，按两种情况处理：
+        # 遍历所有扫描目录中的每个文件，分两种情况处理：
+        #   情况 A：文件名已有编号前缀（如 "08-测评方案评审表.docx"）
+        #            → 提取编号，按关键词映射修正为标准的 编号-前缀-标准名.ext
+        #   情况 B：文件名无编号前缀（如 "测评方案评审表.docx"）
+        #            → 按关键词映射直接生成标准的 编号-前缀-标准名.ext
         for scan_root in scan_dirs:
             for fname in os.listdir(scan_root):
                 fpath = os.path.join(scan_root, fname)
                 # 跳过目录和 ZIP 文件（ZIP 已在步骤 1 处理）
                 if not os.path.isfile(fpath) or fname.endswith(".zip"):
                     continue
-                # 分离文件名和扩展名
+                # 分离文件名和扩展名（如 "08-测评方案评审表.docx" -> "08-测评方案评审表", ".docx"）
                 name_no_ext, ext = os.path.splitext(fname)
 
                 # ---- 情况 A：文件名已有编号前缀（如 "08-测评方案评审表.docx"） ----
-                # 正则匹配：2 位数字开头 + 连字符
+                # 正则匹配：2 位数字开头 + 连字符（^ 表示开头，\d{2} 匹配两位数字）
                 m = re.match(r"^(\d{2})-(.+)", name_no_ext)
                 if m:
-                    num = m.group(1)          # 提取编号（如 "08"）
+                    num = m.group(1)  # 提取编号（如 "08"）
                     rest = name_no_ext[len(num) + 1:]  # 编号后面的部分（如 "测评方案评审表"）
                     # 按关键词长度降序遍历，确保长关键词优先匹配
                     # 例：rest="测评方案评审记录表"时，先匹配"测评方案评审记录表"而非"测评方案"
                     for keyword in sorted(key_map, key=len, reverse=True):
                         if keyword in rest:
                             num, target_kw, is_co = key_map[keyword]
-                            pfx = _get_prefix(is_co, scan_root)  # 获取正确前缀
-                            new_name = f"{num}-{pfx}-{target_kw}{ext}"
-                            if new_name != fname:
+                            pfx = _get_prefix(is_co, scan_root)  # 获取正确前缀（公司/系统）
+                            new_name = f"{num}-{pfx}-{target_kw}{ext}"  # 构造标准文件名
+                            if new_name != fname:  # 文件名确实需要修改
                                 new_path = os.path.join(scan_root, new_name)
-                                if not os.path.exists(new_path):
+                                if not os.path.exists(new_path):  # 目标文件不存在才重命名
                                     os.rename(fpath, new_path)
                                     renamed += 1
                                     msgs.append(f"✓ {fname} → {new_name}")
                                 else:
-                                    msgs.append(f"跳过(已存在): {new_name}")
-                            break
+                                    msgs.append(f"跳过(已存在): {new_name}")  # 避免覆盖
+                            break  # 已匹配，不再检查更短的关键词
 
-                # ---- 情况 B：文件名无编号前缀 ----
+                # ---- 情况 B：文件名无编号前缀（如 "测评方案.docx"） ----
                 else:
                     for keyword in sorted(key_map, key=len, reverse=True):
                         if keyword in name_no_ext:
                             num, target_kw, is_co = key_map[keyword]
                             pfx = _get_prefix(is_co, scan_root)
-                            new_name = f"{num}-{pfx}-{target_kw}{ext}"
+                            new_name = f"{num}-{pfx}-{target_kw}{ext}"  # 构造：编号-前缀-标准名.扩展名
                             new_path = os.path.join(scan_root, new_name)
-                            if not os.path.exists(new_path):
+                            if not os.path.exists(new_path):  # 目标文件不存在才重命名
                                 os.rename(fpath, new_path)
                                 renamed += 1
                                 msgs.append(f"✓ {fname} → {new_name}")
                             else:
                                 msgs.append(f"跳过(已存在): {new_name}")
-                            break
+                            break  # 已匹配，不再检查更短的关键词
 
         # ==================================================================
-        # 步骤 4：子目录重命名
+        # 步骤 4：子目录重命名为标准格式
         # ==================================================================
-        # 处理两种目录：
-        #   ① "报告打印"目录 → 00-前缀-报告打印（公司级，编号 00）
-        #   ② "渗透测试报告"目录 → 13-前缀-渗透测试报告（系统级，编号 13）
+        # 处理两种特殊目录（如果客户交付时的目录名不规范则修正）：
+        #   ① 含"报告打印"的目录 → 00-{前缀}-报告打印（公司级辅助目录，编号 00）
+        #   ② 含"渗透测试报告"的目录 → 13-{前缀}-渗透测试报告（系统级，编号 13）
         # 重命名条件：目录名含关键词 且 当前未包含正确的公司/系统名前缀
         for scan_root in scan_dirs:
             for dname in os.listdir(scan_root):
@@ -372,10 +377,10 @@ def on_rename_click(project: Project, parent=None, all_projects: list = None):
                         break  # 一个目录只匹配一次
 
         # ==================================================================
-        # 步骤 5：显示操作报告
+        # 步骤 5：分类统计并弹窗显示操作报告
         # ==================================================================
-        # 分类统计
-        renames = [m for m in msgs if m.startswith("✓")]
+        # 将消息按类型分组：重命名成功(✓) / 跳过 / 其他操作
+        renames = [m for m in msgs if m.startswith("✓")]  # 成功的重命名
         skips = [m for m in msgs if m.startswith("跳过")]
         others = [m for m in msgs if not m.startswith("✓") and not m.startswith("跳过")]
 
