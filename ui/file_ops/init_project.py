@@ -63,40 +63,42 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
         None: 所有结果通过 messagebox 弹窗通知用户。
     """
     try:
-        root = find_project_folder(project)
+        root = find_project_folder(project)  # 查找项目文件夹路径
         if not root or not os.path.isdir(root):
             messagebox.showinfo("提示", "未找到项目文件夹")
             return
 
+        # 清理路径非法字符，确保文件夹名称在操作系统中合法
         cname = (project.company_name or "未命名").replace("/", "_").replace("\\", "_")
         sname = (project.system_name or "").replace("/", "_").replace("\\", "_")
-        is_multi = all_projects and len(all_projects) > 1
-        created = []
-        existed = []
+        is_multi = all_projects and len(all_projects) > 1  # 多系统合并项目
+        created = []  # 新创建的目录/文件列表（用于弹窗统计）
+        existed = []  # 已存在的目录/文件列表（用于弹窗统计）
 
         # ========== 阶段 2：创建归档子目录 ==========
-        archive_root = os.path.join(root, "01-其他归档文件")
+        archive_root = os.path.join(root, "01-其他归档文件")  # 归档文件根目录
+        # 等保测评的 5 个标准归档分类子目录
         archive_subdirs = [
-            "00-网安报备",
-            "01-备案材料",
-            "02-往期测评报告",
-            "03-现场测评",
-            "04-渗透漏扫",
+            "00-网安报备",       # 网安部门报备材料
+            "01-备案材料",       # 系统备案相关资料
+            "02-往期测评报告",   # 历史测评报告存档
+            "03-现场测评",       # 现场测评过程记录
+            "04-渗透漏扫",       # 渗透测试和漏洞扫描结果
         ]
         for dname in archive_subdirs:
             dpath = os.path.join(archive_root, dname)
             if not os.path.exists(dpath):
-                os.makedirs(dpath, exist_ok=True)
+                os.makedirs(dpath, exist_ok=True)  # 创建不存在的目录
                 created.append(f"01-其他归档文件/{dname}")
             else:
                 existed.append(f"01-其他归档文件/{dname}")
 
-        # ========== 阶段 2.5：多系统时创建各系统子目录 ==========
+        # ========== 阶段 2.5：多系统合并时，为每个子系统创建独立子目录 ==========
         if is_multi:
-            for p in all_projects:
-                sn = (p.system_name or "").replace("/", "_").replace("\\", "_")
+            for p in all_projects:  # 遍历所有关联项目
+                sn = (p.system_name or "").replace("/", "_").replace("\\", "_")  # 安全文件名
                 if sn:
-                    dpath = os.path.join(root, sn)
+                    dpath = os.path.join(root, sn)  # 子系统子目录路径
                     if not os.path.exists(dpath):
                         os.makedirs(dpath, exist_ok=True)
                         created.append(sn)
@@ -104,74 +106,77 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
                         existed.append(sn)
 
         # ========== 阶段 3：生成保密承诺书 docx ==========
+        # 多系统：仅公司名，不含系统名（承诺书针对整个法人实体）
+        # 单系统：公司名-系统名（承诺书针对特定信息系统）
         nda_name = f"02-{cname}-保密承诺书.docx" if is_multi else f"02-{cname}-{sname}-保密承诺书.docx"
         nda_path = os.path.join(root, nda_name)
 
         if os.path.exists(nda_path):
-            # 保密承诺书已存在则不重复生成
+            # 保密承诺书已存在则不重复生成，避免覆盖用户已修改的版本
             existed.append(nda_name)
         else:
             try:
                 # 定位模板文件路径（程序数据目录下的 templates 子目录）
                 tpl = os.path.join(Config.get_data_dir(), "templates", "02-保密承诺书模板.docx")
                 if os.path.exists(tpl):
-                    import docx  # python-docx 库：读写 Word 文档
-                    # 复制模板到目标位置（shutil.copy2 保留文件元数据如修改时间）
+                    import docx  # python-docx 库：读写 Word 文档（延迟导入避免循环依赖）
+                    # 复制模板到目标位置（shutil.copy2 保留文件元数据，如修改时间）
                     shutil.copy2(tpl, nda_path)
                     doc = docx.Document(nda_path)  # 打开刚复制的文档准备编辑
 
-                    company = project.company_name or ""  # 当前项目的公司名称
-                    # 提取创建日期并截取前 10 位（YYYY-MM-DD 格式）
+                    company = project.company_name or ""  # 当前项目的公司名称（用于替换占位符）
+                    # 提取创建日期并截取前 10 位（YYYY-MM-DD 格式），用于日期列替换
                     create_date = project.created_at[:10] if project.created_at else ""
 
                     # ---- 替换公司名（形态 A：完整 "XX公司" 在同一个 run 中） ----
-                    # 遍历所有段落的每个 run，直接进行字符串替换
-                    # 这样保留了原有 run 的字体、字号、颜色等格式属性
+                    # 遍历所有段落的每个 run，直接进行字符串替换。
+                    # Python-docx 中 run 是保留格式的最小单元，这样替换后
+                    # 原有的字体、字号、颜色等格式属性都得以保留。
                     for p in doc.paragraphs:
                         for run in p.runs:
                             if "XX公司" in run.text or "xx公司" in run.text:
-                                # 同时替换大写和小写版本，兼容模板中的不同写法
+                                # 同时替换大写和小写版本，兼容模板编辑时可能的不同输入法习惯
                                 run.text = run.text.replace("XX公司", company).replace("xx公司", company)
-                                break  # 一个段落中通常只有一个占位符
+                                break  # 一个段落中通常只有一个占位符，找到即跳出
 
                     # ---- 替换公司名（形态 B：分体的 "XX" + "公司" 相邻 run） ----
-                    # 某些模板中 XX 和 公司 因格式不同被拆成两个相邻 run，
-                    # 例如：run[0]="XX"(宋体) + run[1]="公司"(黑体)
-                    # 此时需要将 run[0] 改为公司名，run[1] 清空
+                    # 某些模板中 "XX" 和 "公司" 因格式不同（如宋体 vs 黑体）被 Word
+                    # 拆分成两个相邻的 run，例如：run[0]="XX"(宋体) + run[1]="公司"(黑体)。
+                    # 此时需要将 run[0] 改为完整的公司名，run[1] 清空以避免文字重复。
                     for p in doc.paragraphs:
                         for j in range(len(p.runs) - 1):  # 遍历相邻 run 对
                             if p.runs[j].text.strip() == "XX" and p.runs[j+1].text.strip() == "公司":
-                                p.runs[j].text = company   # 第一个 run 填入公司名
-                                p.runs[j+1].text = ""      # 第二个 run 清空（避免重复）
+                                p.runs[j].text = company   # 第一个 run 填入完整公司名
+                                p.runs[j+1].text = ""      # 第二个 run 清空（避免出现"公司"残留）
 
                     # ---- 替换日期占位符（表格中的年-月-日） ----
-                    # 模板表格中的日期格式：[XX]年[XX]月[XX]日，
-                    # 其中每个 "XX" 在独立的 run 中，以保留各自的对齐格式
+                    # 模板表格中的日期行格式：[XX]年[XX]月[XX]日，
+                    # 每个 "XX" 在独立的 run 中（保留各自的对齐和字体格式）。
                     if create_date:
                         parts = create_date.split("-")  # "2026-06-12" → ["2026", "06", "12"]
                         if len(parts) == 3:
-                            # 对月份和日期去除前导零后重新补零（避免 "06" 显示为 "6"）
+                            # 月份和日期去除前导零后重新补零格式化
                             y, m, d = parts[0], f"{int(parts[1]):02d}", f"{int(parts[2]):02d}"
-                            # 遍历文档中所有表格的每个单元格
+                            # 遍历文档中所有表格（含页眉页脚表格）的每个单元格
                             for table in doc.tables:
                                 for row in table.rows:
                                     for cell in row.cells:
                                         for p in cell.paragraphs:
-                                            rs = p.runs  # 当前段落的所有 run
-                                            # 匹配 6 个 run 中第 0/2/4 位均为 "XX" 的日期行
-                                            # 典型模板结构：[XX]  年  [XX]  月  [XX]  日
+                                            rs = p.runs  # 当前段落的所有 run 列表
+                                            # 匹配 6 个 run 中第 0/2/4 位均为 "XX" 的典型日期行
+                                            # 模板结构：[XX]  年  [XX]  月  [XX]  日
                                             if len(rs) >= 6 and all(
                                                 rs[k].text.strip() == v
                                                 for k, v in [(0, "XX"), (2, "XX"), (4, "XX")]
                                             ):
-                                                rs[0].text = y   # run[0] = 年份
-                                                rs[2].text = m   # run[2] = 月份
-                                                rs[4].text = d   # run[4] = 日期
-                                                break  # 一个单元格只需处理一个日期行
+                                                rs[0].text = y   # run[0] 替换为年份
+                                                rs[2].text = m   # run[2] 替换为月份
+                                                rs[4].text = d   # run[4] 替换为日期
+                                                break  # 一个单元格中通常只有一个日期行
 
-                    # 保存修改后的文档
+                    # 保存修改后的文档（commit 到 docx 文件）
                     doc.save(nda_path)
-                    created.append(nda_name)
+                    created.append(nda_name)  # 记录已创建的保密承诺书
             except Exception:
                 # 模板处理失败不影响其他初始化流程（静默跳过）
                 # 常见原因：模板文件缺失、docx 格式损坏、文件被占用等

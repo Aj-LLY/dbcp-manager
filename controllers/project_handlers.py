@@ -319,17 +319,17 @@ def on_card_detail(main_window, card: ProjectCard):
                                on_move=_handle_move, all_projects=all_projects)
     if not result:
         # 用户关闭了对话框（未进行编辑或删除操作）
-        return
+        return  # 直接返回，不做任何处理
 
     # 解析对话框返回的操作类型和数据
-    action, data = result
-    if action == "edit":
-        systems = data.get("systems", [])
-        proj_list = card.projects if card.projects and len(card.projects) > 1 else [project]
-        for i, p in enumerate(proj_list):
-            if i < len(systems):
-                sys_data = systems[i]
-                success, msg = main_window._project_service.update_project(
+    action, data = result  # 拆包：(操作类型 "edit"/"delete", 表单数据字典)
+    if action == "edit":  # 用户执行了编辑并确认保存
+        systems = data.get("systems", [])  # 多系统数据列表（单系统时为空或仅 1 项）
+        proj_list = card.projects if card.projects and len(card.projects) > 1 else [project]  # 构建操作项目列表
+        for i, p in enumerate(proj_list):  # 遍历已有项目：更新或删除
+            if i < len(systems):  # 对应位置有系统数据：更新项目
+                sys_data = systems[i]  # 提取当前索引的系统数据
+                success, msg = main_window._project_service.update_project(  # 部分更新项目字段
                     p.id,
                     company_name=data.get("company_name"),
                     system_name=sys_data.get("system_name", p.system_name),
@@ -342,15 +342,15 @@ def on_card_detail(main_window, card: ProjectCard):
                     stage_id=data.get("stage_id"),
                     folder_path=data.get("folder_path"),
                 )
-                if not success:
-                    messagebox.showerror("错误", msg)
-                    break
+                if not success:  # 更新失败
+                    messagebox.showerror("错误", msg)  # 显示错误
+                    break  # 停止处理后续项目（避免数据不一致）
             else:
-                main_window._project_service.delete_project(p.id)
-        # 创建新增的系统
-        for i in range(len(proj_list), len(systems)):
-            sys_data = systems[i]
-            main_window._project_service.create_project(
+                main_window._project_service.delete_project(p.id)  # 用户删除了某个系统：执行删除
+        # 创建新增的系统（当对话框返回的系统多于原始项目时）
+        for i in range(len(proj_list), len(systems)):  # 从第一个新系统索引开始
+            sys_data = systems[i]  # 新系统的字段数据
+            main_window._project_service.create_project(  # 创建新项目实体
                 company_name=data.get("company_name"),
                 system_name=sys_data.get("system_name", ""),
                 cert_number=sys_data.get("cert_number", ""),
@@ -361,14 +361,14 @@ def on_card_detail(main_window, card: ProjectCard):
                 notes=data.get("notes"),
                 stage_id=data.get("stage_id"),
             )
-        main_window._refresh_kanban()
-    elif action == "delete":
+        main_window._refresh_kanban()  # 全量刷新看板以反映编辑结果
+    elif action == "delete":  # 用户从详情对话框执行了删除操作
         # 删除操作：永久删除项目
-        success, msg = main_window._project_service.delete_project(project.id)
-        if success:
-            main_window._refresh_kanban()
+        success, msg = main_window._project_service.delete_project(project.id)  # 执行永久删除
+        if success:  # 删除成功
+            main_window._refresh_kanban()  # 刷新看板，移除已删除的项目卡片
         else:
-            messagebox.showerror("错误", msg)
+            messagebox.showerror("错误", msg)  # 删除失败时弹窗显示错误信息
 
 
 def on_card_edit(main_window, card: ProjectCard):
@@ -401,16 +401,16 @@ def on_card_edit(main_window, card: ProjectCard):
 
     # 显示编辑对话框，传入现有项目数据和项目列表
     result = show_project_dialog(main_window, "编辑项目", project, stages, all_projects=all_proj)
-    if result:
+    if result:  # 用户点击了"确认"按钮（非取消）
         shared = {k: result.get(k) for k in ("company_name", "location",
-            "deadline", "notes", "stage_id", "folder_path")}
-        systems = result.get("systems", [])
-        proj_list = card.projects if card.projects else [card.project]
+            "deadline", "notes", "stage_id", "folder_path")}  # 提取多系统共享字段（所有系统共用）
+        systems = result.get("systems", [])  # 每个系统的独立字段数据列表
+        proj_list = card.projects if card.projects else [card.project]  # 构建操作项目列表
 
-        for i, p in enumerate(proj_list):
-            if i < len(systems):
-                sys_data = systems[i]
-                main_window._project_service.update_project(
+        for i, p in enumerate(proj_list):  # 遍历已有项目：更新或删除
+            if i < len(systems):  # 对应位置有系统数据：更新项目
+                sys_data = systems[i]  # 提取当前索引的系统独立数据
+                main_window._project_service.update_project(  # 调用服务层更新项目
                     p.id,
                     company_name=shared["company_name"],
                     system_name=sys_data.get("system_name", p.system_name),
@@ -424,12 +424,12 @@ def on_card_edit(main_window, card: ProjectCard):
                     folder_path=shared["folder_path"],
                 )
             else:
-                main_window._project_service.delete_project(p.id)
+                main_window._project_service.delete_project(p.id)  # 用户删除了某个系统：执行删除
 
         # 创建新增的系统（对话框返回的系统多于原始项目）
-        for i in range(len(proj_list), len(systems)):
-            sys_data = systems[i]
-            main_window._project_service.create_project(
+        for i in range(len(proj_list), len(systems)):  # 从第一个新系统索引开始
+            sys_data = systems[i]  # 新系统的字段数据
+            main_window._project_service.create_project(  # 创建新项目实体
                 company_name=shared["company_name"],
                 system_name=sys_data.get("system_name", ""),
                 cert_number=sys_data.get("cert_number", ""),
@@ -441,7 +441,7 @@ def on_card_edit(main_window, card: ProjectCard):
                 stage_id=shared["stage_id"],
             )
 
-        main_window._refresh_kanban()
+        main_window._refresh_kanban()  # 全量刷新看板以反映编辑结果
 
 
 def on_card_move_stage(main_window, card: ProjectCard, target_stage_id: str):

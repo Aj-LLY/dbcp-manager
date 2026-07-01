@@ -56,8 +56,8 @@ def on_console(main_window):
     """
     # 创建模态子窗口
     dlg = tk.Toplevel(main_window)
-    dlg.title("控制台 - 错误日志")
-    dlg.geometry("700x400")
+    dlg.title("控制台 - 错误日志")  # 设置窗口标题
+    dlg.geometry("700x400")  # 固定窗口尺寸：宽 700px，高 400px
     dlg.configure(bg="#1e1e1e")  # 深色底色
 
     # 创建带滚动条的文本组件
@@ -65,17 +65,17 @@ def on_console(main_window):
         insertbackground="white",  # 光标颜色
         font=("Consolas", 9),  # 等宽字体
         wrap="word")  # 按单词换行
-    text.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+    text.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)  # 填充窗口并留出边距
 
     # 获取错误日志并插入文本框顶部
     text.insert("1.0", get_errors())
     # 将文本框设为只读，允许选中复制但不允许编辑
     text.configure(state="disabled")
 
-    # 关闭按钮
+    # 关闭按钮（深色风格，匹配控制台主题）
     btn = tk.Button(dlg, text="关闭", command=dlg.destroy,
         bg="#333", fg="#ccc", cursor="hand2")
-    btn.pack(pady=(0, 4))
+    btn.pack(pady=(0, 4))  # 底部留 4px 间距
 
 
 def on_backup(main_window):
