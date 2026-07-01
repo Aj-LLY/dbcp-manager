@@ -326,9 +326,6 @@ def on_card_detail(main_window, card: ProjectCard):
     if action == "edit":
         systems = data.get("systems", [])
         proj_list = card.projects if card.projects and len(card.projects) > 1 else [project]
-        print(f"[详情编辑] 原始项目={len(proj_list)} 返回系统={len(systems)}", flush=True)
-        for i, s in enumerate(systems):
-            print(f"[详情编辑]   sys#{i}: name={s.get('system_name')}", flush=True)
         for i, p in enumerate(proj_list):
             if i < len(systems):
                 sys_data = systems[i]
@@ -349,12 +346,10 @@ def on_card_detail(main_window, card: ProjectCard):
                     messagebox.showerror("错误", msg)
                     break
             else:
-                print(f"[详情编辑] 删除多余项目: {p.system_name}", flush=True)
                 main_window._project_service.delete_project(p.id)
         # 创建新增的系统
         for i in range(len(proj_list), len(systems)):
             sys_data = systems[i]
-            print(f"[详情编辑] 创建新系统: {sys_data.get('system_name')}", flush=True)
             main_window._project_service.create_project(
                 company_name=data.get("company_name"),
                 system_name=sys_data.get("system_name", ""),
@@ -411,11 +406,7 @@ def on_card_edit(main_window, card: ProjectCard):
             "deadline", "notes", "stage_id", "folder_path")}
         systems = result.get("systems", [])
         proj_list = card.projects if card.projects else [card.project]
-        print(f"[卡片编辑] 原始项目={len(proj_list)} 返回系统={len(systems)}", flush=True)
-        for i, s in enumerate(systems):
-            print(f"[卡片编辑]   sys#{i}: name={s.get('system_name')}", flush=True)
 
-        # 更新已有项目 / 删除多余项目
         for i, p in enumerate(proj_list):
             if i < len(systems):
                 sys_data = systems[i]
@@ -433,13 +424,11 @@ def on_card_edit(main_window, card: ProjectCard):
                     folder_path=shared["folder_path"],
                 )
             else:
-                print(f"[卡片编辑] 删除多余项目: {p.system_name}", flush=True)
                 main_window._project_service.delete_project(p.id)
 
         # 创建新增的系统（对话框返回的系统多于原始项目）
         for i in range(len(proj_list), len(systems)):
             sys_data = systems[i]
-            print(f"[卡片编辑] 创建新系统: {sys_data.get('system_name')}", flush=True)
             main_window._project_service.create_project(
                 company_name=shared["company_name"],
                 system_name=sys_data.get("system_name", ""),
