@@ -74,8 +74,6 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
         created = []
         existed = []
 
-        print(f"[初始化] root={root} multi={is_multi} all_projects={len(all_projects or [])}", flush=True)
-
         # ========== 阶段 2：创建归档子目录 ==========
         archive_root = os.path.join(root, "01-其他归档文件")
         archive_subdirs = [
@@ -90,25 +88,21 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
             else:
                 existed.append(f"01-其他归档文件/{dname}")
 
-        # ========== 阶段 2.5：创建系统子目录 ==========
-        sys_list = all_projects if is_multi else [project]
-        print(f"[初始化] 阶段2.5: {len(sys_list)}个系统, 创建子系统目录...", flush=True)
-        for p in sys_list:
-            sn = (p.system_name or "").replace("/", "_").replace("\\", "_")
-            if sn:
-                dpath = os.path.join(root, sn)
-                if not os.path.exists(dpath):
-                    os.makedirs(dpath, exist_ok=True)
-                    created.append(sn)
-                    print(f"[初始化]   + 系统目录: {sn}", flush=True)
-                else:
-                    existed.append(sn)
-                    print(f"[初始化]   = 已存在: {sn}", flush=True)
+        # ========== 阶段 2.5：多系统(2+)创建子系统目录 ==========
+        if is_multi:
+            for p in all_projects:
+                sn = (p.system_name or "").replace("/", "_").replace("\\", "_")
+                if sn:
+                    dpath = os.path.join(root, sn)
+                    if not os.path.exists(dpath):
+                        os.makedirs(dpath, exist_ok=True)
+                        created.append(sn)
+                    else:
+                        existed.append(sn)
 
         # ========== 阶段 3：生成保密承诺书 docx ==========
         nda_name = f"02-{cname}-保密承诺书.docx" if is_multi else f"02-{cname}-{sname}-保密承诺书.docx"
         nda_path = os.path.join(root, nda_name)
-        print(f"[初始化] 阶段3: nda_name={nda_name}", flush=True)
 
         if os.path.exists(nda_path):
             # 保密承诺书已存在则不重复生成，避免覆盖用户已修改的版本
@@ -116,7 +110,6 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
         else:
             try:
                 tpl = os.path.join(Config.get_data_dir(), "templates", "02-保密承诺书模板.docx")
-                print(f"[初始化]   NDA模板路径={tpl} 存在={os.path.exists(tpl)}", flush=True)
                 if os.path.exists(tpl):
                     import docx  # python-docx 库：读写 Word 文档（延迟导入避免循环依赖）
                     # 复制模板到目标位置（shutil.copy2 保留文件元数据，如修改时间）
@@ -176,10 +169,8 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
                     # 保存修改后的文档（commit 到 docx 文件）
                     doc.save(nda_path)
                     created.append(nda_name)
-                else:
-                    print(f"[初始化]   ⚠ 模板文件不存在: {tpl}", flush=True)
-            except Exception as exc:
-                print(f"[初始化]   ❌ NDA创建失败: {exc}", flush=True)
+            except Exception:
+                pass  # 模板缺失或格式异常时不阻断其他初始化
 
         # ========== 阶段 4：弹窗汇总报告 ==========
         lines = []
