@@ -63,27 +63,24 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
         None: 所有结果通过 messagebox 弹窗通知用户。
     """
     try:
-        root = find_project_folder(project)  # 查找项目文件夹路径
+        root = find_project_folder(project)
         if not root or not os.path.isdir(root):
             messagebox.showinfo("提示", "未找到项目文件夹")
             return
 
-        # 清理路径非法字符，确保文件夹名称在操作系统中合法
         cname = (project.company_name or "未命名").replace("/", "_").replace("\\", "_")
         sname = (project.system_name or "").replace("/", "_").replace("\\", "_")
-        is_multi = all_projects and len(all_projects) > 1  # 多系统合并项目
-        created = []  # 新创建的目录/文件列表（用于弹窗统计）
-        existed = []  # 已存在的目录/文件列表（用于弹窗统计）
+        is_multi = all_projects and len(all_projects) > 1
+        created = []
+        existed = []
+
+        print(f"[初始化] root={root} multi={is_multi} all_projects={len(all_projects or [])}", flush=True)
 
         # ========== 阶段 2：创建归档子目录 ==========
-        archive_root = os.path.join(root, "01-其他归档文件")  # 归档文件根目录
-        # 等保测评的 5 个标准归档分类子目录
+        archive_root = os.path.join(root, "01-其他归档文件")
         archive_subdirs = [
-            "00-网安报备",       # 网安部门报备材料
-            "01-备案材料",       # 系统备案相关资料
-            "02-往期测评报告",   # 历史测评报告存档
-            "03-现场测评",       # 现场测评过程记录
-            "04-渗透漏扫",       # 渗透测试和漏洞扫描结果
+            "00-网安报备", "01-备案材料", "02-往期测评报告",
+            "03-现场测评", "04-渗透漏扫",
         ]
         for dname in archive_subdirs:
             dpath = os.path.join(archive_root, dname)
@@ -106,10 +103,9 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
                         existed.append(sn)
 
         # ========== 阶段 3：生成保密承诺书 docx ==========
-        # 多系统：仅公司名，不含系统名（承诺书针对整个法人实体）
-        # 单系统：公司名-系统名（承诺书针对特定信息系统）
         nda_name = f"02-{cname}-保密承诺书.docx" if is_multi else f"02-{cname}-{sname}-保密承诺书.docx"
         nda_path = os.path.join(root, nda_name)
+        print(f"[初始化] 阶段3: nda_name={nda_name}", flush=True)
 
         if os.path.exists(nda_path):
             # 保密承诺书已存在则不重复生成，避免覆盖用户已修改的版本
