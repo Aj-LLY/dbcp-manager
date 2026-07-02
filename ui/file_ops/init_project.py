@@ -90,17 +90,20 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
             else:
                 existed.append(f"01-其他归档文件/{dname}")
 
-        # ========== 阶段 2.5：多系统合并时，为每个子系统创建独立子目录 ==========
-        if is_multi:
-            for p in all_projects:  # 遍历所有关联项目
-                sn = (p.system_name or "").replace("/", "_").replace("\\", "_")  # 安全文件名
-                if sn:
-                    dpath = os.path.join(root, sn)  # 子系统子目录路径
-                    if not os.path.exists(dpath):
-                        os.makedirs(dpath, exist_ok=True)
-                        created.append(sn)
-                    else:
-                        existed.append(sn)
+        # ========== 阶段 2.5：创建系统子目录 ==========
+        sys_list = all_projects if is_multi else [project]
+        print(f"[初始化] 阶段2.5: {len(sys_list)}个系统, 创建子系统目录...", flush=True)
+        for p in sys_list:
+            sn = (p.system_name or "").replace("/", "_").replace("\\", "_")
+            if sn:
+                dpath = os.path.join(root, sn)
+                if not os.path.exists(dpath):
+                    os.makedirs(dpath, exist_ok=True)
+                    created.append(sn)
+                    print(f"[初始化]   + 系统目录: {sn}", flush=True)
+                else:
+                    existed.append(sn)
+                    print(f"[初始化]   = 已存在: {sn}", flush=True)
 
         # ========== 阶段 3：生成保密承诺书 docx ==========
         nda_name = f"02-{cname}-保密承诺书.docx" if is_multi else f"02-{cname}-{sname}-保密承诺书.docx"
@@ -112,8 +115,8 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
             existed.append(nda_name)
         else:
             try:
-                # 定位模板文件路径（程序数据目录下的 templates 子目录）
                 tpl = os.path.join(Config.get_data_dir(), "templates", "02-保密承诺书模板.docx")
+                print(f"[初始化]   NDA模板路径={tpl} 存在={os.path.exists(tpl)}", flush=True)
                 if os.path.exists(tpl):
                     import docx  # python-docx 库：读写 Word 文档（延迟导入避免循环依赖）
                     # 复制模板到目标位置（shutil.copy2 保留文件元数据，如修改时间）
@@ -172,11 +175,11 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
 
                     # 保存修改后的文档（commit 到 docx 文件）
                     doc.save(nda_path)
-                    created.append(nda_name)  # 记录已创建的保密承诺书
-            except Exception:
-                # 模板处理失败不影响其他初始化流程（静默跳过）
-                # 常见原因：模板文件缺失、docx 格式损坏、文件被占用等
-                pass
+                    created.append(nda_name)
+                else:
+                    print(f"[初始化]   ⚠ 模板文件不存在: {tpl}", flush=True)
+            except Exception as exc:
+                print(f"[初始化]   ❌ NDA创建失败: {exc}", flush=True)
 
         # ========== 阶段 4：弹窗汇总报告 ==========
         lines = []
