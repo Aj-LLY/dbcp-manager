@@ -553,40 +553,15 @@ def on_column_resize(main_window, stage_id: str, new_width: int):
 # 项目文件夹结构创建函数
 # =============================================================================
 
-def create_project_folder(main_window, project):
+def create_project_folder(main_window, project, all_projects: list = None):
     """为新建项目创建完整的文件目录结构。
 
-    在程序数据目录下创建以公司名+系统名+日期命名的文件夹，
-    并初始化以下子目录：
-      - 01-其他归档文件/                     # 存放杂项归档材料
-      - 00-{公司}-{系统}-报告打印/            # 存放打印版报告（通过 generate_nda_template 创建）
-      - 13-{公司}-{系统}-渗透测试报告/         # 存放渗透测试相关文件
-
-    文件夹命名规则：
-      格式：{序号}-{公司简称}-{系统简称}-{年月日}
-      序号：当前项目总数（自动递增，格式化 3 位）
-      日期：创建当日（格式 YYMMDD，如 260612）
-
-    安全性处理：
-      - 公司名称和系统名称中的路径分隔符（/ 和 \\）被替换为下划线
-      - 使用 os.makedirs(exist_ok=True) 避免并发创建时抛异常
-
-    创建成功后，将文件夹路径保存到 project 对象并持久化到 JSON 文件。
+    多系统(2+)时在根目录下为每个系统创建子目录，单系统不创建。
 
     Args:
-        main_window: MainWindow 实例，提供以下访问入口：
-            - _project_service: 项目服务（获取项目总数用于序号计算）
-            - _data_service: 数据持久化服务（保存文件夹路径）
-        project: 新创建的项目实体对象（包含公司名称、系统名称等信息）
-            - project.company_name: 公司名称（用于目录名）
-            - project.system_name: 系统名称（用于目录名）
-            - project.id: 项目 ID（用于持久化文件夹路径关联）
-
-    Returns:
-        None
-
-    Raises:
-        无显式抛出异常：OSError 在内部静默捕获，避免因文件系统错误中断用户操作
+        main_window: MainWindow 实例。
+        project: 新建的项目实体对象。
+        all_projects: 多系统时所有关联项目列表，用于判断是否创建系统子目录。
     """
     try:
         # 获取程序数据根目录路径
@@ -619,7 +594,13 @@ def create_project_folder(main_window, project):
         for d in archive_subdirs:
             os.makedirs(os.path.join(root, d), exist_ok=True)
 
-        # 生成保密承诺书模板（复制模板文件并替换公司名称和日期）
+        # 多系统(2+)创建各系统子目录
+        if all_projects and len(all_projects) > 1:
+            for p in all_projects:
+                sn = (p.system_name or "").replace("/", "_").replace("\\", "_")
+                if sn:
+                    os.makedirs(os.path.join(root, sn), exist_ok=True)
+
         generate_nda_template(main_window, root, cname, project.company_name or "未命名")
 
         # 将文件夹路径关联到项目并持久化到 JSON
