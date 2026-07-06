@@ -1046,8 +1046,10 @@ class ProjectDialog(tk.Toplevel):
                 "01-其他归档文件/03-现场测评",      # 现场测评过程记录
                 "01-其他归档文件/04-渗透漏扫",      # 渗透测试和漏扫结果
             ]
-            for sn in sys_names:
-                subdirs.append(sn)  # 每个系统名称作为一个独立子目录
+            # 多系统(2+)才创建系统子目录
+            if len(sys_names) > 1:
+                for sn in sys_names:
+                    subdirs.append(sn)
             created = 0  # 新创建的子目录计数
             for d in subdirs:
                 dpath = os.path.join(full_root, d)

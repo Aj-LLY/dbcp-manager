@@ -466,4 +466,5 @@ class BackupService:
         # 确保路径以 "/" 开头，构建规范的请求路径
         path = "/" + remote_path.lstrip("/")
         # 使用 DELETE 方法删除远程文件
-        return self._make_request("DELETE", path)
+        ok, msg, _ = self._make_request("DELETE", path)
+        return ok, msg
