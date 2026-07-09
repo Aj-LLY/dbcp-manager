@@ -170,7 +170,9 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
                     doc.save(nda_path)
                     created.append(nda_name)
             except Exception:
-                pass  # 模板缺失或格式异常时不阻断其他初始化
+                import traceback
+                print(f"[初始化] NDA创建失败:", flush=True)
+                traceback.print_exc()
 
         # ========== 阶段 4：弹窗汇总报告 ==========
         lines = []
