@@ -47,8 +47,15 @@ class FlowCanvas(tk.Frame):
 
     def _bind_events(self):
         self._canvas.bind("<Double-Button-1>", self._on_double_click)
-        self._canvas.bind("<Button-3>", self._on_right_click)  # 右键菜单
+        self._canvas.bind("<Button-3>", self._on_right_click)
         self._canvas.bind("<MouseWheel>", self._on_zoom)
+        # 画布平移：B2(中键)或Ctrl+左键拖拽空白区
+        self._canvas.bind("<Button-2>", self._start_pan)
+        self._canvas.bind("<B2-Motion>", self._do_pan)
+        self._canvas.bind("<Control-Button-1>", self._start_pan)
+        self._canvas.bind("<Control-B1-Motion>", self._do_pan)
+        self._pan_x = 0
+        self._pan_y = 0
         self.bind("<Configure>", self._on_resize)
 
     def bind_callbacks(self, on_node_click=None, on_subnode_click=None,
@@ -75,9 +82,16 @@ class FlowCanvas(tk.Frame):
             for i in range(len(self._stages) - 1):
                 self._connections.append((self._stages[i].id, self._stages[i+1].id))
 
+        print(f'[Flow] load: stages={len(stages)} projects={len(projects)} merged={len(self._merged)}')
+        print(f'[Flow] connections={self._connections}')
         self.update_idletasks()
         try:
-            self._auto_layout()
+            try:
+                self._auto_layout()
+            except Exception as e:
+                import traceback
+                print(f'[Flow] ⛔ _auto_layout 异常: {e}')
+                traceback.print_exc()
         except Exception:
             import traceback
             traceback.print_exc()
@@ -354,17 +368,36 @@ class FlowCanvas(tk.Frame):
     def _end_drag(self):
         self._drag_tag = None
 
+    def _start_pan(self, event):
+        self._pan_x = event.x
+        self._pan_y = event.y
+        self._canvas.configure(cursor="fleur")
+
+    def _do_pan(self, event):
+        dx = event.x - self._pan_x
+        dy = event.y - self._pan_y
+        self._canvas.scan_dragto(-dx, -dy, gain=1)
+        self._pan_x = event.x
+        self._pan_y = event.y
+
     # =========================================================================
     # 点击事件
     # =========================================================================
 
     def _on_sn_click(self, pid):
+        print(f'[Flow] _on_sn_click: pid={pid}')
         if self.on_subnode_click:
+            print(f'[Flow]   calling on_subnode_click callback')
             self.on_subnode_click(pid)
+        else:
+            print(f'[Flow]   ⚠ on_subnode_click is None!')
 
     def _on_sn_double(self, pid):
+        print(f'[Flow] _on_sn_double: pid={pid}')
         if self.on_subnode_double:
             self.on_subnode_double(pid)
+        else:
+            print(f'[Flow]   ⚠ on_subnode_double is None!')
 
     def _on_right_click(self, event):
         """右键空白区域：取消连线模式。"""

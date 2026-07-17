@@ -257,6 +257,7 @@ class MainWindow(tk.Tk):
                  font=("Microsoft YaHei", 8)).pack(side=tk.BOTTOM, fill=tk.X, pady=5)
 
     def _on_flow_subnode_click(self, project_id):
+        print(f'[Main] _on_flow_subnode_click: project_id={project_id}')
         """单击子节点 → 右侧面板显示详情。"""
         project = self._project_service.get_project_by_id(project_id)
         if not project:
@@ -282,6 +283,7 @@ class MainWindow(tk.Tk):
             val.configure(text=data.get(label, "-"))
 
     def _refresh_flow_view(self):
+        print(f'[Main] _refresh_flow_view called')
         """刷新流程图数据。"""
         stages = self._workflow_service.get_all_stages()
         projects = self._project_service.get_all_projects()
@@ -289,10 +291,12 @@ class MainWindow(tk.Tk):
         self._flow_canvas.load(stages, projects)
 
     def _on_flow_subnode_click(self, project_id):
+        print(f'[Main] _on_flow_subnode_click: project_id={project_id}')
         """流程图子节点单击 → 选中高亮。"""
         pass  # 预留：可添加选中高亮逻辑
 
     def _on_flow_subnode_double(self, project_id):
+        print(f'[Main] _on_flow_subnode_double: project_id={project_id}')
         """流程图子节点双击 → 打开详情。"""
         project = self._project_service.get_project_by_id(project_id)
         if project:
