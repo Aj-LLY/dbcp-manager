@@ -90,9 +90,17 @@ class FlowCanvas(tk.Frame):
     # =========================================================================
 
     def load(self, stages: list[WorkflowStage], projects: list[Project]):
-        """加载阶段和项目数据并自动布局。"""
+        """加载阶段和项目数据并自动布局。多系统按公司合并为一张卡片。"""
         self._stages = stages
         self._projects = projects
+
+        # 按(公司名, 阶段ID)合并项目（与看板逻辑一致）
+        from collections import defaultdict
+        groups = defaultdict(list)
+        for p in projects:
+            key = (p.company_name.strip() or "未命名", p.stage_id)
+            groups[key].append(p)
+        self._merged = list(groups.values())
         self._auto_layout()
 
     def _auto_layout(self):
@@ -123,11 +131,11 @@ class FlowCanvas(tk.Frame):
                 font=("Microsoft YaHei", 10, "bold"), anchor="center",
             )
 
-            # 项目计数
-            count = sum(1 for p in self._projects if p.stage_id == stage.id)
+            # 项目计数（合并后）
+            merged_count = sum(1 for g in self._merged if g[0].stage_id == stage.id)
             count_id = self._canvas.create_text(
                 x + self.NODE_W // 2, y + self.NODE_H // 2 + 12,
-                text=str(count), fill="rgba(255,255,255,0.7)",
+                text=str(merged_count), fill="rgba(255,255,255,0.7)",
                 font=("Microsoft YaHei", 9), anchor="center",
             )
 
@@ -136,53 +144,85 @@ class FlowCanvas(tk.Frame):
                 "x": x, "y": y, "stage": stage,
             }
 
-            # 绘制子节点
+            # 绘制合并后的子节点
             sub_y = y + self.NODE_H + self.SUBNODE_V_GAP + 10
-            projs = [p for p in self._projects if p.stage_id == stage.id]
-            for j, proj in enumerate(projs[:8]):  # 最多显示 8 个
+            merged_groups = [g for g in self._merged if g[0].stage_id == stage.id]
+
+            for j, group in enumerate(merged_groups[:8]):
                 sx = x + (self.SUBNODE_W - self.NODE_W) // 2
                 sy = sub_y + j * (self.SUBNODE_H + self.SUBNODE_V_GAP)
 
-                # 子节点背景
+                first = group[0]
+                is_multi = len(group) > 1
+                # 标题：多系统→公司名，单系统→系统名
+                title = first.company_name if is_multi else (first.system_name or first.company_name or "-")
+                if len(title) > 12:
+                    title = title[:11] + "…"
+
+                # 子节点高度自适应（多系统时加高以容纳系统列表）
+                sn_h = self.SUBNODE_H + (len(group) - 1) * 14 if is_multi else self.SUBNODE_H
+
                 sn_id = self._draw_rounded_rect(
-                    sx, sy, self.SUBNODE_W, self.SUBNODE_H,
+                    sx, sy, self.SUBNODE_W, sn_h,
                     fill="white", outline="#d0d5dd",
                 )
 
-                # 状态色条
+                # 状态色条（取最紧急的状态）
+                bar_color = self._get_status_color(first)
+                for p in group:
+                    c = self._get_status_color(p)
+                    if c == "#ff0000":
+                        bar_color = c
+                        break
+                    if c == "#ffc000" and bar_color != "#ff0000":
+                        bar_color = c
                 bar_id = self._canvas.create_rectangle(
-                    sx, sy, sx + 6, sy + self.SUBNODE_H,
-                    fill=self._get_status_color(proj), outline="",
+                    sx, sy, sx + 6, sy + sn_h,
+                    fill=bar_color, outline="",
                 )
 
-                # 名称
-                name = proj.system_name or proj.company_name or "-"
-                if len(name) > 10:
-                    name = name[:9] + "…"
+                # 主标题
                 name_id = self._canvas.create_text(
-                    sx + 36, sy + self.SUBNODE_H // 2,
-                    text=name, fill="#2c3e50",
-                    font=("Microsoft YaHei", 8), anchor="w",
+                    sx + 36, sy + 12,
+                    text=title, fill="#2c3e50",
+                    font=("Microsoft YaHei", 8, "bold"), anchor="w",
                 )
+
+                # 多系统时列出子系统名
+                sys_ids = []
+                if is_multi:
+                    sys_text = " | ".join(
+                        (p.system_name or "")[:6] for p in group[:5]
+                    )
+                    if len(sys_text) > 24:
+                        sys_text = sys_text[:23] + "…"
+                    tid = self._canvas.create_text(
+                        sx + 36, sy + 24,
+                        text=sys_text, fill="#7f8c8d",
+                        font=("Microsoft YaHei", 7), anchor="w",
+                    )
+                    sys_ids.append(tid)
 
                 self._subnodes.append({
                     "bg": sn_id, "bar": bar_id, "label": name_id,
-                    "project_id": proj.id, "stage_id": stage.id,
+                    "sys_labels": sys_ids,
+                    "project_id": first.id, "stage_id": stage.id,
+                    "all_ids": [p.id for p in group],
                     "x": sx, "y": sy,
                 })
 
-            # 如果超过 8 个，显示省略号
-            if len(projs) > 8:
+            # 超过 8 个显示省略
+            if len(merged_groups) > 8:
                 more_id = self._canvas.create_text(
                     x + self.NODE_W // 2,
-                    sub_y + 8 * (self.SUBNODE_H + self.SUBNODE_V_GAP),
-                    text=f"+{len(projs) - 8} 更多",
-                    fill="#95a5a6",
-                    font=("Microsoft YaHei", 8), anchor="center",
+                    sub_y + 8 * (self.SUBNODE_H + self.SUBNODE_V_GAP + 10),
+                    text=f"+{len(merged_groups) - 8} 更多",
+                    fill="#95a5a6", font=("Microsoft YaHei", 8), anchor="center",
                 )
                 self._subnodes.append({
                     "bg": more_id, "bar": None, "label": more_id,
-                    "project_id": None, "stage_id": stage.id,
+                    "sys_labels": [], "project_id": None,
+                    "all_ids": [], "stage_id": stage.id,
                     "x": x, "y": sub_y + 8 * (self.SUBNODE_H + self.SUBNODE_V_GAP),
                 })
 
