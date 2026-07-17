@@ -94,6 +94,11 @@ class FlowCanvas(tk.Frame):
         self._stages = stages
         self._projects = projects
 
+        print(f"[流程图] load: stages={len(stages)} projects={len(projects)}", flush=True)
+        for s in stages:
+            cnt = sum(1 for p in projects if p.stage_id == s.id)
+            print(f"[流程图]   阶段: {s.name} (id={s.id[:8]}) 项目数={cnt}", flush=True)
+
         # 按(公司名, 阶段ID)合并项目（与看板逻辑一致）
         from collections import defaultdict
         groups = defaultdict(list)
@@ -101,6 +106,7 @@ class FlowCanvas(tk.Frame):
             key = (p.company_name.strip() or "未命名", p.stage_id)
             groups[key].append(p)
         self._merged = list(groups.values())
+        print(f"[流程图] 合并后: {len(self._merged)} 组", flush=True)
         self._auto_layout()
 
     def _auto_layout(self):

@@ -227,6 +227,7 @@ class MainWindow(tk.Tk):
         """刷新流程图数据。"""
         stages = self._workflow_service.get_all_stages()
         projects = self._project_service.get_all_projects()
+        print(f"[主窗口] _refresh_flow_view: stages={[s.name for s in stages]} projects={len(projects)}", flush=True)
         self._flow_canvas.load(stages, projects)
 
     def _on_flow_subnode_double(self, project_id):
