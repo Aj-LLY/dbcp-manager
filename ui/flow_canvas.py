@@ -96,7 +96,7 @@ class FlowCanvas(tk.Frame):
             cnt = sum(1 for g in self._merged if g[0].stage_id == stage.id)
             count_id = self._canvas.create_text(
                 x + self.NODE_W // 2, y + self.NODE_H // 2 + 12,
-                text=str(cnt), fill="rgba(255,255,255,0.7)",
+                text=str(cnt), fill="#cccccc",
                 font=("Microsoft YaHei", 9), anchor="center")
             self._nodes[stage.id] = {
                 "node": node_id, "label": label_id, "count": count_id,
