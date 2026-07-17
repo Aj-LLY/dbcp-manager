@@ -1,7 +1,7 @@
 """
 流程图画布模块 -- 等保测评进度管理系统
 
-以拖拽节点+子节点的拓扑图方式展示项目流程。
+自由连线模式：右键节点→连线到→选目标→建立连接
 """
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class FlowCanvas(tk.Frame):
-    """流程图画布：阶段节点 + 项目子节点 + 连线 + 拖拽。"""
+    """流程图画布：阶段节点 + 项目子节点 + 自由连线 + 拖拽。"""
 
     NODE_W = 130
     NODE_H = 48
@@ -30,33 +30,32 @@ class FlowCanvas(tk.Frame):
         self._canvas.pack(fill=tk.BOTH, expand=True)
         self._stages = []
         self._merged = []
-        self._nodes = {}      # {stage_id: {"x","y","tag","elements":[ids]}}
-        self._subnodes = []   # [{tag, project_id, all_ids, x, y, sn_h}]
+        self._nodes = {}
+        self._subnodes = []
+        self._connections = []   # [(from_id, to_id), ...]
+        self._line_data = {}     # {(from,to): canvas_line_id}
         self.on_node_click = None
         self.on_subnode_click = None
         self.on_subnode_double = None
-        self.on_subnode_move = None
         self._drag_tag = None
         self._drag_dx = 0
         self._drag_dy = 0
         self._hover_tip = None
+        self._connecting_from = None  # 连线模式：正在连线的源节点
+        self._context_menu = None
         self._bind_events()
 
     def _bind_events(self):
-        self._canvas.bind("<Button-1>", self._on_click)
         self._canvas.bind("<Double-Button-1>", self._on_double_click)
-        self._canvas.bind("<B1-Motion>", self._on_drag)
-        self._canvas.bind("<ButtonRelease-1>", self._on_drop)
+        self._canvas.bind("<Button-3>", self._on_right_click)  # 右键菜单
         self._canvas.bind("<MouseWheel>", self._on_zoom)
-        self._canvas.bind("<Motion>", self._on_motion)
         self.bind("<Configure>", self._on_resize)
 
     def bind_callbacks(self, on_node_click=None, on_subnode_click=None,
-                       on_subnode_double=None, on_subnode_move=None):
+                       on_subnode_double=None):
         self.on_node_click = on_node_click
         self.on_subnode_click = on_subnode_click
         self.on_subnode_double = on_subnode_double
-        self.on_subnode_move = on_subnode_move
 
     # =========================================================================
     # 数据加载
@@ -70,6 +69,12 @@ class FlowCanvas(tk.Frame):
             key = (p.company_name.strip() or "未命名", p.stage_id)
             groups[key].append(p)
         self._merged = list(groups.values())
+
+        # 初始化默认连线（按 stage order）
+        if not self._connections:
+            for i in range(len(self._stages) - 1):
+                self._connections.append((self._stages[i].id, self._stages[i+1].id))
+
         self.update_idletasks()
         try:
             self._auto_layout()
@@ -81,6 +86,7 @@ class FlowCanvas(tk.Frame):
         self._canvas.delete("all")
         self._nodes.clear()
         self._subnodes.clear()
+        self._line_data.clear()
         if not self._stages:
             return
 
@@ -95,17 +101,14 @@ class FlowCanvas(tk.Frame):
             tag = f"node_{stage.id}"
             elements = []
 
-            # 阶段节点背景
             rid = self._draw_rounded_rect(x, y, self.NODE_W, self.NODE_H,
                                           fill=color, outline=color, tags=tag)
             elements.append(rid)
-            # 阶段名称
             tid = self._canvas.create_text(
                 x + self.NODE_W // 2, y + self.NODE_H // 2 - 6,
                 text=stage.name, fill="white",
                 font=("Microsoft YaHei", 10, "bold"), anchor="center", tags=tag)
             elements.append(tid)
-            # 项目计数
             cnt = sum(1 for g in self._merged if g[0].stage_id == stage.id)
             cid = self._canvas.create_text(
                 x + self.NODE_W // 2, y + self.NODE_H // 2 + 12,
@@ -113,7 +116,6 @@ class FlowCanvas(tk.Frame):
                 font=("Microsoft YaHei", 9), anchor="center", tags=tag)
             elements.append(cid)
 
-            # 绑定拖拽事件到该 tag 的所有元素
             for _el in elements:
                 self._canvas.tag_bind(_el, "<Button-1>",
                     lambda e, t=tag: self._start_drag(t, e))
@@ -121,9 +123,10 @@ class FlowCanvas(tk.Frame):
                     lambda e, t=tag: self._do_drag(t, e))
                 self._canvas.tag_bind(_el, "<ButtonRelease-1>",
                     lambda e: self._end_drag())
+                self._canvas.tag_bind(_el, "<Button-3>",
+                    lambda e, sid=stage.id: self._show_node_menu(e, sid))
 
-            self._nodes[stage.id] = {
-                "x": x, "y": y, "tag": tag, "elements": elements}
+            self._nodes[stage.id] = {"x": x, "y": y, "tag": tag, "elements": elements}
 
             # 子节点
             sub_y = y + self.NODE_H + 10
@@ -138,16 +141,11 @@ class FlowCanvas(tk.Frame):
                 if len(title) > 12:
                     title = title[:11] + "…"
                 sn_h = self.SUBNODE_H + (len(group) - 1) * 14 if is_multi else self.SUBNODE_H
-
                 subtag = f"sn_{first.id}"
-                subtag2 = f"sn2_{first.id}"
-                items = []
 
                 rid = self._draw_rounded_rect(sx, sy, self.SUBNODE_W, sn_h,
                                               fill="white", outline="#d0d5dd",
-                                              tags=(subtag, subtag2))
-                items.append(rid)
-
+                                              tags=(subtag,))
                 bar_color = self._get_status_color(first)
                 for p in group:
                     c = self._get_status_color(p)
@@ -157,24 +155,18 @@ class FlowCanvas(tk.Frame):
                     if c == "#ffc000" and bar_color != "#ff0000":
                         bar_color = c
                 self._canvas.create_rectangle(
-                    sx, sy, sx + 6, sy + sn_h, fill=bar_color, outline="",
-                    tags=(subtag, subtag2))
-
+                    sx, sy, sx + 6, sy + sn_h, fill=bar_color, outline="", tags=(subtag,))
                 self._canvas.create_text(
                     sx + 36, sy + 12, text=title, fill="#2c3e50",
-                    font=("Microsoft YaHei", 8, "bold"), anchor="w",
-                    tags=(subtag, subtag2))
-
+                    font=("Microsoft YaHei", 8, "bold"), anchor="w", tags=(subtag,))
                 if is_multi:
                     st = " | ".join((p.system_name or "")[:6] for p in group[:5])
                     if len(st) > 24:
                         st = st[:23] + "…"
                     self._canvas.create_text(
                         sx + 36, sy + 24, text=st, fill="#7f8c8d",
-                        font=("Microsoft YaHei", 7), anchor="w",
-                        tags=(subtag, subtag2))
+                        font=("Microsoft YaHei", 7), anchor="w", tags=(subtag,))
 
-                # 事件绑定
                 for item in self._canvas.find_withtag(subtag):
                     self._canvas.tag_bind(item, "<Button-1>",
                         lambda e, pid=first.id: self._on_sn_click(pid))
@@ -182,8 +174,7 @@ class FlowCanvas(tk.Frame):
                         lambda e, pid=first.id: self._on_sn_double(pid))
                     self._canvas.tag_bind(item, "<Enter>",
                         lambda e, g=group: self._show_tooltip(e, g))
-                    self._canvas.tag_bind(item, "<Leave>",
-                        lambda e: self._hide_tooltip())
+                    self._canvas.tag_bind(item, "<Leave>", lambda e: self._hide_tooltip())
 
                 self._subnodes.append({
                     "tag": subtag, "x": sx, "y": sy, "sn_h": sn_h,
@@ -197,21 +188,86 @@ class FlowCanvas(tk.Frame):
                     text=f"+{len(m_groups) - 8} 更多", fill="#95a5a6",
                     font=("Microsoft YaHei", 8), anchor="center")
 
-        # 阶段间连线（线ID存入节点，拖拽时同步更新）
-        for i in range(len(self._stages) - 1):
-            s1, s2 = self._stages[i], self._stages[i + 1]
-            n1, n2 = self._nodes[s1.id], self._nodes[s2.id]
-            x1, y1 = n1["x"] + self.NODE_W, n1["y"] + self.NODE_H // 2
-            x2, y2 = n2["x"], n2["y"] + self.NODE_H // 2
-            cx = (x1 + x2) // 2
-            lid = self._canvas.create_line(
-                x1, y1, cx, y1, cx, y2, x2, y2,
-                smooth=True, fill="#b0b8c1", width=2,
-                arrow=tk.LAST, arrowshape=(8, 10, 3))
-            self._nodes[s1.id]["line_out"] = lid
-            self._nodes[s2.id]["line_in"] = lid
-
+        self._draw_all_lines()
         self._canvas.configure(scrollregion=self._canvas.bbox("all"))
+
+    # =========================================================================
+    # 自由连线
+    # =========================================================================
+
+    def _draw_all_lines(self):
+        """根据 _connections 绘制所有连线。"""
+        self._line_data.clear()
+        # 删除旧线（用 find_withtag 找 line_ 开头的）
+        for item in self._canvas.find_all():
+            tags = self._canvas.gettags(item)
+            if any(t.startswith("line_") for t in tags):
+                continue  # Already part of node drag system, skip
+        # Draw new
+        for fid, tid in self._connections:
+            if fid in self._nodes and tid in self._nodes:
+                self._draw_one_line(fid, tid)
+
+    def _draw_one_line(self, from_id, to_id):
+        """绘制一条连线并存储。"""
+        n1, n2 = self._nodes[from_id], self._nodes[to_id]
+        x1 = n1["x"] + self.NODE_W
+        y1 = n1["y"] + self.NODE_H // 2
+        x2 = n2["x"]
+        y2 = n2["y"] + self.NODE_H // 2
+        cx = (x1 + x2) // 2
+        tag = f"line_{from_id}_{to_id}"
+        lid = self._canvas.create_line(
+            x1, y1, cx, y1, cx, y2, x2, y2,
+            smooth=True, fill="#b0b8c1", width=2,
+            arrow=tk.LAST, arrowshape=(8, 10, 3), tags=(tag,))
+        self._line_data[(from_id, to_id)] = lid
+
+    def _show_node_menu(self, event, stage_id):
+        """右键节点：弹出连线操作菜单。"""
+        if self._context_menu:
+            self._context_menu.destroy()
+
+        if self._connecting_from is not None:
+            # 正在连线模式：点击目标完成连线
+            if stage_id != self._connecting_from:
+                key = (self._connecting_from, stage_id)
+                if key not in self._connections:
+                    self._connections.append(key)
+                # 删除旧线重绘
+                old_key = (self._connecting_from, stage_id)
+                if old_key in self._line_data:
+                    self._canvas.delete(self._line_data[old_key])
+                self._draw_one_line(self._connecting_from, stage_id)
+            self._connecting_from = None
+            return
+
+        menu = tk.Menu(self, tearoff=0)
+        menu.add_command(label="🔗 连线到...",
+            command=lambda: self._start_connect(stage_id))
+        menu.add_command(label="❌ 删除全部连线",
+            command=lambda: self._clear_node_lines(stage_id))
+        menu.add_separator()
+        menu.add_command(label="✖ 取消", command=lambda: None)
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
+
+    def _start_connect(self, stage_id):
+        """开始连线模式。"""
+        self._connecting_from = stage_id
+
+    def _clear_node_lines(self, stage_id):
+        """删除与该节点相关的所有连线。"""
+        removed = []
+        for key in list(self._connections):
+            if stage_id in key:
+                removed.append(key)
+        for key in removed:
+            self._connections.remove(key)
+            if key in self._line_data:
+                self._canvas.delete(self._line_data.pop(key))
 
     # =========================================================================
     # 绘图工具
@@ -242,7 +298,7 @@ class FlowCanvas(tk.Frame):
         return Cfg.STATUS_COLORS["normal"]
 
     # =========================================================================
-    # 拖拽（节点级，通过 tag 绑定）
+    # 拖拽
     # =========================================================================
 
     def _start_drag(self, tag, event):
@@ -257,48 +313,42 @@ class FlowCanvas(tk.Frame):
         dy = event.y - self._drag_dy
         for el in self._canvas.find_withtag(tag):
             self._canvas.move(el, dx, dy)
-        dragged = None
         dragged_sid = ""
         for sid, nd in self._nodes.items():
             if nd["tag"] == tag:
                 nd["x"] += dx
                 nd["y"] += dy
-                dragged = nd
                 dragged_sid = sid
                 break
-        if dragged:
-            # 同步移动该阶段下的子节点
+        if dragged_sid:
             for sn in self._subnodes:
                 if sn.get("stage_id") == dragged_sid:
                     for el in self._canvas.find_withtag(sn["tag"]):
                         self._canvas.move(el, dx, dy)
                     sn["x"] += dx
                     sn["y"] += dy
-            self._update_lines(dragged)
+            self._update_lines_for_node(dragged_sid)
         self._drag_dx = event.x
         self._drag_dy = event.y
 
-    def _update_lines(self, nd):
-        """根据节点新位置重绘关联连线。"""
+    def _update_lines_for_node(self, sid):
+        """更新与该节点相关的所有连线。"""
+        nd = self._nodes[sid]
         x, y = nd["x"], nd["y"]
-        # 出线：从当前节点右侧到下一节点左侧
-        if "line_out" in nd:
-            lid = nd["line_out"]
+        for key, lid in list(self._line_data.items()):
+            if sid not in key:
+                continue
             coords = self._canvas.coords(lid)
-            # coords = [x1, y1, cx1, cy1, cx2, cy2, x2, y2]
-            coords[0] = x + self.NODE_W
-            coords[1] = y + self.NODE_H // 2
-            coords[2] = (coords[0] + coords[6]) // 2
-            coords[3] = y + self.NODE_H // 2
-            self._canvas.coords(lid, *coords)
-        # 入线：从前一节点右侧到当前节点左侧
-        if "line_in" in nd:
-            lid = nd["line_in"]
-            coords = self._canvas.coords(lid)
-            coords[4] = (coords[0] + coords[6]) // 2
-            coords[5] = y + self.NODE_H // 2
-            coords[6] = x
-            coords[7] = y + self.NODE_H // 2
+            if key[0] == sid:  # 出线
+                coords[0] = x + self.NODE_W
+                coords[1] = y + self.NODE_H // 2
+                coords[2] = (coords[0] + coords[6]) // 2
+                coords[3] = y + self.NODE_H // 2
+            else:  # 入线
+                coords[4] = (coords[0] + coords[6]) // 2
+                coords[5] = y + self.NODE_H // 2
+                coords[6] = x
+                coords[7] = y + self.NODE_H // 2
             self._canvas.coords(lid, *coords)
 
     def _end_drag(self):
@@ -316,17 +366,11 @@ class FlowCanvas(tk.Frame):
         if self.on_subnode_double:
             self.on_subnode_double(pid)
 
-    def _on_click(self, event):
-        # 由 tag 绑定处理，此处留空
-        pass
+    def _on_right_click(self, event):
+        """右键空白区域：取消连线模式。"""
+        self._connecting_from = None
 
     def _on_double_click(self, event):
-        pass
-
-    def _on_drag(self, event):
-        pass
-
-    def _on_drop(self, event):
         pass
 
     # =========================================================================
@@ -345,20 +389,16 @@ class FlowCanvas(tk.Frame):
         else:
             lines.append(f"系统: {first.system_name or '-'}")
             lines.append(f"公司: {first.company_name or '-'}")
-            lines.append(f"等级: {first.level or '-'}  证书: {first.cert_number or '-'}")
+            lines.append(f"等级: {first.level or '-'}")
         self._hover_tip = self._canvas.create_text(
             event.x + 160, event.y + 20,
             text="\n".join(lines), fill="#2c3e50",
-            font=("Microsoft YaHei", 8), anchor="w",
-        )
+            font=("Microsoft YaHei", 8), anchor="w")
 
     def _hide_tooltip(self):
         if self._hover_tip:
             self._canvas.delete(self._hover_tip)
             self._hover_tip = None
-
-    def _on_motion(self, event):
-        pass
 
     def _on_zoom(self, event):
         if event.delta > 0:
