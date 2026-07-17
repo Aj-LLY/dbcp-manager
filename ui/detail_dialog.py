@@ -239,9 +239,12 @@ class DetailDialog(tk.Toplevel):
                 vals = [p.system_name or "-", p.cert_number or "-",
                         p.issue_date or "-", p.level or "-"]
                 for ci, (val, (_, w)) in enumerate(zip(vals, columns)):
-                    tk.Label(tbl_frame, text=val, bg="#f8f9fa", fg="#2c3e50",
-                             font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-                             width=w, anchor="w", padx=2).grid(row=ri, column=ci, sticky="w")
+                    e = tk.Entry(tbl_frame, bg="#f8f9fa", fg="#2c3e50", relief="flat",
+                                 font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
+                                 readonlybackground="#f8f9fa", width=w)
+                    e.insert(0, val)
+                    e.configure(state="readonly")
+                    e.grid(row=ri, column=ci, sticky="w", padx=2)
         else:
             self._add_info_row(info_frame, "系统名称", self._project.system_name or "-")
             self._add_info_row(info_frame, "证书编号", self._project.cert_number or "未备案")
