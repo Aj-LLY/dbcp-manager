@@ -188,7 +188,7 @@ class FlowCanvas(tk.Frame):
                 self._subnodes.append({
                     "tag": subtag, "x": sx, "y": sy, "sn_h": sn_h,
                     "project_id": first.id, "all_ids": [p.id for p in group],
-                    "group": group})
+                    "group": group, "stage_id": stage.id})
 
             if len(m_groups) > 8:
                 self._canvas.create_text(
@@ -197,8 +197,7 @@ class FlowCanvas(tk.Frame):
                     text=f"+{len(m_groups) - 8} 更多", fill="#95a5a6",
                     font=("Microsoft YaHei", 8), anchor="center")
 
-        # 阶段间连线（存储线ID到节点，拖拽时同步更新）
-        self._lines_info = {}  # {stage_id: {"out": line_id, "in": line_id}}
+        # 阶段间连线（线ID存入节点，拖拽时同步更新）
         for i in range(len(self._stages) - 1):
             s1, s2 = self._stages[i], self._stages[i + 1]
             n1, n2 = self._nodes[s1.id], self._nodes[s2.id]
@@ -258,16 +257,23 @@ class FlowCanvas(tk.Frame):
         dy = event.y - self._drag_dy
         for el in self._canvas.find_withtag(tag):
             self._canvas.move(el, dx, dy)
-        # 更新节点位置
         dragged = None
+        dragged_sid = ""
         for sid, nd in self._nodes.items():
             if nd["tag"] == tag:
                 nd["x"] += dx
                 nd["y"] += dy
                 dragged = nd
+                dragged_sid = sid
                 break
-        # 同步更新连线
         if dragged:
+            # 同步移动该阶段下的子节点
+            for sn in self._subnodes:
+                if sn.get("stage_id") == dragged_sid:
+                    for el in self._canvas.find_withtag(sn["tag"]):
+                        self._canvas.move(el, dx, dy)
+                    sn["x"] += dx
+                    sn["y"] += dy
             self._update_lines(dragged)
         self._drag_dx = event.x
         self._drag_dy = event.y
