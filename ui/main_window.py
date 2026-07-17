@@ -260,8 +260,11 @@ class MainWindow(tk.Tk):
         print(f'[Main] _on_flow_subnode_click: project_id={project_id}')
         """单击子节点 → 右侧面板显示详情。"""
         project = self._project_service.get_project_by_id(project_id)
+        print(f'[Main] 查询项目: found={project is not None}', flush=True)
         if not project:
+            print(f'[Main] ⚠ 项目未找到: {project_id}', flush=True)
             return
+        print(f'[Main] 项目数据: company={project.company_name} sys={project.system_name}', flush=True)
         stages = self._workflow_service.get_all_stages()
         stage_name = "未知"
         for s in stages:
