@@ -220,6 +220,7 @@ class MainWindow(tk.Tk):
         """构建流程图视图。"""
         self._flow_canvas = FlowCanvas(self)
         self._flow_canvas.bind_callbacks(
+            on_subnode_click=self._on_flow_subnode_click,
             on_subnode_double=self._on_flow_subnode_double,
         )
 
@@ -230,12 +231,15 @@ class MainWindow(tk.Tk):
         print(f"[主窗口] _refresh_flow_view: stages={[s.name for s in stages]} projects={len(projects)}", flush=True)
         self._flow_canvas.load(stages, projects)
 
+    def _on_flow_subnode_click(self, project_id):
+        """流程图子节点单击 → 选中高亮。"""
+        pass  # 预留：可添加选中高亮逻辑
+
     def _on_flow_subnode_double(self, project_id):
         """流程图子节点双击 → 打开详情。"""
         project = self._project_service.get_project_by_id(project_id)
         if project:
             from controllers.project_handlers import on_card_detail
-            # 创建临时卡片引用
             class _TempCard:
                 project = project
                 projects = [project]
