@@ -206,23 +206,80 @@ class MainWindow(tk.Tk):
         """在看板和流程图之间切换。"""
         if self._current_view == "kanban":
             self._kanban.pack_forget()
-            self._flow_canvas.pack(fill=tk.BOTH, expand=True, side=tk.TOP)
+            self._flow_container.pack(fill=tk.BOTH, expand=True, side=tk.TOP)
             self._current_view = "flow"
             self._view_btn.configure(text="看板")
             self._refresh_flow_view()
         else:
-            self._flow_canvas.pack_forget()
+            self._flow_container.pack_forget()
             self._kanban.pack(fill=tk.BOTH, expand=True, side=tk.TOP)
             self._current_view = "kanban"
             self._view_btn.configure(text="流程图")
 
     def _build_flow_view(self):
-        """构建流程图视图。"""
-        self._flow_canvas = FlowCanvas(self)
+        """构建流程图视图 + 右侧信息面板。"""
+        self._flow_container = tk.Frame(self, bg="#f5f6fa")
+        self._flow_canvas = FlowCanvas(self._flow_container)
+        self._flow_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self._flow_canvas.bind_callbacks(
             on_subnode_click=self._on_flow_subnode_click,
             on_subnode_double=self._on_flow_subnode_double,
         )
+        # 右侧信息面板
+        self._info_panel = tk.Frame(self._flow_container, bg="white", width=260,
+                                     highlightbackground="#d0d5dd", highlightthickness=1)
+        self._info_panel.pack(side=tk.RIGHT, fill=tk.Y)
+        self._info_panel.pack_propagate(False)
+        self._build_info_panel()
+
+    def _build_info_panel(self):
+        """构建右侧信息面板的静态框架。"""
+        panel = self._info_panel
+        tk.Label(panel, text="项目详情", bg="white", fg="#2c3e50",
+                 font=("Microsoft YaHei", 12, "bold")).pack(pady=(15, 10))
+        tk.Frame(panel, bg="#d0d5dd", height=1).pack(fill=tk.X, padx=12)
+        self._info_content = tk.Frame(panel, bg="white")
+        self._info_content.pack(fill=tk.BOTH, expand=True, padx=12, pady=10)
+        self._info_labels = {}
+        for label in ["公司名称", "系统名称", "证书编号", "下证日期",
+                       "系统等级", "属地", "交付日期", "当前阶段", "备注"]:
+            row = tk.Frame(self._info_content, bg="white")
+            row.pack(fill=tk.X, pady=2)
+            tk.Label(row, text=label + "：", bg="white", fg="#7f8c8d",
+                     font=("Microsoft YaHei", 9), width=8, anchor="e").pack(side=tk.LEFT)
+            val = tk.Label(row, text="-", bg="white", fg="#2c3e50",
+                          font=("Microsoft YaHei", 9), anchor="w", justify="left")
+            val.pack(side=tk.LEFT, fill=tk.X, expand=True)
+            self._info_labels[label] = val
+        # 底部提示
+        tk.Label(panel, text="双击打开详情 | 右键节点连线条",
+                 bg="#f0f2f5", fg="#95a5a6",
+                 font=("Microsoft YaHei", 8)).pack(side=tk.BOTTOM, fill=tk.X, pady=5)
+
+    def _on_flow_subnode_click(self, project_id):
+        """单击子节点 → 右侧面板显示详情。"""
+        project = self._project_service.get_project_by_id(project_id)
+        if not project:
+            return
+        stages = self._workflow_service.get_all_stages()
+        stage_name = "未知"
+        for s in stages:
+            if s.id == project.stage_id:
+                stage_name = s.name
+                break
+        data = {
+            "公司名称": project.company_name or "-",
+            "系统名称": project.system_name or "-",
+            "证书编号": project.cert_number or "-",
+            "下证日期": project.issue_date or "-",
+            "系统等级": project.level or "-",
+            "属地": project.location or "-",
+            "交付日期": project.deadline or "-",
+            "当前阶段": stage_name,
+            "备注": project.notes or "-",
+        }
+        for label, val in self._info_labels.items():
+            val.configure(text=data.get(label, "-"))
 
     def _refresh_flow_view(self):
         """刷新流程图数据。"""
