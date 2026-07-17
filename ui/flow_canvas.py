@@ -197,17 +197,20 @@ class FlowCanvas(tk.Frame):
                     text=f"+{len(m_groups) - 8} 更多", fill="#95a5a6",
                     font=("Microsoft YaHei", 8), anchor="center")
 
-        # 阶段间连线
+        # 阶段间连线（存储线ID到节点，拖拽时同步更新）
+        self._lines_info = {}  # {stage_id: {"out": line_id, "in": line_id}}
         for i in range(len(self._stages) - 1):
             s1, s2 = self._stages[i], self._stages[i + 1]
             n1, n2 = self._nodes[s1.id], self._nodes[s2.id]
             x1, y1 = n1["x"] + self.NODE_W, n1["y"] + self.NODE_H // 2
             x2, y2 = n2["x"], n2["y"] + self.NODE_H // 2
             cx = (x1 + x2) // 2
-            self._canvas.create_line(
+            lid = self._canvas.create_line(
                 x1, y1, cx, y1, cx, y2, x2, y2,
                 smooth=True, fill="#b0b8c1", width=2,
                 arrow=tk.LAST, arrowshape=(8, 10, 3))
+            self._nodes[s1.id]["line_out"] = lid
+            self._nodes[s2.id]["line_in"] = lid
 
         self._canvas.configure(scrollregion=self._canvas.bbox("all"))
 
@@ -255,14 +258,42 @@ class FlowCanvas(tk.Frame):
         dy = event.y - self._drag_dy
         for el in self._canvas.find_withtag(tag):
             self._canvas.move(el, dx, dy)
-        # 更新存储的位置
+        # 更新节点位置
+        dragged = None
         for sid, nd in self._nodes.items():
             if nd["tag"] == tag:
                 nd["x"] += dx
                 nd["y"] += dy
+                dragged = nd
                 break
+        # 同步更新连线
+        if dragged:
+            self._update_lines(dragged)
         self._drag_dx = event.x
         self._drag_dy = event.y
+
+    def _update_lines(self, nd):
+        """根据节点新位置重绘关联连线。"""
+        x, y = nd["x"], nd["y"]
+        # 出线：从当前节点右侧到下一节点左侧
+        if "line_out" in nd:
+            lid = nd["line_out"]
+            coords = self._canvas.coords(lid)
+            # coords = [x1, y1, cx1, cy1, cx2, cy2, x2, y2]
+            coords[0] = x + self.NODE_W
+            coords[1] = y + self.NODE_H // 2
+            coords[2] = (coords[0] + coords[6]) // 2
+            coords[3] = y + self.NODE_H // 2
+            self._canvas.coords(lid, *coords)
+        # 入线：从前一节点右侧到当前节点左侧
+        if "line_in" in nd:
+            lid = nd["line_in"]
+            coords = self._canvas.coords(lid)
+            coords[4] = (coords[0] + coords[6]) // 2
+            coords[5] = y + self.NODE_H // 2
+            coords[6] = x
+            coords[7] = y + self.NODE_H // 2
+            self._canvas.coords(lid, *coords)
 
     def _end_drag(self):
         self._drag_tag = None
