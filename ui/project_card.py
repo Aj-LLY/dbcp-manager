@@ -186,12 +186,16 @@ class ProjectCard(tk.Frame):
         self._content.pack(side=tk.LEFT, fill=tk.BOTH, expand=True,
                            padx=6, pady=(8, 4))
 
-        # --- 3a. 公司名称（居中、粗体主标题） ---
-        company_display = self.project.company_name or self.project.system_name or "\u65e0\u540d\u79f0"
-        if len(company_display) > 14:
-            company_display = company_display[:13] + "\u2026"
+        # --- 3a. 卡片标题：多系统→公司名, 单系统→系统名 ---
+        is_multi_card = len(self.projects) > 1 if self.projects else False
+        if is_multi_card:
+            title = self.project.company_name or "\u65e0\u540d\u79f0"
+        else:
+            title = self.project.system_name or self.project.company_name or "\u65e0\u540d\u79f0"
+        if len(title) > 14:
+            title = title[:13] + "\u2026"
         self._company_label = tk.Label(
-            self._content, text=company_display, bg=Config.CARD_BG,
+            self._content, text=title, bg=Config.CARD_BG,
             font=(Config.FONT_FAMILY, Config.FONT_SIZE_NORMAL, "bold"),
             anchor="center", fg="#2c3e50",
         )
