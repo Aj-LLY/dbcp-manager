@@ -36,6 +36,7 @@ from services.log_service import LogService  # 日志服务：记录和查询所
 # ---- 视图层 ----
 from ui.toolbar import Toolbar  # 顶部工具栏组件，包含新增、编辑、删除等快捷按钮
 from ui.kanban_board import KanbanBoard  # 看板容器组件，承载所有流程阶段列和项目卡片
+from ui.flow_canvas import FlowCanvas  # 流程图画布，以节点拓扑图方式展示项目流程
 from ui.project_card import ProjectCard  # 项目卡片组件（仅用于类型标注和回调参数类型提示）
 from ui.project_dialog import show_project_dialog  # 项目编辑对话框便捷函数（新增/编辑项目表单）
 from ui.workflow_dialog import WorkflowDialog  # 流程编辑对话框类，管理流程阶段的增删改排序
@@ -142,8 +143,10 @@ class MainWindow(tk.Tk):
         # 第三步：构建 UI 组件（从上到下：工具栏 -> 看板）
         # =====================================================================
 
-        self._build_toolbar()  # 构建顶部工具栏区域（包含新增、编辑、删除、刷新等按钮）
-        self._build_kanban()  # 构建主看板区域（包含流程阶段列和项目卡片，填充剩余空间）
+        self._build_toolbar()
+        self._build_kanban()
+        self._build_flow_view()  # 流程图视图（初始隐藏）
+        self._current_view = "kanban"  # 当前视图模式
 
         # =====================================================================
         # 第四步：绑定窗口级别的全局事件
@@ -188,7 +191,54 @@ class MainWindow(tk.Tk):
         self._toolbar.on_delete_project = self._on_delete_selected  # "删除项目" 按钮 -> 删除选中项目
         self._toolbar.on_refresh = self._refresh_kanban  # "刷新" 按钮 -> 刷新看板数据
         self._toolbar.on_backup = self._on_backup
-        self._toolbar.on_console = self._on_console  # "控制台" 按钮
+        self._toolbar.on_console = self._on_console
+
+        # 视图切换按钮
+        self._view_btn = tk.Button(
+            self._toolbar, text="流程图", command=self._toggle_view,
+            bg="#8e44ad", fg="white", cursor="hand2", relief="flat",
+            font=("Microsoft YaHei", 9), padx=10,
+            activebackground="#7d3c98",
+        )
+        self._view_btn.pack(side=tk.RIGHT, padx=5)
+
+    def _toggle_view(self):
+        """在看板和流程图之间切换。"""
+        if self._current_view == "kanban":
+            self._kanban.pack_forget()
+            self._flow_canvas.pack(fill=tk.BOTH, expand=True, side=tk.TOP)
+            self._current_view = "flow"
+            self._view_btn.configure(text="看板")
+            self._refresh_flow_view()
+        else:
+            self._flow_canvas.pack_forget()
+            self._kanban.pack(fill=tk.BOTH, expand=True, side=tk.TOP)
+            self._current_view = "kanban"
+            self._view_btn.configure(text="流程图")
+
+    def _build_flow_view(self):
+        """构建流程图视图。"""
+        self._flow_canvas = FlowCanvas(self)
+        self._flow_canvas.bind_callbacks(
+            on_subnode_double=self._on_flow_subnode_double,
+        )
+
+    def _refresh_flow_view(self):
+        """刷新流程图数据。"""
+        stages = self._workflow_service.get_all_stages()
+        projects = self._project_service.get_all_projects()
+        self._flow_canvas.load(stages, projects)
+
+    def _on_flow_subnode_double(self, project_id):
+        """流程图子节点双击 → 打开详情。"""
+        project = self._project_service.get_project_by_id(project_id)
+        if project:
+            from controllers.project_handlers import on_card_detail
+            # 创建临时卡片引用
+            class _TempCard:
+                project = project
+                projects = [project]
+            on_card_detail(self, _TempCard())
 
     def _build_kanban(self):
         """构建看板区域组件
