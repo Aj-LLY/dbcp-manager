@@ -284,6 +284,7 @@ class MainWindow(tk.Tk):
         }
         for label, val in self._info_labels.items():
             val.configure(text=data.get(label, "-"))
+        self._info_panel.update()  # 强制刷新面板
 
     def _refresh_flow_view(self):
         print(f'[Main] _refresh_flow_view called')
