@@ -104,12 +104,10 @@ class FlowCanvas(tk.Frame):
         if not self._stages:
             return
 
-        COLS = 4
+        # 竖版布局：节点纵向排列
+        x = 40
+        y = 40
         for i, stage in enumerate(self._stages):
-            col = i % COLS
-            row = i // COLS
-            x = 60 + col * (self.NODE_W + self.H_GAP)
-            y = 40 + row * (self.NODE_H + self.V_GAP + 80)
 
             color = stage.color or "#3498db"
             tag = f"node_{stage.id}"
@@ -141,6 +139,7 @@ class FlowCanvas(tk.Frame):
                     lambda e, sid=stage.id: self._show_node_menu(e, sid))
 
             self._nodes[stage.id] = {"x": x, "y": y, "tag": tag, "elements": elements}
+            y += self.NODE_H + self.V_GAP + 80
 
             # 子节点
             sub_y = y + self.NODE_H + 10
