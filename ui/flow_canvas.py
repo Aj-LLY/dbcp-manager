@@ -16,13 +16,13 @@ if TYPE_CHECKING:
 class FlowCanvas(tk.Frame):
     """流程图画布：阶段节点 + 项目子节点 + 自由连线 + 拖拽。"""
 
-    NODE_W = 130
-    NODE_H = 48
-    SUBNODE_W = 140
-    SUBNODE_H = 28
-    H_GAP = 60
-    V_GAP = 80
-    SUBNODE_V_GAP = 6
+    NODE_W = 180
+    NODE_H = 56
+    SUBNODE_W = 190
+    SUBNODE_H = 32
+    H_GAP = 40
+    V_GAP = 30
+    SUBNODE_V_GAP = 4
 
     def __init__(self, parent, **kwargs):
         super().__init__(parent, bg="#f5f6fa", **kwargs)
@@ -41,21 +41,25 @@ class FlowCanvas(tk.Frame):
         self._drag_dx = 0
         self._drag_dy = 0
         self._hover_tip = None
-        self._connecting_from = None  # 连线模式：正在连线的源节点
+        self._connecting_from = None
         self._context_menu = None
+        self._sn_drag = None     # 子节点拖拽: {pid, sid, x, y}
         self._bind_events()
 
     def _bind_events(self):
         self._canvas.bind("<Double-Button-1>", self._on_double_click)
         self._canvas.bind("<Button-3>", self._on_right_click)
         self._canvas.bind("<MouseWheel>", self._on_zoom)
-        # 画布平移：B2(中键)或Ctrl+左键拖拽空白区
+        # 画布平移：左键拖拽空白区 / 中键 / Ctrl+左键
+        self._canvas.bind("<Button-1>", self._on_canvas_click, add="+")
+        self._canvas.bind("<B1-Motion>", self._on_canvas_drag, add="+")
+        self._canvas.bind("<ButtonRelease-1>", self._on_canvas_release, add="+")
         self._canvas.bind("<Button-2>", self._start_pan)
         self._canvas.bind("<B2-Motion>", self._do_pan)
-        self._canvas.bind("<Control-Button-1>", self._start_pan)
-        self._canvas.bind("<Control-B1-Motion>", self._do_pan)
         self._pan_x = 0
         self._pan_y = 0
+        self._blank_drag = False
+        self._blank_start = (0, 0)
         self.bind("<Configure>", self._on_resize)
 
     def bind_callbacks(self, on_node_click=None, on_subnode_click=None,
@@ -139,7 +143,7 @@ class FlowCanvas(tk.Frame):
                     lambda e, sid=stage.id: self._show_node_menu(e, sid))
 
             self._nodes[stage.id] = {"x": x, "y": y, "tag": tag, "elements": elements}
-            y += self.NODE_H + self.V_GAP + 80
+            y += self.NODE_H + len(m_groups) * (self.SUBNODE_H + self.SUBNODE_V_GAP) + 50
 
             # 子节点
             sub_y = y + self.NODE_H + 10
@@ -188,6 +192,12 @@ class FlowCanvas(tk.Frame):
                     self._canvas.tag_bind(item, "<Enter>",
                         lambda e, g=group: self._show_tooltip(e, g))
                     self._canvas.tag_bind(item, "<Leave>", lambda e: self._hide_tooltip())
+                    # Shift+拖拽：移动项目到其他阶段
+                    self._canvas.tag_bind(item, "<Shift-B1-Motion>",
+                        lambda e, pid=first.id, sid=stage.id: self._sn_drag_move(e, pid, sid))
+                    self._canvas.tag_bind(item, "<ButtonRelease-1>",
+                        lambda e, pid=first.id, sid=stage.id: self._sn_drag_drop(e, pid, sid),
+                        add="+")
 
                 self._subnodes.append({
                     "tag": subtag, "x": sx, "y": sy, "sn_h": sn_h,
@@ -399,8 +409,81 @@ class FlowCanvas(tk.Frame):
         else:
             print(f'[Flow]   ⚠ on_subnode_double is None!')
 
+    def _sn_drag_move(self, event, pid, sid):
+        """Shift+拖拽子节点：移动跟随鼠标。"""
+        if self._sn_drag is None:
+            self._sn_drag = {"pid": pid, "sid": sid}
+        # 移动子节点视觉
+        sn = next((s for s in self._subnodes if s.get("project_id") == pid), None)
+        if sn:
+            dx = event.x - sn["x"]
+            dy = event.y - sn["y"]
+            for el in self._canvas.find_withtag(sn["tag"]):
+                self._canvas.move(el, 1, 0)  # 小幅移动触发视觉反馈
+                self._canvas.move(el, -1, 0)
+        # 高亮目标阶段
+        mx, my = self._canvas.canvasx(event.x), self._canvas.canvasy(event.y)
+        for stage_id, nd in self._nodes.items():
+            if nd["x"] <= mx <= nd["x"] + self.NODE_W and \
+               nd["y"] <= my <= nd["y"] + self.NODE_H:
+                for el in self._canvas.find_withtag(nd["tag"]):
+                    self._canvas.itemconfigure(el, outline="#FFD700")
+            else:
+                for el in self._canvas.find_withtag(nd["tag"]):
+                    self._canvas.itemconfigure(el, outline=nd["stage"].color or "#3498db")
+
+    def _sn_drag_drop(self, event, pid, sid):
+        """释放子节点：如果落在其他阶段上，触发移动回调。"""
+        if self._sn_drag is None:
+            self._sn_drag = None
+            return
+        mx, my = self._canvas.canvasx(event.x), self._canvas.canvasy(event.y)
+        target_sid = None
+        for stage_id, nd in self._nodes.items():
+            if nd["x"] <= mx <= nd["x"] + self.NODE_W and \
+               nd["y"] <= my <= nd["y"] + self.NODE_H:
+                target_sid = stage_id
+                break
+        # 恢复边框颜色
+        for stage_id, nd in self._nodes.items():
+            for el in self._canvas.find_withtag(nd["tag"]):
+                self._canvas.itemconfigure(el, outline=nd["stage"].color or "#3498db")
+        if target_sid and target_sid != sid and self.on_subnode_move:
+            self.on_subnode_move(pid, target_sid)
+        self._sn_drag = None
+
+    def _on_canvas_click(self, event):
+        """左键点击：判断是空白区还是节点区。空白区开始平移。"""
+        mx, my = self._canvas.canvasx(event.x), self._canvas.canvasy(event.y)
+        # 检查是否在某个节点区域内
+        for sid, nd in self._nodes.items():
+            if nd["x"] <= mx <= nd["x"] + self.NODE_W and \
+               nd["y"] <= my <= nd["y"] + self.NODE_H:
+                return  # 节点区域，不处理(由tag bind处理)
+        for sn in self._subnodes:
+            h = sn.get("sn_h", self.SUBNODE_H)
+            if sn.get("project_id") and \
+               sn["x"] <= mx <= sn["x"] + self.SUBNODE_W and \
+               sn["y"] <= my <= sn["y"] + h:
+                return  # 子节点区域，不处理
+        # 空白区域：开始平移
+        self._blank_drag = True
+        self._blank_start = (event.x, event.y)
+        self._canvas.configure(cursor="fleur")
+
+    def _on_canvas_drag(self, event):
+        """空白区拖拽平移。"""
+        if self._blank_drag:
+            dx = event.x - self._blank_start[0]
+            dy = event.y - self._blank_start[1]
+            self._canvas.scan_dragto(-dx, -dy, gain=1)
+            self._blank_start = (event.x, event.y)
+
+    def _on_canvas_release(self, event):
+        self._blank_drag = False
+        self._canvas.configure(cursor="")
+
     def _on_right_click(self, event):
-        """右键空白区域：取消连线模式。"""
         self._connecting_from = None
 
     def _on_double_click(self, event):
