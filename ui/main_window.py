@@ -233,6 +233,8 @@ class MainWindow(tk.Tk):
         self._build_info_panel()
 
     def _build_info_panel(self):
+        print('[Main] _build_info_panel: creating info labels')
+        panel = self._info_panel
         """构建右侧信息面板的静态框架。"""
         panel = self._info_panel
         tk.Label(panel, text="项目详情", bg="white", fg="#2c3e50",
@@ -258,34 +260,37 @@ class MainWindow(tk.Tk):
 
     def _on_flow_subnode_click(self, project_id):
         print(f'[Main] _on_flow_subnode_click: project_id={project_id}')
-        """单击子节点 → 右侧面板显示详情。"""
-        project = self._project_service.get_project_by_id(project_id)
-        print(f'[Main] 查询项目: found={project is not None}', flush=True)
-        if not project:
-            print(f'[Main] ⚠ 项目未找到: {project_id}', flush=True)
-            return
-        print(f'[Main] 项目数据: company={project.company_name} sys={project.system_name}', flush=True)
-        stages = self._workflow_service.get_all_stages()
-        stage_name = "未知"
-        for s in stages:
-            if s.id == project.stage_id:
-                stage_name = s.name
-                break
-        data = {
-            "公司名称": project.company_name or "-",
-            "系统名称": project.system_name or "-",
-            "证书编号": project.cert_number or "-",
-            "下证日期": project.issue_date or "-",
-            "系统等级": project.level or "-",
-            "属地": project.location or "-",
-            "交付日期": project.deadline or "-",
-            "当前阶段": stage_name,
-            "备注": project.notes or "-",
-        }
-        for label, val in self._info_labels.items():
-            val.configure(text=data.get(label, "-"))
-        self._info_panel.update()  # 强制刷新面板
-
+        try:
+            project = self._project_service.get_project_by_id(project_id)
+            print(f'[Main] 查询: found={project is not None}')
+            if not project:
+                print(f'[Main] ⚠ 项目未找到')
+                return
+            print(f'[Main] 数据: {project.company_name} / {project.system_name}')
+            stages = self._workflow_service.get_all_stages()
+            stage_name = '未知'
+            for s in stages:
+                if s.id == project.stage_id:
+                    stage_name = s.name
+                    break
+            data = {
+                "公司名称": project.company_name or "-",
+                "系统名称": project.system_name or "-",
+                "证书编号": project.cert_number or "-",
+                "下证日期": project.issue_date or "-",
+                "系统等级": project.level or "-",
+                "属地": project.location or "-",
+                "交付日期": project.deadline or "-",
+                "当前阶段": stage_name,
+                "备注": project.notes or "-",
+            }
+            for label, val in self._info_labels.items():
+                val.configure(text=data.get(label, "-"))
+            print(f'[Main] 面板更新完成')
+        except Exception as e:
+            import traceback
+            print(f'[Main] ⛔ 异常: {e}')
+            traceback.print_exc()
     def _refresh_flow_view(self):
         print(f'[Main] _refresh_flow_view called')
         """刷新流程图数据。"""
