@@ -222,16 +222,17 @@ class FlowCanvas(tk.Frame):
                 self._draw_one_line(fid, tid)
 
     def _draw_one_line(self, from_id, to_id):
-        """绘制一条连线并存储。"""
+        """竖版连线：从上方节点右侧引出，向下弯曲到下方节点左侧。"""
         n1, n2 = self._nodes[from_id], self._nodes[to_id]
         x1 = n1["x"] + self.NODE_W
         y1 = n1["y"] + self.NODE_H // 2
         x2 = n2["x"]
         y2 = n2["y"] + self.NODE_H // 2
-        cx = (x1 + x2) // 2
+        # 竖版连接线：先向右再向下
+        mx = x1 + 40  # 向右偏移
         tag = f"line_{from_id}_{to_id}"
         lid = self._canvas.create_line(
-            x1, y1, cx, y1, cx, y2, x2, y2,
+            x1, y1, mx, y1, mx, y2, x2, y2,
             smooth=True, fill="#b0b8c1", width=2,
             arrow=tk.LAST, arrowshape=(8, 10, 3), tags=(tag,))
         self._line_data[(from_id, to_id)] = lid
@@ -345,20 +346,20 @@ class FlowCanvas(tk.Frame):
         self._drag_dy = event.y
 
     def _update_lines_for_node(self, sid):
-        """更新与该节点相关的所有连线。"""
+        """竖版连线更新：出线=从节点右侧到mx再向下，入线=从上方到节点左侧。"""
         nd = self._nodes[sid]
         x, y = nd["x"], nd["y"]
         for key, lid in list(self._line_data.items()):
             if sid not in key:
                 continue
             coords = self._canvas.coords(lid)
-            if key[0] == sid:  # 出线
+            if key[0] == sid:  # 出线 (x1,y1, mx,y1, mx,y2, x2,y2)
                 coords[0] = x + self.NODE_W
                 coords[1] = y + self.NODE_H // 2
-                coords[2] = (coords[0] + coords[6]) // 2
+                coords[2] = coords[0] + 40
                 coords[3] = y + self.NODE_H // 2
             else:  # 入线
-                coords[4] = (coords[0] + coords[6]) // 2
+                coords[4] = coords[0] + 40  # mx stays same
                 coords[5] = y + self.NODE_H // 2
                 coords[6] = x
                 coords[7] = y + self.NODE_H // 2

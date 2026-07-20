@@ -299,11 +299,6 @@ class MainWindow(tk.Tk):
         print(f"[主窗口] _refresh_flow_view: stages={[s.name for s in stages]} projects={len(projects)}", flush=True)
         self._flow_canvas.load(stages, projects)
 
-    def _on_flow_subnode_click(self, project_id):
-        print(f'[Main] _on_flow_subnode_click: project_id={project_id}')
-        """流程图子节点单击 → 选中高亮。"""
-        pass  # 预留：可添加选中高亮逻辑
-
     def _on_flow_subnode_double(self, project_id):
         print(f'[Main] _on_flow_subnode_double: project_id={project_id}')
         """流程图子节点双击 → 打开详情。"""
