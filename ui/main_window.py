@@ -224,6 +224,7 @@ class MainWindow(tk.Tk):
         self._flow_canvas.bind_callbacks(
             on_subnode_click=self._on_flow_subnode_click,
             on_subnode_double=self._on_flow_subnode_double,
+            on_subnode_move=self._on_flow_subnode_move,
         )
         # 右侧信息面板
         self._info_panel = tk.Frame(self._flow_container, bg="white", width=260,
@@ -257,6 +258,12 @@ class MainWindow(tk.Tk):
         tk.Label(panel, text="双击打开详情 | 右键节点连线条",
                  bg="#f0f2f5", fg="#95a5a6",
                  font=("Microsoft YaHei", 8)).pack(side=tk.BOTTOM, fill=tk.X, pady=5)
+
+    def _on_flow_subnode_move(self, project_id, target_stage_id):
+        """Shift+拖拽子节点到其他阶段 → 移动项目。"""
+        success, msg = self._project_service.move_project(project_id, target_stage_id)
+        if success:
+            self._refresh_flow_view()
 
     def _on_flow_subnode_click(self, project_id):
         print(f'[Main] _on_flow_subnode_click: project_id={project_id}')
