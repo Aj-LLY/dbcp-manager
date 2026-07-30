@@ -63,10 +63,11 @@ class FlowCanvas(tk.Frame):
         self.bind("<Configure>", self._on_resize)
 
     def bind_callbacks(self, on_node_click=None, on_subnode_click=None,
-                       on_subnode_double=None):
+                       on_subnode_double=None, on_subnode_move=None):
         self.on_node_click = on_node_click
         self.on_subnode_click = on_subnode_click
         self.on_subnode_double = on_subnode_double
+        self.on_subnode_move = on_subnode_move
 
     # =========================================================================
     # 数据加载
@@ -410,27 +411,18 @@ class FlowCanvas(tk.Frame):
             print(f'[Flow]   ⚠ on_subnode_double is None!')
 
     def _sn_drag_move(self, event, pid, sid):
-        """Shift+拖拽子节点：移动跟随鼠标。"""
+        """Shift+拖拽子节点：高亮目标阶段。"""
         if self._sn_drag is None:
             self._sn_drag = {"pid": pid, "sid": sid}
-        # 移动子节点视觉
-        sn = next((s for s in self._subnodes if s.get("project_id") == pid), None)
-        if sn:
-            dx = event.x - sn["x"]
-            dy = event.y - sn["y"]
-            for el in self._canvas.find_withtag(sn["tag"]):
-                self._canvas.move(el, 1, 0)  # 小幅移动触发视觉反馈
-                self._canvas.move(el, -1, 0)
-        # 高亮目标阶段
         mx, my = self._canvas.canvasx(event.x), self._canvas.canvasy(event.y)
         for stage_id, nd in self._nodes.items():
             if nd["x"] <= mx <= nd["x"] + self.NODE_W and \
                nd["y"] <= my <= nd["y"] + self.NODE_H:
                 for el in self._canvas.find_withtag(nd["tag"]):
-                    self._canvas.itemconfigure(el, outline="#FFD700")
+                    self._canvas.itemconfigure(el, outline="#FFD700", width=3)
             else:
                 for el in self._canvas.find_withtag(nd["tag"]):
-                    self._canvas.itemconfigure(el, outline=nd["stage"].color or "#3498db")
+                    self._canvas.itemconfigure(el, outline=nd["stage"].color or "#3498db", width=1)
 
     def _sn_drag_drop(self, event, pid, sid):
         """释放子节点：如果落在其他阶段上，触发移动回调。"""
@@ -444,10 +436,10 @@ class FlowCanvas(tk.Frame):
                nd["y"] <= my <= nd["y"] + self.NODE_H:
                 target_sid = stage_id
                 break
-        # 恢复边框颜色
+        # 恢复边框
         for stage_id, nd in self._nodes.items():
             for el in self._canvas.find_withtag(nd["tag"]):
-                self._canvas.itemconfigure(el, outline=nd["stage"].color or "#3498db")
+                self._canvas.itemconfigure(el, outline=nd["stage"].color or "#3498db", width=1)
         if target_sid and target_sid != sid and self.on_subnode_move:
             self.on_subnode_move(pid, target_sid)
         self._sn_drag = None
