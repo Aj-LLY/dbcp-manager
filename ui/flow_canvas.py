@@ -144,11 +144,14 @@ class FlowCanvas(tk.Frame):
                     lambda e, sid=stage.id: self._show_node_menu(e, sid))
 
             self._nodes[stage.id] = {"x": x, "y": y, "tag": tag, "elements": elements}
-            y += self.NODE_H + len(m_groups) * (self.SUBNODE_H + self.SUBNODE_V_GAP) + 50
-
-            # 子节点
-            sub_y = y + self.NODE_H + 10
             m_groups = [g for g in self._merged if g[0].stage_id == stage.id]
+
+            # 子节点在当前阶段下方
+            sub_y = y + self.NODE_H + 10
+
+            # 更新下一阶段的Y坐标
+            sub_total = len(m_groups) * (self.SUBNODE_H + self.SUBNODE_V_GAP) + 30
+            y += self.NODE_H + max(sub_total, 20) + 30
             for j, group in enumerate(m_groups[:8]):
                 sx = x + (self.SUBNODE_W - self.NODE_W) // 2
                 sy = sub_y + j * (self.SUBNODE_H + self.SUBNODE_V_GAP)
