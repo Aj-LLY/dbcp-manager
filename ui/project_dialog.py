@@ -50,12 +50,7 @@ from utils.province_data import (          # 全国省市区静态数据
     PROVINCE_CITIES,                       # 省级 → 市级列表字典（供 _on_province_change 使用）
     PROVINCES,                             # 省级名称列表（供省级下拉框 values 使用）
 )
-from ui.dialog_project_ocr import (        # OCR 备案证识别模块（从项目对话框抽取）
-    on_upload_cert,                        # 上传备案证 → 后台 OCR 线程
-    fill_cert_result,                      # OCR 结果填充到表单字段
-    archive_cert_file,                     # 归档备案证文件到项目目录
-    ocr_failed,                            # OCR 失败时的恢复与提示
-)
+# OCR 功能已移除
 
 
 # =============================================================================
@@ -382,12 +377,6 @@ class ProjectDialog(tk.Toplevel):
         ).pack(anchor="w", pady=(0, 5))
 
         # =====================================================================
-        # OCR 状态提示标签（全局）
-        self._ocr_status = tk.Label(main_frame, text="", bg="#ffffff",
-                                     font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 1),
-                                     fg="#7f8c8d")
-        self._ocr_status.pack(anchor="w", pady=(0, 5))
-
         # =====================================================================
         # 4. 交付日期（日历选择器 + 快捷日期按钮）
         # =====================================================================
@@ -604,14 +593,6 @@ class ProjectDialog(tk.Toplevel):
             cursor="hand2", padx=2, pady=0,
             activebackground="#e0e4e8",
         ).pack(side=tk.LEFT)
-        # OCR 识别按钮（每行独立）
-        tk.Button(
-            ln2, text="OCR", command=lambda ri=idx: self._on_row_upload_cert(ri - 1),
-            bg="#27ae60", fg="white", cursor="hand2", relief="flat",
-            font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL - 2),
-            padx=4, pady=1, activebackground="#219a52",
-        ).pack(side=tk.LEFT, padx=(4, 0))
-
         # ---- 第3行：复制/删除按钮 ----
         ln3 = tk.Frame(row_frame, bg="#f0f2f5")
         ln3.pack(fill=tk.X, pady=(2, 0))
@@ -1063,111 +1044,6 @@ class ProjectDialog(tk.Toplevel):
 
     # =========================================================================
     # OCR 备案证识别（委托到 ui.dialog_project_ocr 中的独立函数）
-    # =========================================================================
-
-    def _on_upload_cert(self):
-        """上传备案证文件并启动后台线程进行 OCR 识别（委托方法）。
-
-        该方法委托给 ui.dialog_project_ocr.on_upload_cert(self) 处理。
-        打开文件选择对话框让用户选择备案证图片或 PDF 文件，
-        选中后在后台线程中调用 CertOCRService 进行识别，
-        识别结果通过 after 回调回主线程填充第一行系统数据的表单字段。
-
-        支持的文件格式：PDF、PNG、JPG、JPEG、BMP。
-        """
-        on_upload_cert(self)
-
-    def _on_row_upload_cert(self, row_idx: int):
-        """为指定的多系统表格行上传备案证并进行 OCR 识别。
-
-        打开文件选择对话框，在后台线程中调用 CertOCRService 识别备案证信息，
-        识别结果通过 after 回调回主线程，调用 _fill_row_cert_result 填充
-        到指定行索引的表单字段中。
-
-        Args:
-            row_idx: 目标系统行的索引（0-based，对应 _sys_rows_list 索引）。
-
-        Raises:
-            识别异常时通过 ocr_failed 函数显示错误信息。
-        """
-        import threading  # 后台线程模块（避免阻塞 UI）
-        from tkinter import filedialog  # 文件选择对话框
-        # 打开文件选择对话框让用户选取备案证图片或 PDF
-        file_path = filedialog.askopenfilename(
-            parent=self, title="选择备案证文件",
-            filetypes=[("图片和PDF", "*.pdf *.png *.jpg *.jpeg *.bmp")])
-        if not file_path:
-            return  # 用户取消了文件选择
-        self._ocr_status.configure(text="正在识别...", fg="#f39c12")  # 显示识别进度
-
-        def _run():
-            """后台线程执行体：调用 OCR 服务识别备案证。"""
-            try:
-                from services.cert_ocr import CertOCRService  # 延迟导入避免循环依赖
-                result = CertOCRService().recognize(file_path)  # 执行 OCR 识别
-                # 使用 after(0) 将结果回调回主线程更新 UI（线程安全）
-                self.after(0, lambda: self._fill_row_cert_result(result, row_idx, file_path))
-            except Exception as e:
-                self.after(0, lambda: ocr_failed(self, str(e)))  # 识别失败时显示错误
-        threading.Thread(target=_run, daemon=True).start()  # 启动守护线程（窗口关闭时自动终止）
-
-    def _fill_row_cert_result(self, result, row_idx, file_path):
-        """将 OCR 识别结果填充到指定系统行的表单字段。
-
-        逐字段填充：公司名称（写入全局 _company_var）、系统名称、证书编号、
-        下证日期和系统等级分别写入对应行的 StringVar 变量。
-
-        填充后更新 OCR 状态标签显示已识别的字段列表（绿色）或提示"识别结果不完整"
-        （橙色）。若提供了源文件路径且有有效识别结果，自动调用 archive_cert_file
-        将备案证文件归档到项目目录。
-
-        Args:
-            result: OCR 识别结果字典，可能包含的键：
-                company_name, system_name, cert_number, issue_date, level
-            row_idx: 目标系统行的索引（0-based）
-            file_path: 备案证源文件路径，用于后续归档
-        """
-        if row_idx < len(self._sys_rows_list):  # 行索引有效
-            r = self._sys_rows_list[row_idx]  # 获取目标行的控件引用字典
-            filled = []  # 记录已填充的字段名列表（用于状态提示）
-            if result.get("company_name"):
-                self._company_var.set(result["company_name"])
-                filled.append("公司名称")
-            if result.get("system_name"):
-                r["system_var"].set(result["system_name"])  # 填入系统名称
-                filled.append("系统名称")
-            if result.get("cert_number"):
-                r["cert_var"].set(result["cert_number"])  # 填入证书编号
-                filled.append("证书编号")
-            if result.get("issue_date"):
-                r["issue_date_var"].set(result["issue_date"])  # 填入下证日期
-                filled.append("下证日期")
-            if result.get("level"):
-                r["level_var"].set(result["level"])  # 填入系统等级
-                filled.append("系统等级")
-            # 更新 OCR 状态标签：展示已识别的字段列表或提示不完整
-            self._ocr_status.configure(
-                text=f"已识别：{'、'.join(filled)}（请核对）" if filled else "识别结果不完整",
-                fg="#27ae60" if filled else "#e67e22")  # 绿色=成功，橙色=不完整
-            if file_path and filled:
-                archive_cert_file(self, file_path, row_idx)  # 归档源文件到项目目录
-        else:
-            self._ocr_status.configure(text="识别失败：行索引无效", fg="#e74c3c")  # 红色错误提示
-
-    def _fill_cert_result(self, result: dict, file_path: str = ""):
-        """将 OCR 识别结果填充到表单字段。（委托）"""
-        fill_cert_result(self, result, file_path)
-
-    def _archive_cert_file(self, src_path: str):
-        """将备案证文件复制到项目归档目录。（委托）"""
-        archive_cert_file(self, src_path)
-
-    def _ocr_failed(self, error: str):
-        """OCR 识别失败处理。（委托）"""
-        ocr_failed(self, error)
-
-    # =========================================================================
-    # 窗口居中
     # =========================================================================
 
     def _center_window(self):
