@@ -1002,13 +1002,13 @@ class ProjectDialog(tk.Toplevel):
             if not root:
                 messagebox.showwarning("提示", "请先输入或选择文件夹路径", parent=self)
                 return
-            cname = (self._company_var.get().strip() or "未命名").replace("/", "_").replace("\\", "_").replace("\n", "")
+            cname = (self._company_var.get().strip() or "未命名").replace("/", "_").replace("\\", "_").replace("\n", "").replace("\r", "").replace("\t", "")
             # 收集所有系统名称（从多系统表格行中读取，去除非空）
             sys_names = []
             for rd in self._sys_rows_list:
                 sn = rd["system_var"].get().strip()
                 if sn:
-                    sys_names.append(sn.replace("/", "_").replace("\\", "_"))  # 安全文件名
+                    sys_names.append(sn.replace("/", "_").replace("\\", "_").replace("\n", "").replace("\r", ""))
             # 判断多系统/单系统/无系统 → 决定文件夹命名规则
             date_str = date.today().strftime("%y%m%d")  # 日期标识（YYMMDD 格式）
             if len(sys_names) > 1:
