@@ -172,10 +172,10 @@ class LogDialog(tk.Toplevel):
         self._tree.heading("project", text="关联项目", anchor="w")
 
         # 设置各列宽度（stretch=False 防止压缩，溢出时触发水平滚动）
-        self._tree.column("time", width=150, anchor="w", stretch=False)
-        self._tree.column("action", width=100, anchor="center", stretch=False)
-        self._tree.column("detail", width=400, anchor="w", stretch=False)
-        self._tree.column("project", width=180, anchor="w", stretch=False)
+        self._tree.column("time", width=140, anchor="w", stretch=False)
+        self._tree.column("action", width=80, anchor="center", stretch=False)
+        self._tree.column("detail", width=500, anchor="w", stretch=True)
+        self._tree.column("project", width=160, anchor="w", stretch=False)
 
         # 创建垂直和水平滚动条
         scrollbar_y = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL,
