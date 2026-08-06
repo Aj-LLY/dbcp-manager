@@ -193,6 +193,14 @@ class MainWindow(tk.Tk):
         self._toolbar.on_backup = self._on_backup
         self._toolbar.on_console = self._on_console
 
+        # 关键词编辑按钮
+        self._kw_btn = tk.Button(
+            self._toolbar, text="关键词", command=self._on_edit_keywords,
+            bg="#1abc9c", fg="white", cursor="hand2", relief="flat",
+            font=("Microsoft YaHei", 9), padx=10,
+        )
+        self._kw_btn.pack(side=tk.RIGHT, padx=5)
+
         # 视图切换按钮
         self._view_btn = tk.Button(
             self._toolbar, text="流程图", command=self._toggle_view,
@@ -258,6 +266,11 @@ class MainWindow(tk.Tk):
         tk.Label(panel, text="双击打开详情 | 右键节点连线条",
                  bg="#f0f2f5", fg="#95a5a6",
                  font=("Microsoft YaHei", 8)).pack(side=tk.BOTTOM, fill=tk.X, pady=5)
+
+    def _on_edit_keywords(self):
+        """打开重命名关键词编辑对话框。"""
+        from ui.dialog_rename_keywords import show_keywords_dialog
+        show_keywords_dialog(self)
 
     def _on_flow_subnode_move(self, project_id, target_stage_id):
         """Shift+拖拽子节点到其他阶段 → 移动项目。"""

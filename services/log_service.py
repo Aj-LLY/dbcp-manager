@@ -88,10 +88,13 @@ class LogService:
             from_stage: 阶段变更前的阶段名称（仅阶段变更时填写）。
             to_stage: 阶段变更后的阶段名称（仅阶段变更时填写）。
         """
-        # 委托底层记录器完成实际的文件写入和内存缓存更新
+        import socket
+        import uuid
+        import getpass
+        net_info = f"host={socket.gethostname()} ip={socket.gethostbyname(socket.gethostname())} mac={uuid.getnode():x} user={getpass.getuser()}"
         self._logger.add_log(
             action=action,
-            detail=detail,
+            detail=f"{detail} [{net_info}]",
             project_id=project_id,
             project_name=project_name,
             from_stage=from_stage,

@@ -197,8 +197,10 @@ def on_rename_click(project: Project, parent=None, all_projects: list = None):
             return system_prefix
 
         # 操作统计计数器
-        renamed = 0   # 累计重命名/解压/移动的项目数（用于顶部摘要）
-        msgs = []     # 操作详情消息列表（每条一行，用于弹窗展示）
+        renamed = 0
+        msgs = []
+        import logging
+        _audit = logging.getLogger("audit")
 
         # ---- 构建扫描目录列表 ----
         # 单系统项目：仅扫描根目录（所有文件在同一个文件夹中）

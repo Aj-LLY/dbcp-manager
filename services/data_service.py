@@ -127,7 +127,13 @@ class DataService(IDataService):
             # 数据文件存在：尝试读取和解析
             try:
                 with open(self._data_file_path, 'r', encoding='utf-8') as f:
-                    loaded = json.load(f)                        # 解析 JSON 文件内容
+                    raw = f.read()
+                    try:
+                        from utils.crypto_utils import decrypt_data
+                        data_str = decrypt_data(raw)
+                    except Exception:
+                        data_str = raw
+                    loaded = json.loads(data_str)
                     # 提取项目列表（键不存在时使用空列表）
                     self._data["projects"] = loaded.get("projects", [])
                     # 提取流程阶段列表（键不存在时使用空列表）
@@ -194,17 +200,18 @@ class DataService(IDataService):
             ) as tf:
                 # ensure_ascii=False: 保留中文字符，不转义为 \uXXXX
                 # indent=2: 格式化输出，便于人工查看和版本控制 diff
-                json.dump(self._data, tf, ensure_ascii=False, indent=2)
-                temp_name = tf.name  # 记录临时文件完整路径
+                data_str = json.dumps(self._data, ensure_ascii=False, indent=2)
+                from utils.crypto_utils import encrypt_data
+                tf.write(encrypt_data(data_str))
+                temp_name = tf.name
 
-            # 原子替换：用临时文件替换目标文件（同一文件系统内的重命名操作）
             os.replace(temp_name, self._data_file_path)
 
         except IOError:
-            # 临时文件方案失败（磁盘空间不足、权限问题等）
-            # 回退策略：直接写入目标文件（不保证原子性，但保证数据被保存）
             with open(self._data_file_path, 'w', encoding='utf-8') as f:
-                json.dump(self._data, f, ensure_ascii=False, indent=2)
+                data_str = json.dumps(self._data, ensure_ascii=False, indent=2)
+                from utils.crypto_utils import encrypt_data
+                f.write(encrypt_data(data_str))
 
     # ========================================================================
     # 项目数据操作（CRUD）
