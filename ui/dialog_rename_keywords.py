@@ -13,13 +13,38 @@ def show_keywords_dialog(parent):
     """显示重命名关键词编辑对话框。"""
     kw_path = os.path.join(Config.get_data_dir(), "data", "rename_keywords.json")
 
-    # Load current keywords
+    # 内置默认关键词（与 rename.py 保持一致）
+    _DEFAULT_KEYWORDS = [
+        ["保密承诺书", "02", "保密承诺书", True],
+        ["测评调研表", "03", "测评调研表", False],
+        ["测评授权书", "04", "测评授权书", True],
+        ["风险告知书", "05", "风险告知书", True],
+        ["项目计划书", "06", "项目计划书", False],
+        ["测评方案", "07", "测评方案", False],
+        ["归档材料评审记录表", "08", "测评方案评审表", False],
+        ["测评方案评审表", "08", "测评方案评审表", False],
+        ["首次会议记录", "09", "首次会议记录", True],
+        ["测评现场记录表", "10", "测评现场记录表", False],
+        ["问题汇总", "11", "问题汇总及整改建设书", False],
+        ["漏洞扫描报告", "12", "漏洞扫描报告", False],
+        ["项目文档移交清单", "14", "项目文档移交清单", True],
+        ["末次会议记录", "15", "末次会议记录", True],
+        ["测评报告-终稿", "16", "测评报告-终稿", False],
+        ["测评报告评审记录表", "17", "测评报告评审表", False],
+        ["测评报告评审表", "17", "测评报告评审表", False],
+        ["服务情况评价表", "18", "服务情况评价表", True],
+        ["报备表", "19", "报备表", True],
+        ["渗透测试报告", "13", "渗透测试报告", False],
+    ]
+
+    # 优先从 JSON 配置文件加载，文件不存在或为空则使用内置默认值
     try:
         with open(kw_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-            keywords = data.get("keywords", [])
+            loaded = data.get("keywords", [])
+            keywords = loaded if loaded else _DEFAULT_KEYWORDS
     except Exception:
-        keywords = []
+        keywords = _DEFAULT_KEYWORDS
 
     dlg = tk.Toplevel(parent)
     dlg.title("自定义重命名关键词")
