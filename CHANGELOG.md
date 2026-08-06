@@ -1,5 +1,12 @@
 # 版本更新记录
 
+## v4.5.1 (2026-08-06)
+
+### 修复
+- **批量重命名 `name 'Config' is not defined`** — `rename.py` 缺少 `from utils.config import Config` 导入
+
+---
+
 ## v4.5.0 (2026-08-06) — 8 原则驱动重构 + 流程图 + 加密备份 + 关键词配置
 
 ### 架构重构 — 8 原则落地

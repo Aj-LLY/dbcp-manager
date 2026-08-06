@@ -39,6 +39,7 @@ import shutil    # 文件操作高级工具：移动和删除目录树
 from tkinter import messagebox  # 消息框：显示操作报告和错误提示
 
 from models.project import Project               # 项目实体类
+from utils.config import Config                   # 全局配置
 from ui.file_ops.folder_ops import find_project_folder  # 查找项目文件夹
 
 
