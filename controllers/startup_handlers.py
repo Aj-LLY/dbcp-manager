@@ -136,8 +136,24 @@ def on_close(main_window):
     Returns:
         None
     """
-    # --- 第一步：保存当前数据 ---
+    # --- 第一步：保存当前数据 + 本地自动备份 ---
     main_window._data_service.save()
+    try:
+        import shutil
+        from datetime import datetime
+        backup_dir = os.path.join(Config.get_data_dir(), "data", "backup")
+        os.makedirs(backup_dir, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = os.path.join(backup_dir, f"dap_data_{ts}.json")
+        data_path = Config.get_data_file_path()
+        if os.path.exists(data_path):
+            shutil.copy2(data_path, backup_path)
+        # 仅保留最近 30 个备份
+        backups = sorted(os.listdir(backup_dir))
+        while len(backups) > 30:
+            os.remove(os.path.join(backup_dir, backups.pop(0)))
+    except Exception:
+        pass
 
     # --- 第二步：保存窗口位置和大小 ---
     try:
