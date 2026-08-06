@@ -286,13 +286,19 @@ def check_restore_on_startup(main_window):
                 # 从 WebDAV 下载选中的备份文件
                 ok2, msg2, body = svc.restore(files[idx]["path"])
                 if ok2:
-                    # --- 验证备份文件 JSON 格式 ---
+                    # --- 验证备份文件 JSON 格式（先解密再校验） ---
                     try:
-                        json.loads(body.decode("utf-8"))
+                        from utils.crypto_utils import decrypt_data
+                        raw = body.decode("utf-8")
+                        data_str = decrypt_data(raw)
+                        json.loads(data_str)
                     except Exception:
-                        # JSON 解析失败，拒绝写入无效数据
-                        messagebox.showerror("错误", "备份文件格式错误", parent=dlg)
-                        return
+                        # 可能是旧版未加密备份，尝试直接解析
+                        try:
+                            json.loads(body.decode("utf-8"))
+                        except Exception:
+                            messagebox.showerror("错误", "备份文件格式错误", parent=dlg)
+                            return
 
                     # --- 写入本地数据文件 ---
                     with open(Config.get_data_file_path(), "wb") as wf:

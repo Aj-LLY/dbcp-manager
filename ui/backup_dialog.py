@@ -560,12 +560,19 @@ class BackupDialog(tk.Toplevel):
         # 下载备份内容
         ok, msg, body = self._svc.restore(sel[0])              # sel[0] 是远端文件路径（iid）
         if ok:
-            # 写入文件前验证 JSON 格式有效性
+            # 写入文件前验证 JSON 格式有效性（先解密再校验）
             try:
-                json.loads(body.decode("utf-8"))               # 尝试解析 JSON 以检查格式
+                from utils.crypto_utils import decrypt_data
+                raw = body.decode("utf-8")
+                data_str = decrypt_data(raw)
+                json.loads(data_str)
             except (json.JSONDecodeError, UnicodeDecodeError):
-                messagebox.showerror("错误", "备份文件格式错误", parent=self)
-                return
+                # 可能是旧版未加密备份，尝试直接解析
+                try:
+                    json.loads(body.decode("utf-8"))
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    messagebox.showerror("错误", "备份文件格式错误", parent=self)
+                    return
 
             # 将下载的备份数据写入本地数据文件（二进制写入）
             with open(self._data_file, "wb") as f:
