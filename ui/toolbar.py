@@ -108,7 +108,7 @@ class Toolbar(tk.Frame):
         right_area.pack(side=tk.RIGHT, fill=tk.Y, padx=5)  # 右对齐，垂直填充
 
         # 右侧功能按钮
-        self._create_btn(right_area, "WebDAV备份", "#8e44ad",  # 紫色主题 - 远程备份
+        self._create_btn(right_area, "备份", "#8e44ad",  # 紫色主题 - 备份
                          lambda: self._call_callback(self.on_backup))  # 安全调用回调
         self._create_btn(right_area, "操作日志", "#7f8c8d",
                          lambda: self._call_callback(self.on_view_logs))

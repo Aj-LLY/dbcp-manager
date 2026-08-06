@@ -139,7 +139,7 @@ def on_close(main_window):
     # --- 第一步：保存当前数据 + 本地自动备份 ---
     main_window._data_service.save()
     try:
-        import shutil
+        import os, shutil
         from datetime import datetime
         backup_dir = os.path.join(Config.get_data_dir(), "data", "backup")
         os.makedirs(backup_dir, exist_ok=True)
