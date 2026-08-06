@@ -23,10 +23,7 @@ from typing import Callable, Optional
 from models.project import Project
 # 项目实体类，封装了项目的所有属性和序列化/反序列化逻辑
 
-from services.data_service import DataService
-# 数据持久化服务（单例），提供底层 JSON 文件的读写操作
-
-from services.interfaces import IProjectService
+from services.interfaces import IDataService, IProjectService
 # 项目管理服务抽象接口（DIP）
 
 from utils.helpers import validate_project_fields, validate_cert_number
@@ -49,12 +46,12 @@ class ProjectService(IProjectService):
                          实际指向 LogService.create_log_callback() 的返回值。
     """
 
-    def __init__(self, data_service: DataService,
+    def __init__(self, data_service: IDataService,
                  log_callback: Optional[Callable[..., None]] = None):
         """初始化项目管理服务。
 
         Args:
-            data_service: DataService 的单例实例，提供数据存取能力。
+            data_service: IDataService 实例，提供数据存取能力。
             log_callback: 操作日志回调函数，签名为 (action, detail, **kwargs)。
                           为 None 时使用空操作函数占位，不记录日志。
         """

@@ -98,6 +98,37 @@ class IDataService(ABC):
         ...
 
     @abstractmethod
+    def add_stage(self, stage_dict: dict) -> None:
+        """添加一个新的流程阶段到数据中。
+
+        Args:
+            stage_dict: 阶段完整字段字典。
+        """
+        ...
+
+    @abstractmethod
+    def update_stage(self, stage_id: str, updates: dict) -> None:
+        """更新指定流程阶段的字段（部分更新）。
+
+        Args:
+            stage_id: 要更新的阶段唯一标识符。
+            updates: 需要更新的字段字典（键为字段名，值为新内容）。
+        """
+        ...
+
+    @abstractmethod
+    def delete_stage(self, stage_id: str) -> bool:
+        """删除指定流程阶段。
+
+        Args:
+            stage_id: 要删除的阶段唯一标识符。
+
+        Returns:
+            bool: True 表示删除成功，False 表示阶段不存在。
+        """
+        ...
+
+    @abstractmethod
     def save(self) -> None:
         """将内存中的全部数据原子写入 JSON 文件。"""
         ...
@@ -279,6 +310,132 @@ class ILogService(ABC):
 
         Returns:
             Callable: 签名为 (action, detail, **kwargs) 的回调函数。
+        """
+        ...
+
+
+# ============================================================================
+# IWorkflowService —— 流程管理服务的抽象接口（原则 #2 DIP）
+# ============================================================================
+
+class IWorkflowService(ABC):
+    """流程管理服务的抽象接口。
+
+    定义流程阶段（看板列）的增删改查、排序、重置等完整操作契约。
+    UI 层通过本接口调用流程业务逻辑，不依赖具体实现类。
+    """
+
+    @abstractmethod
+    def get_all_stages(self) -> list:
+        """获取所有流程阶段对象列表，按 order 升序排列。
+
+        Returns:
+            list: 按 order 升序排列的阶段对象列表。
+        """
+        ...
+
+    @abstractmethod
+    def get_stage_by_id(self, stage_id: str):
+        """根据阶段ID获取单个阶段对象。
+
+        Args:
+            stage_id: 流程阶段的唯一标识符。
+
+        Returns:
+            匹配的阶段对象，未找到时返回 None。
+        """
+        ...
+
+    @abstractmethod
+    def get_first_stage_id(self) -> str:
+        """获取第一个阶段的ID（order 最小的阶段）。
+
+        Returns:
+            str: 第一个阶段的ID，没有阶段时返回空字符串。
+        """
+        ...
+
+    @abstractmethod
+    def get_stage_name(self, stage_id: str) -> str:
+        """根据阶段ID获取阶段的可读名称。
+
+        Args:
+            stage_id: 流程阶段唯一标识符。
+
+        Returns:
+            str: 阶段的显示名称，未找到时返回"未知阶段"。
+        """
+        ...
+
+    @abstractmethod
+    def add_stage(self, name: str, color: str = "#3498db") -> tuple:
+        """添加新的流程阶段。
+
+        Args:
+            name: 新阶段的显示名称。
+            color: 新阶段的标识颜色（十六进制颜色码）。
+
+        Returns:
+            tuple[bool, str, WorkflowStage | None]: (成功, 消息, 新阶段对象或None)。
+        """
+        ...
+
+    @abstractmethod
+    def update_stage_width(self, stage_id: str, column_width: int) -> None:
+        """更新阶段的列宽（便捷方法）。
+
+        Args:
+            stage_id: 目标阶段唯一标识符。
+            column_width: 新的列宽值（像素单位）。
+        """
+        ...
+
+    @abstractmethod
+    def update_stage(self, stage_id: str,
+                     name: Optional[str] = None,
+                     color: Optional[str] = None) -> tuple:
+        """更新阶段的基本信息（名称和/或颜色）。
+
+        Args:
+            stage_id: 要更新的阶段唯一标识符。
+            name: 新的阶段名称（None 表示不修改）。
+            color: 新的标识颜色（None 表示不修改）。
+
+        Returns:
+            tuple[bool, str]: (是否成功, 操作消息)。
+        """
+        ...
+
+    @abstractmethod
+    def delete_stage(self, stage_id: str) -> tuple:
+        """删除指定流程阶段。
+
+        Args:
+            stage_id: 要删除的阶段唯一标识符。
+
+        Returns:
+            tuple[bool, str]: (是否成功, 操作消息)。
+        """
+        ...
+
+    @abstractmethod
+    def reorder_stages(self, stage_ids: list[str]) -> tuple:
+        """重新排序流程阶段（看板列拖拽排序）。
+
+        Args:
+            stage_ids: 按新顺序排列的阶段ID列表。
+
+        Returns:
+            tuple[bool, str]: (是否成功, 操作消息)。
+        """
+        ...
+
+    @abstractmethod
+    def reset_to_default(self) -> tuple:
+        """重置为系统默认的流程配置。
+
+        Returns:
+            tuple[bool, str]: (是否成功, 操作消息)。
         """
         ...
 

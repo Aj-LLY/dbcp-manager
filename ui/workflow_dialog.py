@@ -454,7 +454,7 @@ class WorkflowDialog(tk.Toplevel):
             # 重新创建默认阶段列表（每个阶段字典做浅拷贝，防止引用污染）
             self._stages = [
                 WorkflowStage.from_dict(s.copy())
-                for s in Config.DEFAULT_WORKFLOW_STAGES
+                for s in Config.get_default_workflow_stages()
             ]
             self._refresh_list()                             # 刷新 Treeview 显示
 
