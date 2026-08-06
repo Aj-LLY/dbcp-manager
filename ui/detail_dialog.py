@@ -301,17 +301,22 @@ class DetailDialog(tk.Toplevel):
         log_frame = tk.Frame(main, bg="#f8f9fa")             # 日志列表容器
         log_frame.pack(fill=tk.X, pady=(0, 5))
 
-        recent_logs = self._logs[:5]                          # 取最近 5 条日志
+        recent_logs = self._logs[:5]
         if recent_logs:
             for log in recent_logs:
-                # 格式化日志行：时间 | 操作类型 | 操作描述
-                log_text = f"{log.get('timestamp', '')} | {log.get('action', '')} | {log.get('detail', '')}"
-                if len(log_text) > 65:
-                    log_text = log_text[:64] + "\u2026"       # 超过65字符截断并添加省略号
-                tk.Label(log_frame, text=log_text, bg="#f8f9fa",
+                ts = (log.get('timestamp', '') or '')[:16]
+                action = log.get('action', '') or ''
+                detail = log.get('detail', '') or ''
+                # 截取前80字显示(不含网络信息), 完整内容用tooltip
+                short = detail if len(detail) <= 80 else detail[:77] + "..."
+                log_text = f"{ts} | {action} | {short}"
+                lbl = tk.Label(log_frame, text=log_text, bg="#f8f9fa",
                          font=(Config.FONT_FAMILY, Config.FONT_SIZE_SMALL),
-                         fg="#7f8c8d", anchor="w", justify="left",
-                         ).pack(fill=tk.X, pady=1, padx=8)
+                         fg="#7f8c8d", anchor="w", justify="left")
+                lbl.pack(fill=tk.X, pady=1, padx=8)
+                # 悬停显示完整内容
+                from utils.tooltip import add_tooltip
+                add_tooltip(lbl, detail)
         else:
             # 无日志时的占位提示
             tk.Label(log_frame, text="暂无操作记录", bg="#f8f9fa",
