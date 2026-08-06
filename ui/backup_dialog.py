@@ -136,19 +136,20 @@ class BackupDialog(tk.Toplevel):
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=8, pady=8)
 
-        # ---- 标签页一：服务器配置 ----
-        self._config_frame = tk.Frame(nb, bg="#ffffff")
-        nb.add(self._config_frame, text="  服务器配置  ")
-        self._build_config_tab()                               # 构建配置标签页内容
-
-        # ---- 标签页二：备份恢复 ----
-        self._action_frame = tk.Frame(nb, bg="#ffffff")
-        nb.add(self._action_frame, text="  备份 & 恢复  ")
-        self._build_action_tab()
-        # 本地备份标签页
+        # ---- 标签页一：本地备份 ----
         self._local_frame = tk.Frame(nb, bg="#ffffff")
         nb.add(self._local_frame, text="  本地备份  ")
         self._build_local_backup_tab()
+
+        # ---- 标签页二：服务器配置 ----
+        self._config_frame = tk.Frame(nb, bg="#ffffff")
+        nb.add(self._config_frame, text="  服务器配置  ")
+        self._build_config_tab()
+
+        # ---- 标签页三：备份恢复 ----
+        self._action_frame = tk.Frame(nb, bg="#ffffff")
+        nb.add(self._action_frame, text="  备份 & 恢复  ")
+        self._build_action_tab()
         # 切换标签页时自动刷新备份列表
         nb.bind("<<NotebookTabChanged>>", self._on_tab_changed)
 
