@@ -145,8 +145,94 @@ class BackupDialog(tk.Toplevel):
         self._action_frame = tk.Frame(nb, bg="#ffffff")
         nb.add(self._action_frame, text="  备份 & 恢复  ")
         self._build_action_tab()
+        # 本地备份标签页
+        self._local_frame = tk.Frame(nb, bg="#ffffff")
+        nb.add(self._local_frame, text="  本地备份  ")
+        self._build_local_backup_tab()
         # 切换标签页时自动刷新备份列表
         nb.bind("<<NotebookTabChanged>>", self._on_tab_changed)
+
+
+    def _build_local_backup_tab(self):
+        """构建本地备份标签页 — 显示 data/backup/ 中的备份文件。"""
+        import os
+        import shutil
+        from datetime import datetime
+
+        f = self._local_frame
+        tk.Label(f, text="本地自动备份", bg="white", fg="#2c3e50",
+                 font=("Microsoft YaHei", 14, "bold")).pack(anchor="w", pady=(0, 5))
+        tk.Label(f, text="每次关闭程序时自动备份，保留最近30个备份文件",
+                 bg="white", fg="#7f8c8d",
+                 font=("Microsoft YaHei", 9)).pack(anchor="w", pady=(0, 10))
+
+        backup_dir = os.path.join(Config.get_data_dir(), "data", "backup")
+        os.makedirs(backup_dir, exist_ok=True)
+
+        # Treeview
+        cols = ("文件名", "大小", "修改时间")
+        tree = ttk.Treeview(f, columns=cols, show="headings", height=12)
+        for c, w in [("文件名", 250), ("大小", 80), ("修改时间", 150)]:
+            tree.heading(c, text=c)
+            tree.column(c, width=w)
+        tree.pack(fill=tk.BOTH, expand=True, pady=5)
+
+        def refresh_local():
+            tree.delete(*tree.get_children())
+            try:
+                files = sorted(os.listdir(backup_dir), reverse=True)
+                for fn in files:
+                    fp = os.path.join(backup_dir, fn)
+                    sz = os.path.getsize(fp)
+                    mt = datetime.fromtimestamp(os.path.getmtime(fp)).strftime("%Y-%m-%d %H:%M")
+                    tree.insert("", "end", values=(fn, f"{sz/1024:.1f}KB", mt))
+            except Exception:
+                pass
+
+        refresh_local()
+
+        btn_row = tk.Frame(f, bg="white")
+        btn_row.pack(fill=tk.X, pady=10)
+        tk.Button(btn_row, text="刷新", command=refresh_local,
+                  bg="#3498db", fg="white", relief="flat", padx=12, cursor="hand2",
+                  font=("Microsoft YaHei", 9)).pack(side=tk.LEFT, padx=(0, 5))
+
+        def restore_local():
+            sel = tree.selection()
+            if not sel:
+                messagebox.showwarning("提示", "请先选择要恢复的备份文件", parent=self)
+                return
+            fn = tree.item(sel[0])["values"][0]
+            src = os.path.join(backup_dir, fn)
+            dst = Config.get_data_file_path()
+            if not messagebox.askyesno("确认恢复", f"将用 {fn} 覆盖当前数据，确定？", parent=self):
+                return
+            try:
+                shutil.copy2(src, dst)
+                self._on_restore()
+                messagebox.showinfo("成功", "本地备份已恢复", parent=self)
+            except Exception as e:
+                messagebox.showerror("错误", str(e), parent=self)
+
+        tk.Button(btn_row, text="恢复选中", command=restore_local,
+                  bg="#27ae60", fg="white", relief="flat", padx=12, cursor="hand2",
+                  font=("Microsoft YaHei", 9)).pack(side=tk.LEFT, padx=(0, 5))
+
+        def delete_local():
+            sel = tree.selection()
+            if not sel:
+                return
+            fn = tree.item(sel[0])["values"][0]
+            if messagebox.askyesno("确认删除", f"删除 {fn}？", parent=self):
+                try:
+                    os.remove(os.path.join(backup_dir, fn))
+                    refresh_local()
+                except Exception as e:
+                    messagebox.showerror("错误", str(e), parent=self)
+
+        tk.Button(btn_row, text="删除选中", command=delete_local,
+                  bg="#e74c3c", fg="white", relief="flat", padx=12, cursor="hand2",
+                  font=("Microsoft YaHei", 9)).pack(side=tk.LEFT)
 
     def _on_tab_changed(self, event=None):
         """Notebook 标签页切换事件处理 -- 切换到备份恢复页时自动刷新远端文件列表。
