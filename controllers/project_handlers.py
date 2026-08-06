@@ -93,7 +93,7 @@ def on_add_project(main_window):
             if user_folder and os.path.isdir(user_folder):
                 # 用户指定了已有目录，直接使用该路径
                 project.folder_path = user_folder
-                main_window._data_service.update_project(project.id, {"folder_path": user_folder})
+                main_window._project_service.update_project(project.id, folder_path=user_folder)
             else:
                 # 自动创建标准项目文件夹结构（含子目录和 NDA 模板）
                 create_project_folder(main_window, project)
@@ -604,10 +604,11 @@ def create_project_folder(main_window, project, all_projects: list = None):
 
         # 将文件夹路径关联到项目并持久化到 JSON
         project.folder_path = root  # 设置项目对象的文件夹路径属性
-        main_window._data_service.update_project(project.id, {"folder_path": root})  # 持久化到 JSON
-    except OSError:
-        # 静默捕获文件系统错误（如磁盘满、权限不足），避免中断用户操作流程
-        pass
+        main_window._project_service.update_project(project.id, folder_path=root)  # 持久化到 JSON
+    except OSError as e:
+        import traceback
+        print(f"[create_project_folder] 文件系统错误: {e}", flush=True)
+        traceback.print_exc()
 
 
 def generate_nda_template(main_window, root, cname_clean, company_name):
@@ -698,6 +699,7 @@ def generate_nda_template(main_window, root, cname_clean, company_name):
 
         # 保存修改后的文档
         doc.save(dest_path)
-    except Exception:
-        # 静默捕获所有异常：模板处理失败不应中断项目创建流程
-        pass
+    except Exception as e:
+        import traceback
+        print(f"[generate_nda_template] 模板生成失败: {e}", flush=True)
+        traceback.print_exc()

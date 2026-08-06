@@ -174,9 +174,9 @@ class LogDialog(tk.Toplevel):
         # 设置各列宽度（stretch=False 防止压缩，溢出时触发水平滚动）
         self._tree.column("time", width=140, anchor="w", stretch=False)
         self._tree.column("action", width=80, anchor="center", stretch=False)
-        self._tree.column("detail", width=500, anchor="w", stretch=True)
+        self._tree.column("detail", width=500, anchor="w", stretch=False)
         self._tree.column("project", width=160, anchor="w", stretch=False)
-        print(f"[日志对话框] 列宽: time=140 action=80 detail=500(stretch) project=160", flush=True)
+        print(f"[日志对话框] 列宽: time=140 action=80 detail=500(stretch=False) project=160", flush=True)
         print(f"[日志对话框] tree_frame grid: row0-weight={tree_frame.grid_rowconfigure(0)}, col0-weight={tree_frame.grid_columnconfigure(0)}", flush=True)
 
         # 创建垂直和水平滚动条

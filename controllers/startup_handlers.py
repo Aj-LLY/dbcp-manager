@@ -139,38 +139,12 @@ def on_close(main_window):
     # --- 第一步：保存当前数据 + 本地自动备份 ---
     main_window._data_service.save()
     try:
-        import os, shutil
-        from datetime import datetime
-        backup_dir = os.path.join(Config.get_data_dir(), "data", "backup")
-        os.makedirs(backup_dir, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = os.path.join(backup_dir, f"dap_data_{ts}.json")
-        data_path = Config.get_data_file_path()
-        print(f"[备份] data_path={data_path} exists={os.path.exists(data_path)}", flush=True)
-        if os.path.exists(data_path):
-            shutil.copy2(data_path, backup_path)
-            print(f"[备份] 已保存到 {backup_path}", flush=True)
-        backups = sorted(os.listdir(backup_dir))
-        while len(backups) > 30:
-            os.remove(os.path.join(backup_dir, backups.pop(0)))
+        Config.create_local_backup(Config.get_data_file_path())
     except Exception as e:
         print(f"[备份] 失败: {e}", flush=True)
 
     # --- 第二步：保存窗口位置和大小 ---
-    try:
-        import json, os
-        # 获取窗口当前几何信息（格式：width x height + x + y）
-        geo = main_window.geometry()
-        # 构造窗口几何信息存储路径：data_dir/data/window_geometry.json
-        path = os.path.join(Config.get_data_dir(), "data", "window_geometry.json")
-        # 确保父目录存在
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        # 写入 JSON 文件
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump({"geometry": geo}, f)
-    except Exception:
-        # 静默忽略：窗口位置保存失败不影响程序正常关闭
-        pass
+    Config.save_window_geometry(main_window.geometry())
 
     # --- 第三步：询问是否同步到 WebDAV ---
     # 延迟导入 WebDAV 配置和备份服务（避免启动时的模块加载开销）
@@ -358,6 +332,7 @@ def check_restore_on_startup(main_window):
 
         # 阻塞等待对话框关闭
         main_window.wait_window(dlg)
-    except Exception:
-        # 静默捕获所有异常：网络不可用、配置错误等不应阻塞程序正常启动
-        pass
+    except Exception as e:
+        import traceback
+        print(f"[check_restore_on_startup] 异常: {e}", flush=True)
+        traceback.print_exc()

@@ -25,18 +25,17 @@ from typing import Callable, Optional
 # ---------------------------------------------------------------------------
 # 项目内导入（模型层 + 数据层 + 工具层）
 # ---------------------------------------------------------------------------
+from services.interfaces import IDataService, IWorkflowService
+
 from models.workflow import WorkflowStage
 # 流程阶段实体类，封装阶段的属性和序列化/反序列化逻辑
-
-from services.data_service import DataService
-# 数据持久化服务（单例），提供底层 JSON 文件的读写操作
 
 from utils.helpers import generate_id
 # 生成唯一ID的工具函数（虽然本文件不直接使用 generate_id，
 # 但保留导入以备 WorkflowStage 构造函数需要回退时使用）
 
 
-class WorkflowService:
+class WorkflowService(IWorkflowService):
     """流程管理服务。
 
     封装所有流程阶段（看板列）相关的业务逻辑。对流程阶段的所有写操作
@@ -55,12 +54,12 @@ class WorkflowService:
                          实际指向 LogService.create_log_callback() 的返回值。
     """
 
-    def __init__(self, data_service: DataService,
+    def __init__(self, data_service: IDataService,
                  log_callback: Optional[Callable[..., None]] = None):
         """初始化流程管理服务。
 
         Args:
-            data_service: DataService 的单例实例，提供数据存取能力。
+            data_service: IDataService 实例，提供数据存取能力。
             log_callback: 操作日志回调函数，签名为 (action, detail, **kwargs)。
                           为 None 时使用空操作函数占位，不记录日志。
         """
@@ -308,6 +307,44 @@ class WorkflowService:
 
         return True, "阶段顺序已更新"
 
+    def replace_all_stages(self, stages_list: list[dict],
+                          project_service = None) -> tuple[bool, str]:
+        """替换全部流程阶段并处理孤儿项目迁移。
+
+        用于流程编辑对话框保存后的批量更新：
+          1. 替换当前所有阶段为新配置。
+          2. 检测被删除的阶段，将其下的项目自动迁移到新配置的第一个阶段。
+          3. 记录操作日志。
+
+        Args:
+            stages_list: 新的阶段字典列表（通常来自 WorkflowDialog.result）。
+            project_service: IProjectService 实例，用于迁移孤儿项目。
+
+        Returns:
+            tuple[bool, str]: (是否成功, 操作消息)。
+        """
+        old_stages = self.get_all_stages()
+        self._ds.replace_all_stages(stages_list)
+
+        # 检测被删除的阶段并迁移孤儿项目
+        new_stage_ids = {s["id"] for s in stages_list}
+        old_stage_ids = {s.id for s in old_stages}
+        removed_ids = old_stage_ids - new_stage_ids
+
+        if removed_ids and new_stage_ids and project_service:
+            first_new_id = stages_list[0]["id"]
+            for pid in removed_ids:
+                for proj in project_service.get_all_projects():
+                    if proj.stage_id == pid:
+                        project_service.update_project(
+                            proj.id, stage_id=first_new_id)
+
+        self._log(
+            action="编辑流程",
+            detail="更新流程阶段配置",
+        )
+        return True, "流程阶段配置已更新"
+
     def reset_to_default(self) -> tuple[bool, str]:
         """重置为系统默认的流程配置。
 
@@ -321,7 +358,7 @@ class WorkflowService:
         from utils.config import Config
         # 使用 .copy() 深拷贝默认阶段列表，防止后续修改污染 Config 中的原始定义
         self._ds.replace_all_stages(
-            [s.copy() for s in Config.DEFAULT_WORKFLOW_STAGES]
+            Config.get_default_workflow_stages()
         )
 
         # 记录重置日志

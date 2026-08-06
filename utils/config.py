@@ -43,7 +43,7 @@ class Config:
     # =============================================================================
 
     APP_NAME = "项目进度管理系统"  # 应用程序在产品界面和打包名称中的显示名称
-    APP_VERSION = "4.4.1"         # 当前版本号（语义化版本格式：主.次.修订）
+    APP_VERSION = "4.5.0"         # 当前版本号（语义化版本格式：主.次.修订）
     APP_AUTHOR = "网络安全测评团队"  # 开发/维护团队名称（用于打包元数据）
 
     # =============================================================================
@@ -101,20 +101,99 @@ class Config:
         """
         return os.path.join(cls.get_data_dir(), "data", "operation_log.json")  # 拼接路径
 
+    # =========================================================================
+    # 窗口几何信息持久化（原则 #5 技术隔离）
+    # =========================================================================
+
+    @classmethod
+    def get_geometry_path(cls):
+        """获取窗口几何信息文件路径。"""
+        return os.path.join(cls.get_data_dir(), "data", "window_geometry.json")
+
+    @classmethod
+    def load_window_geometry(cls):
+        """加载保存的窗口几何信息。
+
+        Returns:
+            str | None: 几何字符串，无保存文件时返回 None。
+        """
+        import json
+        path = cls.get_geometry_path()
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    saved = json.load(f)
+                    return saved.get("geometry")
+            except Exception as e:
+                print(f"[Config] 窗口几何信息加载失败: {e}", flush=True)
+        return None
+
+    @classmethod
+    def save_window_geometry(cls, geometry_str: str):
+        """持久化窗口几何信息。
+
+        Args:
+            geometry_str: Tkinter 几何字符串（如 "1500x850+100+50"）。
+        """
+        import json
+        path = cls.get_geometry_path()
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump({"geometry": geometry_str}, f)
+        except Exception as e:
+            print(f"[Config] 窗口几何信息保存失败: {e}", flush=True)
+
+    @classmethod
+    def get_backup_dir(cls):
+        """获取本地自动备份目录路径。"""
+        return os.path.join(cls.get_data_dir(), "data", "backup")
+
+    @classmethod
+    def create_local_backup(cls, data_file_path: str):
+        """创建本地自动备份，保留最近 30 个备份文件。
+
+        Args:
+            data_file_path: 主数据文件的完整路径。
+        """
+        import shutil
+        from datetime import datetime
+        backup_dir = cls.get_backup_dir()
+        os.makedirs(backup_dir, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = os.path.join(backup_dir, f"dap_data_{ts}.json")
+        if os.path.exists(data_file_path):
+            shutil.copy2(data_file_path, backup_path)
+            print(f"[备份] 已保存到 {backup_path}", flush=True)
+        backups = sorted(os.listdir(backup_dir))
+        while len(backups) > 30:
+            os.remove(os.path.join(backup_dir, backups.pop(0)))
+
     # =============================================================================
     # 默认流程步骤 - 等保测评标准流程的 8 个阶段定义
     # =============================================================================
 
-    DEFAULT_WORKFLOW_STAGES = [
-        {"id": "stage_1", "name": "项目启动", "order": 0, "color": "#3498db"},  # 阶段1：蓝色 - 项目启动
-        {"id": "stage_2", "name": "现状调研", "order": 1, "color": "#2ecc71"},  # 阶段2：绿色 - 系统信息收集与分析
-        {"id": "stage_3", "name": "差距评估", "order": 2, "color": "#e67e22"},  # 阶段3：橙色 - 安全现状与标准的差距分析
-        {"id": "stage_4", "name": "方案设计", "order": 3, "color": "#9b59b6"},  # 阶段4：紫色 - 安全整改方案设计
-        {"id": "stage_5", "name": "整改实施", "order": 4, "color": "#e74c3c"},  # 阶段5：红色 - 安全整改实施与推进
-        {"id": "stage_6", "name": "测评验收", "order": 5, "color": "#1abc9c"},  # 阶段6：青色 - 整改后测评与验收
-        {"id": "stage_7", "name": "报告输出", "order": 6, "color": "#f39c12"},  # 阶段7：黄色 - 测评报告编制与输出
-        {"id": "stage_8", "name": "项目归档", "order": 7, "color": "#95a5a6"},  # 阶段8：灰色 - 项目资料归档与结项
-    ]
+    @classmethod
+    def get_default_workflow_stages(cls):
+        """获取系统默认的流程阶段列表（每次调用生成新的唯一ID）。
+
+        等保测评标准流程的 8 个阶段，ID 通过 generate_id() 动态生成，
+        避免硬编码固定 ID 与用户自定义阶段 ID 不一致的问题（原则 #3）。
+
+        Returns:
+            list[dict]: 包含 8 个默认阶段的字典列表。
+        """
+        from utils.helpers import generate_id
+        return [
+            {"id": generate_id("stage"), "name": "项目启动", "order": 0, "color": "#3498db"},
+            {"id": generate_id("stage"), "name": "现状调研", "order": 1, "color": "#2ecc71"},
+            {"id": generate_id("stage"), "name": "差距评估", "order": 2, "color": "#e67e22"},
+            {"id": generate_id("stage"), "name": "方案设计", "order": 3, "color": "#9b59b6"},
+            {"id": generate_id("stage"), "name": "整改实施", "order": 4, "color": "#e74c3c"},
+            {"id": generate_id("stage"), "name": "测评验收", "order": 5, "color": "#1abc9c"},
+            {"id": generate_id("stage"), "name": "报告输出", "order": 6, "color": "#f39c12"},
+            {"id": generate_id("stage"), "name": "项目归档", "order": 7, "color": "#95a5a6"},
+        ]
 
     # =============================================================================
     # UI 样式配置 - 看板界面的视觉参数

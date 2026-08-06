@@ -32,6 +32,61 @@ from typing import Optional  # 类型提示，用于标记可选返回值类型
 from services.interfaces import IDataService  # 数据服务抽象接口（DIP）
 
 
+# ===========================================================================
+# _FileSerializer —— 文件序列化适配器（原则 #5 技术隔离）
+# ===========================================================================
+
+class _FileSerializer:
+    """文件序列化适配器，封装 JSON 读写和加密/解密细节。
+
+    DataService 通过本适配器委托文件级别的读写操作，自身不感知
+    加密算法的具体实现方式（遵循原则 #5 技术细节隔离）。
+    """
+
+    @staticmethod
+    def read_json(path: str) -> dict:
+        """读取并解密 JSON 文件，返回解析后的字典。
+
+        Args:
+            path: JSON 文件的完整路径。
+
+        Returns:
+            dict: 解析后的数据字典。
+        """
+        with open(path, 'r', encoding='utf-8') as f:
+            raw = f.read()
+        try:
+            from utils.crypto_utils import decrypt_data
+            data_str = decrypt_data(raw)
+        except Exception:
+            data_str = raw
+        return json.loads(data_str)
+
+    @staticmethod
+    def write_json(path: str, data: dict) -> None:
+        """加密数据并以原子写入方式保存到 JSON 文件。
+
+        原子写入策略：先写临时文件，成功后用 os.replace 原子替换目标文件，
+        防止写入中断（崩溃、断电）导致原数据文件损坏。
+
+        Args:
+            path: 目标 JSON 文件的完整路径。
+            data: 待写入的数据字典。
+        """
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        data_str = json.dumps(data, ensure_ascii=False, indent=2)
+        from utils.crypto_utils import encrypt_data
+        encrypted = encrypt_data(data_str)
+        dir_name = os.path.dirname(path)
+        with tempfile.NamedTemporaryFile(
+            mode='w', encoding='utf-8', dir=dir_name,
+            delete=False, suffix='.tmp'
+        ) as tf:
+            tf.write(encrypted)
+            temp_name = tf.name
+        os.replace(temp_name, path)
+
+
 class DataService(IDataService):
     """数据持久化服务（单例模式）。
 
@@ -89,6 +144,7 @@ class DataService(IDataService):
             return
         self._initialized = True               # 标记为已初始化
         self._data_file_path = data_file_path  # 保存数据文件路径
+        self._serializer = _FileSerializer()   # 文件序列化适配器（加密/JSON读写）
 
         # 初始化内存数据结构：projects 和 workflow_stages 两个顶层键
         self._data: dict = {
@@ -124,24 +180,17 @@ class DataService(IDataService):
             return
 
         if os.path.exists(self._data_file_path):
-            # 数据文件存在：尝试读取和解析
+            # 数据文件存在：通过序列化适配器读取并解析
             try:
-                with open(self._data_file_path, 'r', encoding='utf-8') as f:
-                    raw = f.read()
-                    try:
-                        from utils.crypto_utils import decrypt_data
-                        data_str = decrypt_data(raw)
-                    except Exception:
-                        data_str = raw
-                    loaded = json.loads(data_str)
-                    # 提取项目列表并清理历史脏数据(换行/回车/制表符)
-                    self._data["projects"] = loaded.get("projects", [])
-                    # 清理历史脏数据: 换行符/回车/制表符
-                    for p in self._data["projects"]:
-                        for f in ("company_name", "system_name"):
-                            if f in p and isinstance(p[f], str):
-                                p[f] = p[f].replace(chr(10),"").replace(chr(13),"").replace(chr(9),"")
-                    self._data["workflow_stages"] = loaded.get("workflow_stages", [])
+                loaded = self._serializer.read_json(self._data_file_path)
+                # 提取项目列表并清理历史脏数据(换行/回车/制表符)
+                self._data["projects"] = loaded.get("projects", [])
+                # 清理历史脏数据: 换行符/回车/制表符
+                for p in self._data["projects"]:
+                    for f in ("company_name", "system_name"):
+                        if f in p and isinstance(p[f], str):
+                            p[f] = p[f].replace(chr(10),"").replace(chr(13),"").replace(chr(9),"")
+                self._data["workflow_stages"] = loaded.get("workflow_stages", [])
             except (json.JSONDecodeError, IOError):
                 # JSON 格式损坏 或 文件读取错误：回退到默认数据初始化
                 self._init_default_data()
@@ -158,7 +207,7 @@ class DataService(IDataService):
         # 延迟导入 Config 以避免模块级的循环依赖
         from utils.config import Config
         # 使用 copy() 深拷贝默认流程，防止后续修改污染 Config 中的原始定义
-        self._data["workflow_stages"] = Config.DEFAULT_WORKFLOW_STAGES.copy()
+        self._data["workflow_stages"] = Config.get_default_workflow_stages()
         # 新系统启动时项目列表为空
         self._data["projects"] = []
         # 立即持久化默认数据到文件
@@ -189,33 +238,13 @@ class DataService(IDataService):
             # 未设置数据文件路径（如测试环境），跳过保存
             return
 
-        # 确保数据文件所在的目录树存在
-        os.makedirs(os.path.dirname(self._data_file_path), exist_ok=True)
-
         try:
-            dir_name = os.path.dirname(self._data_file_path)
-            # 在同目录下创建临时文件，确保 os.replace 是原子操作（同一文件系统）
-            with tempfile.NamedTemporaryFile(
-                mode='w',          # 文本写入模式
-                encoding='utf-8',  # UTF-8 编码，支持中文内容
-                dir=dir_name,      # 在目标目录下创建临时文件（确保同文件系统可用 rename）
-                delete=False,      # 不自动删除，后续需手动处理
-                suffix='.tmp'      # 临时文件后缀，便于识别
-            ) as tf:
-                # ensure_ascii=False: 保留中文字符，不转义为 \uXXXX
-                # indent=2: 格式化输出，便于人工查看和版本控制 diff
-                data_str = json.dumps(self._data, ensure_ascii=False, indent=2)
-                from utils.crypto_utils import encrypt_data
-                tf.write(encrypt_data(data_str))
-                temp_name = tf.name
-
-            os.replace(temp_name, self._data_file_path)
-
+            self._serializer.write_json(self._data_file_path, self._data)
         except IOError:
+            # 原子写入失败时回退到直接写入（尽力保存，不保证原子性）
             with open(self._data_file_path, 'w', encoding='utf-8') as f:
-                data_str = json.dumps(self._data, ensure_ascii=False, indent=2)
                 from utils.crypto_utils import encrypt_data
-                f.write(encrypt_data(data_str))
+                f.write(encrypt_data(json.dumps(self._data, ensure_ascii=False, indent=2)))
 
     # ========================================================================
     # 项目数据操作（CRUD）

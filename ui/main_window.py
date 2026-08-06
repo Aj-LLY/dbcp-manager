@@ -125,17 +125,8 @@ class MainWindow(tk.Tk):
 
         self.title(f"{Config.APP_NAME} v{Config.APP_VERSION}")
         # 恢复上次窗口位置和大小，首次使用默认值
-        try:
-            import json, os
-            geo_path = os.path.join(Config.get_data_dir(), "data", "window_geometry.json")
-            if os.path.exists(geo_path):
-                with open(geo_path, "r", encoding="utf-8") as f:
-                    saved = json.load(f)
-                    self.geometry(saved.get("geometry", f"{Config.WINDOW_WIDTH}x{Config.WINDOW_HEIGHT}"))
-            else:
-                self.geometry(f"{Config.WINDOW_WIDTH}x{Config.WINDOW_HEIGHT}")
-        except Exception:
-            self.geometry(f"{Config.WINDOW_WIDTH}x{Config.WINDOW_HEIGHT}")
+        saved_geo = Config.load_window_geometry()
+        self.geometry(saved_geo or f"{Config.WINDOW_WIDTH}x{Config.WINDOW_HEIGHT}")
         self.minsize(Config.WINDOW_MIN_WIDTH, Config.WINDOW_MIN_HEIGHT)
         self.configure(bg=Config.KANBAN_BG)
 
@@ -242,9 +233,8 @@ class MainWindow(tk.Tk):
         self._build_info_panel()
 
     def _build_info_panel(self):
-        print('[Main] _build_info_panel: creating info labels')
-        panel = self._info_panel
         """构建右侧信息面板的静态框架。"""
+        print('[Main] _build_info_panel: creating info labels')
         panel = self._info_panel
         tk.Label(panel, text="项目详情", bg="white", fg="#2c3e50",
                  font=("Microsoft YaHei", 12, "bold")).pack(pady=(15, 10))
@@ -385,37 +375,14 @@ class MainWindow(tk.Tk):
 
         操作完成后记录日志并刷新看板。
         """
-        old_stages = self._workflow_service.get_all_stages()  # 获取修改前的阶段列表（用于对比哪些阶段被删除）
-        dialog = WorkflowDialog(self, old_stages)  # 打开流程编辑对话框，传入当前阶段列表
-        self.wait_window(dialog)  # 等待对话框关闭（模态阻塞，用户操作期间主窗口不可交互）
+        old_stages = self._workflow_service.get_all_stages()
+        dialog = WorkflowDialog(self, old_stages)
+        self.wait_window(dialog)
 
-        if dialog.result:  # 用户点击了"保存"按钮，dialog.result 为编辑后的阶段配置列表
-            # 将新的流程配置保存到数据服务（直接替换所有阶段数据）
-            self._data_service.replace_all_stages(dialog.result)
-
-            # 检测被删除的阶段：计算新旧阶段 ID 集合的差集
-            new_stage_ids = {s["id"] for s in dialog.result}  # 新配置中的所有阶段 ID（转为集合）
-            old_stage_ids = {s.id for s in old_stages}  # 旧配置中的所有阶段 ID（转为集合）
-            removed_ids = old_stage_ids - new_stage_ids  # 差集 = 被删除的阶段 ID
-
-            if removed_ids and new_stage_ids:  # 确实有阶段被删除，且新配置中至少还保留一个阶段
-                first_new_id = dialog.result[0]["id"]  # 获取新配置的第一个阶段 ID（作为兜底目标）
-                for pid in removed_ids:  # 遍历每一个被删除的阶段 ID
-                    # 查找所有归属于被删除阶段的项目
-                    for proj in self._project_service.get_all_projects():
-                        if proj.stage_id == pid:  # 发现一个"孤儿项目"
-                            # 将该项目的阶段更新为新配置的第一个阶段
-                            self._project_service.update_project(
-                                proj.id,  # 项目唯一 ID
-                                stage_id=first_new_id,  # 迁移到第一个阶段
-                            )
-
-            # 记录本次编辑流程的操作日志
-            self._log_service.add_log(
-                action="编辑流程",  # 操作类型
-                detail="更新流程阶段配置",  # 操作详细描述
-            )
-            self._refresh_kanban()  # 刷新看板显示（反映阶段配置的最新变化）
+        if dialog.result:
+            self._workflow_service.replace_all_stages(
+                dialog.result, project_service=self._project_service)
+            self._refresh_kanban()
 
     def _on_view_logs(self):
         """处理"查看日志"按钮点击事件
