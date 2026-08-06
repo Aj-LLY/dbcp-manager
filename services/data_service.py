@@ -134,9 +134,13 @@ class DataService(IDataService):
                     except Exception:
                         data_str = raw
                     loaded = json.loads(data_str)
-                    # 提取项目列表（键不存在时使用空列表）
+                    # 提取项目列表并清理历史脏数据(换行/回车/制表符)
                     self._data["projects"] = loaded.get("projects", [])
-                    # 提取流程阶段列表（键不存在时使用空列表）
+                    # 清理历史脏数据: 换行符/回车/制表符
+                    for p in self._data["projects"]:
+                        for f in ("company_name", "system_name"):
+                            if f in p and isinstance(p[f], str):
+                                p[f] = p[f].replace(chr(10),"").replace(chr(13),"").replace(chr(9),"")
                     self._data["workflow_stages"] = loaded.get("workflow_stages", [])
             except (json.JSONDecodeError, IOError):
                 # JSON 格式损坏 或 文件读取错误：回退到默认数据初始化
