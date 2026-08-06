@@ -1,34 +1,104 @@
 # 版本更新记录
 
-## v4.5.0 (2026-08-06) — 8 原则驱动重构
+## v4.5.0 (2026-08-06) — 8 原则驱动重构 + 流程图 + 加密备份 + 关键词配置
 
-### 依赖倒置 (原则 #2)
-- **新增 IWorkflowService 接口** — 10 个抽象方法，WorkflowService 继承实现
-- **补全 IDataService 接口** — 新增 add_stage/update_stage/delete_stage 抽象方法
-- **ProjectService/WorkflowService 构造函数** — 参数类型从具体类改为接口 (DataService → IDataService)
-
-### 分层与模块化 (原则 #1)
-- **WorkflowService 新增 replace_all_stages()** — 封装阶段替换 + 孤儿项目迁移 + 日志记录
-- **消除跨层 DataService 调用** — MainWindow/Controller 不再直接调用 DataService 方法（3 处修复）
-
-### 技术细节隔离 (原则 #5)
-- **新增 _FileSerializer 适配器** — DataService 通过适配器委托加密/解密，不再感知加密实现细节
-- **Config 新增 5 个辅助方法** — load/save_window_geometry() + create_local_backup() + get_backup_dir() + get_geometry_path()
-- **UI/Controller 不再直接操作文件** — 窗口几何 I/O 和本地备份统一通过 Config 调用
-
-### 配置与代码分离 (原则 #3)
-- **DEFAULT_WORKFLOW_STAGES 去硬编码** — 固定 ID "stage_N" 改为 get_default_workflow_stages() 动态生成 UUID
-
-### 显式优于隐式 (原则 #7)
-- **6 处静默异常吞没替换** — except...pass → print() + traceback，所有错误路径可追踪
+### 架构重构 — 8 原则落地
+- **新增 IWorkflowService 接口** — 10 个抽象方法，WorkflowService 继承实现（原则 #2 DIP）
+- **补全 IDataService 接口** — 新增 add_stage/update_stage/delete_stage 抽象方法（原则 #2）
+- **ProjectService/WorkflowService 构造函数** — 参数类型从具体类改为接口 DataService → IDataService（原则 #2）
+- **WorkflowService 新增 replace_all_stages()** — 封装阶段替换 + 孤儿项目迁移 + 日志记录（原则 #1 分层）
+- **消除跨层 DataService 调用** — MainWindow/Controller 不再直接调用 DataService 方法，共 3 处修复（原则 #1）
+- **新增 _FileSerializer 适配器** — DataService 通过适配器委托加密/解密（原则 #5 技术隔离）
+- **Config 新增 5 个辅助方法** — load/save_window_geometry() + create_local_backup() + get_backup_dir() + get_geometry_path()（原则 #5）
+- **DEFAULT_WORKFLOW_STAGES 去硬编码** — 固定 ID 改为 get_default_workflow_stages() 动态生成 UUID（原则 #3 配置分离）
+- **6 处静默异常吞没替换** — except...pass → print() + traceback（原则 #7 显式）
 - **修复 _build_info_panel 死代码** — 重复赋值 + 错位 docstring
+- **8 条原则持久化** — Karpathy 编码准则正式纳入项目规范（原则 #8）
 
-### Karpathy 编码准则 (原则 #8)
-- 8.1~8.4 准则正式纳入项目编码规范
-- 本次重构全程遵循"手术式修改"原则：7 步 8 文件，每行改动可追溯到具体原则违反
+### 新增功能
+
+#### 流程图视图
+- **流程图拓扑视图** — 节点+连线方式展示项目流程，替代传统看板列
+- **自由连线模式** — 阶段节点可视化拓扑连接，右侧信息面板显示项目详情
+- **节点拖拽** — 阶段节点可拖拽移动，子节点同步更新位置和连线
+- **Shift+拖拽子节点** — 将项目移动到目标阶段
+- **画布平移** — 中键或 Ctrl+左键拖拽平移整个画布
+- **悬停 tooltip** — 鼠标悬停节点显示项目概要信息
+- **双击打开详情** — 双击子节点直接打开项目详情对话框
+- **左侧状态色条** — 子节点保持 5 色状态标识
+- **按公司合并** — 流程图自动将同公司项目合并到同一节点
+- **多系统显示** — 合并节点显示子系统列表
+
+#### 数据安全
+- **AES 数据加密** — 数据文件自动加密存储（dap_data.json + operation_log.json）
+- **本地自动备份** — 关闭时自动在 data/backup/ 创建备份，保留最近 30 个
+- **WebDAV 本地备份标签页** — 备份对话框新增"本地备份"标签，标签页顺序调整为 本地→配置→恢复
+- **操作日志网络信息** — 日志自动记录主机名/IP/MAC/用户信息
+
+#### 文件操作增强
+- **关键词 JSON 配置** — 重命名关键词可编辑，持久化到 keywords_config.json
+- **批量重命名报告** — 显示具体修改的文件名列表
+- **路径换行符清理** — 全部路径创建处统一去除 \n/\r/\t 脏数据
+- **JSON 加载脏数据清理** — 加载时自动清理公司名/系统名中的历史脏数据
 
 ### 修复
 - **日志对话框 detail 列 stretch=False** — 防止 detail 列过长挤压其他列
+- **卡片标题优化** — 多系统卡片显示公司名，单系统卡片显示系统名
+- **详情表格可复制** — 详情对话框中的系统信息表格支持文本复制
+- **rgba→hex 颜色格式** — Tkinter 不支持 rgba，统一转换为 hex
+- **m_groups 未定义** — 变量声明移到使用前
+- **备份 os 未导入** — 补充缺失的 import
+
+---
+
+## v4.4.1 (2026-07-01)
+
+### 调试增强
+- NDA 模板创建失败时打印 traceback 便于排查
+
+---
+
+## v4.4.0 (2026-07-01)
+
+### 新增
+- **create_project_folder 多系统子目录** — 多系统项目(2+系统)在根目录下为每个系统创建独立子目录
+
+### 修复
+- 单系统项目不创建额外系统子目录
+- 项目初始化排除 release 目录，避免递归扫描
+
+---
+
+## v4.3.0 (2026-07-01)
+
+### 文档
+- **全项目查漏补缺** — 32 个源文件补充和完善中文注释，统一文档风格
+
+---
+
+## v4.2.0 (2026-07-01)
+
+### 优化
+- 移除所有调试打印语句，清理孤儿代码
+
+### 修复
+- **单系统目录策略** — 仅多系统(2+系统)项目创建子系统目录，单系统保持扁平结构
+- 项目初始化增加完整调试日志
+
+---
+
+## v4.1.0 (2026-07-01)
+
+### 新增
+- **批量重命名报告** — 重命名完成后弹窗显示具体修改的文件名列表
+- **项目初始化目录升级** — 01-其他归档文件/ 下新增 5 个分类子目录（网安报备/备案材料/往期测评报告/现场测评/渗透漏扫）
+- **DESIGN.md 开发设计方案** — 完整的架构设计文档
+
+### 修复
+- **多系统编辑同步** — 对话框编辑多系统时遍历更新所有关联项目
+- **对话框属地公司级** — 属地字段改为公司级别共享
+- **删除系统行** — 对话框删除系统行后真正删除多余项目
+- **新增系统创建项目** — on_card_edit + on_card_detail 中新系统自动创建项目
 
 ---
 
