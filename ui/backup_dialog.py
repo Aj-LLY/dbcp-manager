@@ -30,6 +30,7 @@ from tkinter import ttk, messagebox  # ttk 增强组件（Notebook 等）| messa
 # 项目内部模块导入
 # =============================================================================
 from utils.config import Config            # 全局配置：字体族、字号等 UI 常量
+from ui.widget_base import center_window    # 窗口居中工具函数
 from utils.webdav_config import WebDAVConfig  # WebDAV 配置管理：加载 / 保存服务器连接信息
 from utils.helpers import bordered_entry   # 辅助函数：创建带灰色外边框的输入框
 from services.backup_service import BackupService  # 备份服务：WebDAV 上传 / 下载 / 列表 / 删除操作
@@ -89,7 +90,7 @@ class BackupDialog(tk.Toplevel):
         self._setup_window()     # ① 配置窗口基本属性
         self._build_ui()         # ② 构建标签页 UI 布局
         self._load_config()      # ③ 将已保存配置加载到表单输入框
-        self._center_window()    # ④ 窗口居中
+        center_window(self)       # ④ 窗口居中
         self.grab_set()          # ⑤ 设为模态窗口
 
     def _setup_window(self):
@@ -602,15 +603,5 @@ class BackupDialog(tk.Toplevel):
     # 窗口居中
     # =========================================================================
 
-    def _center_window(self):
-        """将对话框相对于其父窗口居中显示。"""
-        self.update_idletasks()                                # 等待组件尺寸计算完成
-        w = self.winfo_width()
-        h = self.winfo_height()
-        pw = self.master.winfo_width()
-        ph = self.master.winfo_height()
-        px = self.master.winfo_rootx()
-        py = self.master.winfo_rooty()
-        x = px + (pw - w) // 2                                 # 居中 X
-        y = py + (ph - h) // 2                                 # 居中 Y
-        self.geometry(f"+{x}+{y}")
+
+

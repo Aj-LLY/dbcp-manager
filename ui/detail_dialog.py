@@ -33,7 +33,8 @@ from tkinter import messagebox  # messagebox：警告 / 确认 / 信息弹窗
 from models.project import Project         # Project 数据模型：表示一个等保测评项目实体
 from models.workflow import WorkflowStage   # WorkflowStage 数据模型：表示流程阶段
 from ui.project_dialog import show_project_dialog  # 项目编辑对话框便捷函数
-from utils.config import Config            # 全局配置：字体族、字号、截止日期预警天数等常量
+from utils.config import Config            # 全局配置：字体族、字号等 UI 常量
+from ui.widget_base import center_window, make_button_bar  # 公共 UI 组件            # 全局配置：字体族、字号、截止日期预警天数等常量
 from utils.helpers import days_until_deadline  # 辅助函数：计算截止日期的剩余天数（负数表示已超期）
 
 
@@ -94,7 +95,7 @@ class DetailDialog(tk.Toplevel):
         # ---- 按顺序执行初始化步骤 ----
         self._setup_window()     # ① 配置窗口基本属性
         self._build_ui()         # ② 构建详情界面 UI 布局
-        self._center_window()    # ③ 窗口居中
+        center_window(self)       # ③ 窗口居中
         self.grab_set()          # ④ 设为模态窗口
 
     def _setup_window(self):
@@ -125,15 +126,8 @@ class DetailDialog(tk.Toplevel):
           属地、当前阶段、交付日期（含预警）、创建时间、最后更新
         """
         # =====================================================================
-        # 底部固定按钮栏（先 pack，放在 BOTTOM 位置占位）
-        # =====================================================================
-        bottom_frame = tk.Frame(self, bg="#f0f2f5")          # 底部容器，浅灰色背景
-        bottom_frame.pack(side=tk.BOTTOM, fill=tk.X)
-        tk.Frame(bottom_frame, bg="#d0d5dd", height=1).pack(fill=tk.X)  # 顶部分隔线
-
-        # 按钮内层容器
-        btn_inner = tk.Frame(bottom_frame, bg="#f0f2f5")
-        btn_inner.pack(fill=tk.X, padx=16, pady=8)
+        # 底部固定按钮栏
+        btn_inner = make_button_bar(self)
 
         # 统一的按钮样式字典
         btn_style = {"cursor": "hand2", "relief": "flat", "padx": 12, "pady": 5,
@@ -473,23 +467,6 @@ class DetailDialog(tk.Toplevel):
 
     # =========================================================================
     # 窗口居中
-    # =========================================================================
-
-    def _center_window(self):
-        """将对话框相对于其父窗口居中显示。"""
-        self.update_idletasks()                                # 等待组件尺寸计算完成
-        w = self.winfo_width()
-        h = self.winfo_height()
-        pw = self.master.winfo_width()
-        ph = self.master.winfo_height()
-        px = self.master.winfo_rootx()
-        py = self.master.winfo_rooty()
-        x = px + (pw - w) // 2                                 # 居中 X
-        y = py + (ph - h) // 2                                 # 居中 Y
-        self.geometry(f"+{x}+{y}")
-
-
-
 # =============================================================================
 # show_detail_dialog -- 便捷函数
 # =============================================================================

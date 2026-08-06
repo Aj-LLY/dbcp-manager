@@ -22,6 +22,7 @@ from tkinter import ttk, messagebox, colorchooser  # ttk 增强组件 | messageb
 from models.workflow import WorkflowStage   # WorkflowStage 数据模型：表示一个流程阶段实体
 from utils.config import Config            # 全局配置：字体族、字号、默认工作流阶段等常量
 from utils.helpers import bordered_entry   # 辅助函数：创建带灰色外边框的输入框
+from ui.widget_base import center_window, make_button_bar  # 公共 UI 组件
 
 
 # =============================================================================
@@ -70,7 +71,7 @@ class WorkflowDialog(tk.Toplevel):
         self._setup_window()     # ① 配置窗口基本属性
         self._build_ui()         # ② 构建 UI 布局
         self._refresh_list()     # ③ 填充 Treeview 数据
-        self._center_window()    # ④ 窗口相对于父窗口居中
+        center_window(self)       # ④ 窗口相对于父窗口居中
         self.grab_set()          # ⑤ 设为模态窗口
 
     def _setup_window(self):
@@ -480,21 +481,6 @@ class WorkflowDialog(tk.Toplevel):
     # 窗口居中
     # =========================================================================
 
-    def _center_window(self):
-        """将对话框相对于其父窗口居中显示。
-
-        计算父窗口和本窗口的宽高差，设置本窗口定位在父窗口中心。
-        """
-        self.update_idletasks()                              # 等待组件尺寸计算完成
-        w = self.winfo_width()
-        h = self.winfo_height()
-        pw = self.master.winfo_width()
-        ph = self.master.winfo_height()
-        px = self.master.winfo_rootx()                       # 父窗口屏幕 X 坐标
-        py = self.master.winfo_rooty()                       # 父窗口屏幕 Y 坐标
-        x = px + (pw - w) // 2                               # 计算居中 X
-        y = py + (ph - h) // 2                               # 计算居中 Y
-        self.geometry(f"+{x}+{y}")                           # 设置窗口位置
 
 
 # =============================================================================
@@ -602,11 +588,7 @@ class StageEditDialog(tk.Toplevel):
         width_outer.pack(fill=tk.X, pady=(2, 8))
 
         # ---- 底部固定按钮栏 ----
-        btn_frame = tk.Frame(self, bg="#f0f2f5")
-        btn_frame.pack(fill=tk.X, side=tk.BOTTOM)
-        tk.Frame(btn_frame, bg="#d0d5dd", height=1).pack(fill=tk.X)  # 分隔线
-        btn_inner = tk.Frame(btn_frame, bg="#f0f2f5")
-        btn_inner.pack(fill=tk.X, padx=16, pady=8)
+        btn_inner = make_button_bar(self)
 
         # "取消" -- 白色背景灰色边框
         tk.Button(btn_inner, text="取消", command=self.destroy,

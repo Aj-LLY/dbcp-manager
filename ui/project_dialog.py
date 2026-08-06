@@ -39,7 +39,8 @@ from tkinter import ttk, messagebox, filedialog  # ttk 增强组件 | messagebox
 # =============================================================================
 from models.project import Project         # Project 数据模型：表示一个等保测评项目实体
 from models.workflow import WorkflowStage   # WorkflowStage 数据模型：表示流程阶段
-from ui.calendar_picker import pick_date    # 日历选择器便捷函数：弹出日历面板供用户选择日期
+from ui.calendar_picker import pick_date    # 日历选择器便捷函数
+from ui.widget_base import center_window, make_button_bar  # 公共 UI 组件：弹出日历面板供用户选择日期
 from utils.config import Config            # 全局配置：字体族、字号、颜色等 UI 常量
 from utils.helpers import (                # 辅助工具函数
     get_today_str,                         # 获取今天日期的 YYYY-MM-DD 字符串
@@ -124,7 +125,7 @@ class ProjectDialog(tk.Toplevel):
         self._setup_window()     # ① 配置窗口基本属性（大小、最小尺寸、背景色）
         self._build_form()       # ② 构建表单 UI 布局（所有控件和容器）
         self._load_data()        # ③ 编辑模式下预填数据，或设置新增模式的默认值
-        self._center_window()    # ④ 将窗口相对于父窗口居中显示
+        center_window(self)       # ④ 将窗口相对于父窗口居中显示
         self.grab_set()          # ⑤ 设置模态（拦截所有事件，必须关闭本窗口后才能操作父窗口）
 
     # =========================================================================
@@ -234,17 +235,8 @@ class ProjectDialog(tk.Toplevel):
                           └── 备注文本框 + 滚动条
         """
         # =====================================================================
-        # 底部按钮栏（先 pack，确保窗口缩小时按钮不会被挤出视口）
-        # =====================================================================
-        # 底部容器 Frame，浅灰色背景，固定在窗口底部，水平填充
-        bottom_frame = tk.Frame(self, bg="#f0f2f5")
-        bottom_frame.pack(side=tk.BOTTOM, fill=tk.X)
-        # 底部分隔线（1px 灰色横线，视觉上与内容区域分隔）
-        tk.Frame(bottom_frame, bg="#d0d5dd", height=1).pack(fill=tk.X)
-
-        # 按钮内层容器，用于控制按钮边距
-        btn_inner = tk.Frame(bottom_frame, bg="#f0f2f5")
-        btn_inner.pack(fill=tk.X, padx=16, pady=8)
+        # 底部按钮栏
+        btn_inner = make_button_bar(self)
 
         # "取消"按钮 -- 白色背景、灰色边框、深色文字，点击调用 self.destroy 关闭对话框
         tk.Button(btn_inner, text="取消", bg="#ffffff", fg="#2c3e50",
@@ -997,27 +989,6 @@ class ProjectDialog(tk.Toplevel):
     # OCR 备案证识别（委托到 ui.dialog_project_ocr 中的独立函数）
     # =========================================================================
 
-    def _center_window(self):
-        """将对话框相对于其父窗口居中显示。
-
-        计算步骤：
-          1. 调用 update_idletasks() 确保组件尺寸已计算完毕。
-          2. 获取本窗口和父窗口的宽高及屏幕坐标。
-          3. 计算居中后的左上角坐标 (x, y)：
-             x = 父窗口左上角 X + (父宽 - 本宽) / 2
-             y = 父窗口左上角 Y + (父高 - 本高) / 2
-          4. 调用 geometry() 设置窗口位置。
-        """
-        self.update_idletasks()                              # 等待所有待处理任务完成，获取准确尺寸
-        w = self.winfo_width()                               # 本窗口宽度（像素）
-        h = self.winfo_height()                              # 本窗口高度（像素）
-        pw = self.master.winfo_width()                       # 父窗口宽度
-        ph = self.master.winfo_height()                      # 父窗口高度
-        px = self.master.winfo_rootx()                       # 父窗口左上角屏幕 X 坐标
-        py = self.master.winfo_rooty()                       # 父窗口左上角屏幕 Y 坐标
-        x = px + (pw - w) // 2                               # 计算居中 X 坐标
-        y = py + (ph - h) // 2                               # 计算居中 Y 坐标
-        self.geometry(f"+{x}+{y}")                           # 设置窗口位置
 
 
 # =============================================================================

@@ -31,6 +31,7 @@ from ui.project_card import ProjectCard  # 项目卡片组件（用于类型标�
 from ui.project_dialog import show_project_dialog  # 项目编辑对话框便捷函数
 from ui.detail_dialog import show_detail_dialog  # 项目详情对话框便捷函数
 from utils.config import Config  # 全局配置类
+from ui.widget_base import make_button_bar  # 公共 UI 组件
 
 
 # =============================================================================
@@ -238,11 +239,7 @@ def pick_project_from_card(main_window, card: ProjectCard) -> Project | None:
         dlg.destroy()  # 关闭窗口
 
     # --- 底部按钮区域 ---
-    btn_frame = tk.Frame(dlg, bg="#f0f2f5")
-    btn_frame.pack(fill=tk.X, side=tk.BOTTOM)
-    tk.Frame(btn_frame, bg="#d0d5dd", height=1).pack(fill=tk.X)  # 顶部分割线
-    inner = tk.Frame(btn_frame, bg="#f0f2f5")
-    inner.pack(fill=tk.X, padx=16, pady=8)
+    inner = make_button_bar(dlg)
 
     # 取消按钮（白色背景，靠右）
     tk.Button(inner, text="取消", command=dlg.destroy,

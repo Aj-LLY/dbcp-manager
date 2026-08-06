@@ -30,6 +30,7 @@ from tkinter import scrolledtext  # 带滚动条的文本组件，用于控制�
 from ui.backup_dialog import BackupDialog  # WebDAV 备份对话框类
 from utils.config import Config  # 全局配置类
 from utils.error_log import get_errors  # 获取错误日志内容的函数
+from ui.widget_base import make_button_bar  # 公共 UI 组件
 
 
 # =============================================================================
@@ -308,14 +309,7 @@ def check_restore_on_startup(main_window):
                     messagebox.showerror("恢复失败", msg2, parent=dlg)
 
         # --- 底部按钮区域 ---
-        btn_frame = tk.Frame(dlg, bg="#f0f2f5")
-        btn_frame.pack(fill=tk.X, side=tk.BOTTOM)
-
-        # 顶部分割线
-        tk.Frame(btn_frame, bg="#d0d5dd", height=1).pack(fill=tk.X)
-
-        inner = tk.Frame(btn_frame, bg="#f0f2f5")
-        inner.pack(fill=tk.X, padx=16, pady=8)
+        inner = make_button_bar(dlg)
 
         # 跳过按钮（白色背景，靠右）
         tk.Button(inner, text="跳过", command=dlg.destroy,
