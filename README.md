@@ -1,8 +1,8 @@
 # 等保测评项目进度管理系统
 
-基于 Python Tkinter 的桌面端看板应用，用于管理等保测评项目的进度跟踪和流程管理。遵循 7 条架构设计原则（分层/依赖倒置/配置分离/接口稳定/技术隔离/自动化测试/显式优于隐式）。
+基于 Python Tkinter 的桌面端看板应用，用于管理等保测评项目的进度跟踪和流程管理。遵循 8 条编码与架构原则（分层/依赖倒置/配置分离/接口稳定/技术隔离/自动化测试/显式优于隐式/Karpathy准则）。
 
-**版本**: v4.0.0 | **运行环境**: Windows 10/11 | **语言**: Python 3.12+
+**版本**: v4.5.0 | **运行环境**: Windows 10/11 | **语言**: Python 3.12+
 
 ---
 
@@ -60,7 +60,7 @@ pip install easyocr PyMuPDF
 
 ## 项目架构
 
-遵循 7 条架构设计原则的 MVC 三层结构：
+遵循 8 条编码与架构原则的 MVC 三层结构：
 
 ```
 等保测评进度管理系统/
@@ -73,7 +73,7 @@ pip install easyocr PyMuPDF
 │   ├── log_entry.py           #   操作日志实体
 │   └── dto.py                 #   数据传输对象
 ├── services/                  # 业务服务层（原则 #2 依赖倒置）
-│   ├── interfaces.py          #   抽象接口 (IDataService/IProjectService/ILogService/IOleEmbedService)
+│   ├── interfaces.py          #   抽象接口 (IDataService/IProjectService/IWorkflowService/ILogService/IOleEmbedService)
 │   ├── data_service.py        #   JSON 持久化
 │   ├── project_service.py     #   项目 CRUD
 │   ├── workflow_service.py    #   流程管理
@@ -115,12 +115,13 @@ pip install easyocr PyMuPDF
 | 原则 | 落实 |
 |------|------|
 | #1 分层与模块化 | models → services → controllers → ui，禁止跨层调用 |
-| #2 依赖倒置 | 4 个抽象接口（IDataService/IProjectService/ILogService/IOleEmbedService） |
-| #3 配置分离 | Config 类管理所有可变配置，无硬编码路径/颜色 |
+| #2 依赖倒置 | 5 个抽象接口（IDataService/IProjectService/IWorkflowService/ILogService/IOleEmbedService） |
+| #3 配置分离 | Config 类管理所有可变配置，无硬编码路径/颜色/ID |
 | #4 接口稳定 | 接口仅扩展字段，不删除不修改，保留兼容期 |
-| #5 技术隔离 | ole_service 封装 win32com，业务代码不感知 COM 自动化 |
+| #5 技术隔离 | _FileSerializer 封装加密、Config 封装文件 I/O、ole_service 封装 COM 自动化 |
 | #6 自动化测试 | 测试金字塔待建设（单元 → 集成 → E2E） |
-| #7 显式优于隐式 | 显式依赖注入、类型注解、异常分类处理、logging 日志 |
+| #7 显式优于隐式 | 显式依赖注入、类型注解、异常分类处理、无静默吞异常 |
+| #8 Karpathy准则 | 先思考再编码、简单优先、手术式修改、目标驱动执行 |
 
 ---
 
@@ -129,7 +130,7 @@ pip install easyocr PyMuPDF
 ```bash
 pip install pyinstaller
 python build_exe.py
-# 输出: dist/项目进度管理系统_v4.0.0.exe（约 266MB，含 OCR 引擎）
+# 输出: dist/项目进度管理系统_v4.5.0.exe（约 266MB，含 OCR 引擎）
 ```
 
 ## 发布
