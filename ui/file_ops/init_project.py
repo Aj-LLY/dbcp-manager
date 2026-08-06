@@ -91,7 +91,7 @@ def on_init_click(project: Project, parent=None, all_projects: list = None):
         # ========== 阶段 2.5：多系统(2+)创建子系统目录 ==========
         if is_multi:
             for p in all_projects:
-                sn = (p.system_name or "").replace("/", "_").replace("\\", "_")
+                sn = (p.system_name or "").replace("/", "_").replace("\\", "_").replace("\n", "").replace("\r", "").replace("\t", "")
                 if sn:
                     dpath = os.path.join(root, sn)
                     if not os.path.exists(dpath):

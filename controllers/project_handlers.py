@@ -572,9 +572,8 @@ def create_project_folder(main_window, project, all_projects: list = None):
         date_str = date.today().strftime("%y%m%d")
 
         # 清理公司名称中的非法字符（路径分隔符会被误解析为子目录）
-        cname = (project.company_name or "未命名").replace("/", "_").replace("\\", "_")
-        # 清理系统名称中的非法字符
-        sname = (project.system_name or "").replace("/", "_").replace("\\", "_")
+        cname = (project.company_name or "未命名").replace("/", "_").replace("\\", "_").replace("\n", "").replace("\r", "").replace("\t", "")
+        sname = (project.system_name or "").replace("/", "_").replace("\\", "_").replace("\n", "").replace("\r", "").replace("\t", "")
 
         # 组装文件夹名称：序号(3位)-公司名-系统名-日期
         folder_name = f"{count:03d}-{cname}-{sname}-{date_str}"
@@ -597,7 +596,7 @@ def create_project_folder(main_window, project, all_projects: list = None):
         # 多系统(2+)创建各系统子目录
         if all_projects and len(all_projects) > 1:
             for p in all_projects:
-                sn = (p.system_name or "").replace("/", "_").replace("\\", "_")
+                sn = (p.system_name or "").replace("/", "_").replace("\\", "_").replace("\n", "").replace("\r", "").replace("\t", "")
                 if sn:
                     os.makedirs(os.path.join(root, sn), exist_ok=True)
 

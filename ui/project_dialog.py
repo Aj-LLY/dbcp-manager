@@ -866,12 +866,12 @@ class ProjectDialog(tk.Toplevel):
         然后调用 destroy() 关闭对话框。
         """
         # 获取并去除输入字符串的首尾空白字符
-        company_name = self._company_var.get().strip()
+        company_name = self._company_var.get().strip().replace("\n", "").replace("\r", "").replace("\t", "")
 
         # ① 收集所有系统行数据
         systems = []
         for rd in self._sys_rows_list:
-            s_name = rd["system_var"].get().strip()
+            s_name = rd["system_var"].get().strip().replace("\n", "").replace("\r", "").replace("\t", "")
             s_level = rd["level_var"].get().strip()
             s_cert = rd["cert_var"].get().strip()
             s_issue = rd["issue_date_var"].get().strip()
