@@ -1,4 +1,4 @@
-项目进度管理系统/                  版本: 3.0.0
+项目进度管理系统/                  版本: 4.5.0
 │
 ├── main.py                          # 程序入口，初始化路径并启动主窗口
 ├── build_exe.py                     # 打包脚本，自动读取版本号生成带版本信息的EXE
@@ -8,15 +8,18 @@
 │   ├── __init__.py                  #   包初始化
 │   ├── project.py                   #   项目实体（公司/系统/证书编号/下证日期/等级/属地/文件夹路径/交付日期/备注/阶段）
 │   ├── workflow.py                  #   流程阶段实体（名称、排序、颜色、列宽）
-│   └── log_entry.py                 #   操作日志实体（7种操作类型常量、时间戳、关联项目、阶段变更）
+│   ├── log_entry.py                 #   操作日志实体（7种操作类型常量、时间戳、关联项目、阶段变更）
+│   └── dto.py                       #   数据传输对象（ProjectCreateDTO/UpdateDTO/ResultDTO/WorkflowStageDTO）
 │
 ├── services/                        # 业务服务层 —— 封装数据操作逻辑
 │   ├── __init__.py                  #   包初始化
-│   ├── data_service.py              #   JSON数据持久化（单例模式、原子写入、reload热加载）
+│   ├── interfaces.py                #   5个抽象接口（IDataService/IProjectService/IWorkflowService/ILogService/IOleEmbedService）
+│   ├── data_service.py              #   JSON数据持久化（单例、原子写入、_FileSerializer加密隔离、reload热加载）
 │   ├── project_service.py           #   项目CRUD业务（创建、更新、删除、阶段移动、日志回调）
-│   ├── workflow_service.py          #   流程配置管理（阶段增删改查、排序、重置默认、列宽更新）
-│   ├── log_service.py               #   日志追踪服务（记录、查询、回调工厂）
+│   ├── workflow_service.py          #   流程配置管理（增删改查、排序、重置、列宽、replace_all_stages孤儿迁移）
+│   ├── log_service.py               #   日志追踪服务（记录、查询、回调工厂、网络信息采集）
 │   ├── backup_service.py            #   WebDAV备份服务（HTTP Basic认证，PUT/GET/PROPFIND/DELETE，GMT→CST时区）
+│   ├── ole_service.py               #   OLE对象嵌入服务（Win32Com实现，原则#5技术隔离）
 │   └── cert_ocr.py                  #   备案证OCR识别服务（easyocr+PyMuPDF，单例模式，关键词提取）
 │
 ├── ui/                              # 用户界面层 —— Tkinter桌面GUI组件
@@ -35,9 +38,13 @@
 │
 ├── utils/                           # 工具模块 —— 基础设施和通用函数
 │   ├── __init__.py                  #   包初始化
-│   ├── config.py                    #   全局配置（版本号、默认流程、UI颜色/字体/尺寸常量、路径策略）
+│   ├── config.py                    #   全局配置（版本号、动态默认流程、窗口几何持久化、本地备份、UI常量）
 │   ├── helpers.py                   #   通用辅助函数（ID生成、日期计算、名称验证、证书编号校验、边框输入框）
 │   ├── logger.py                    #   操作日志记录器（内存+文件双写、增删查）
+│   ├── crypto_utils.py              #   数据加密/解密工具
+│   ├── error_log.py                 #   全局异常捕获模块
+│   ├── tooltip.py                   #   悬浮提示组件
+│   ├── province_data.py             #   中国省市区数据
 │   └── webdav_config.py             #   WebDAV配置管理（服务器地址/用户名/密码、JSON持久化）
 │
 └── data/                            # 运行时数据目录（程序自动生成，不纳入版本控制）

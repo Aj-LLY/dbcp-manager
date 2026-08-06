@@ -1,6 +1,6 @@
 # 等保测评项目进度管理系统 — 开发设计方案
 
-> 版本: v4.0.0 | 更新: 2026-06-12 | 作者: Aj-LLY
+> 版本: v4.5.0 | 更新: 2026-08-06 | 作者: Aj-LLY
 
 ---
 
@@ -65,6 +65,7 @@
 services/interfaces.py  ← 抽象接口定义
   ├── IDataService      → DataService
   ├── IProjectService   → ProjectService
+  ├── IWorkflowService  → WorkflowService
   ├── ILogService       → LogService
   └── IOleEmbedService  → Win32ComOleEmbedService  ← 原则 #5 技术隔离
 ```
@@ -209,8 +210,9 @@ XLSX 表格：21 列（序号~实际编制人），O~R 列嵌入文件链接对�
 
 | 接口 | 方法 | 职责 |
 |------|------|------|
-| IDataService | CRUD + save/reload | JSON 数据持久化 |
+| IDataService | CRUD + save/reload + stage CRUD | JSON 数据持久化 |
 | IProjectService | create/update/delete/move | 项目生命周期 |
+| IWorkflowService | CRUD + reorder/reset/replace_all | 流程阶段管理 |
 | ILogService | add/get/回调工厂 | 操作日志 |
 | IOleEmbedService | embed_files/is_available | OLE 对象嵌入 |
 
@@ -242,8 +244,8 @@ def on_init_click(project, parent=None, all_projects=None)
 
 ```python
 class Config:
-    APP_VERSION = "4.0.0"
-    DEFAULT_WORKFLOW_STAGES = [...]    # 默认 8 阶段
+    APP_VERSION = "4.5.0"
+    get_default_workflow_stages()       # 动态生成默认 8 阶段 UUID
     STATUS_COLORS = {                  # 5 色状态系统
         "completed": "#92d050",  # 绿
         "normal":    "#00b0f0",  # 蓝
@@ -320,7 +322,7 @@ python main.py
 ### 生产构建
 ```bash
 python build_exe.py
-# 输出: dist/项目进度管理系统_v4.0.0.exe (~266MB)
+# 输出: dist/项目进度管理系统_v4.5.0.exe (~266MB)
 ```
 
 ### GitHub Release
@@ -339,8 +341,9 @@ python release.py
 | v2.0 | WebDAV 备份 + 日历 + 字段拆分 |
 | v3.0 | 大型重构 + 文件操作 + 卡片合并 |
 | v4.0 | 架构重构 + 7原则落地 + OLE服务抽象 |
-| v4.1 | 单元测试覆盖 + CI/CD |
-| v5.0 | 数据库迁移 + 多用户 + Web 版 |
+| v4.5 | 8原则驱动重构 + IWorkflowService接口 + 加密隔离 + 去硬编码 |
+| v5.0 | 单元测试覆盖 + CI/CD |
+| v6.0 | 数据库迁移 + 多用户 + Web 版 |
 
 ---
 
@@ -349,9 +352,10 @@ python release.py
 | # | 原则 | 落实情况 |
 |---|------|----------|
 | 1 | 分层与模块化 | 4层架构 / 31个模块 / 禁止跨层调用 |
-| 2 | 依赖倒置 | 4个抽象接口 / 服务层依赖抽象 |
-| 3 | 配置分离 | Config类 / 无硬编码 |
+| 2 | 依赖倒置 | 5个抽象接口 / 服务层依赖抽象 |
+| 3 | 配置分离 | Config类 / 动态生成ID / 无硬编码 |
 | 4 | 接口稳定 | 仅扩展参数 / 向后兼容 |
-| 5 | 技术隔离 | ole_service 封装 win32com |
+| 5 | 技术隔离 | _FileSerializer加密 / Config文件I/O / ole_service封装COM |
 | 6 | 自动化测试 | 测试金字塔待建设 |
-| 7 | 显式优于隐式 | 类型注解 / 异常分类 / logging |
+| 7 | 显式优于隐式 | 类型注解 / 异常分类 / 无静默吞异常 |
+| 8 | Karpathy准则 | 先思考再编码 / 简单优先 / 手术式修改 / 目标驱动 |

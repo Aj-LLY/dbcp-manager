@@ -1,5 +1,37 @@
 # 版本更新记录
 
+## v4.5.0 (2026-08-06) — 8 原则驱动重构
+
+### 依赖倒置 (原则 #2)
+- **新增 IWorkflowService 接口** — 10 个抽象方法，WorkflowService 继承实现
+- **补全 IDataService 接口** — 新增 add_stage/update_stage/delete_stage 抽象方法
+- **ProjectService/WorkflowService 构造函数** — 参数类型从具体类改为接口 (DataService → IDataService)
+
+### 分层与模块化 (原则 #1)
+- **WorkflowService 新增 replace_all_stages()** — 封装阶段替换 + 孤儿项目迁移 + 日志记录
+- **消除跨层 DataService 调用** — MainWindow/Controller 不再直接调用 DataService 方法（3 处修复）
+
+### 技术细节隔离 (原则 #5)
+- **新增 _FileSerializer 适配器** — DataService 通过适配器委托加密/解密，不再感知加密实现细节
+- **Config 新增 5 个辅助方法** — load/save_window_geometry() + create_local_backup() + get_backup_dir() + get_geometry_path()
+- **UI/Controller 不再直接操作文件** — 窗口几何 I/O 和本地备份统一通过 Config 调用
+
+### 配置与代码分离 (原则 #3)
+- **DEFAULT_WORKFLOW_STAGES 去硬编码** — 固定 ID "stage_N" 改为 get_default_workflow_stages() 动态生成 UUID
+
+### 显式优于隐式 (原则 #7)
+- **6 处静默异常吞没替换** — except...pass → print() + traceback，所有错误路径可追踪
+- **修复 _build_info_panel 死代码** — 重复赋值 + 错位 docstring
+
+### Karpathy 编码准则 (原则 #8)
+- 8.1~8.4 准则正式纳入项目编码规范
+- 本次重构全程遵循"手术式修改"原则：7 步 8 文件，每行改动可追溯到具体原则违反
+
+### 修复
+- **日志对话框 detail 列 stretch=False** — 防止 detail 列过长挤压其他列
+
+---
+
 ## v4.0.0 (2026-06-12) — 架构重构 + 报告打印完整修复 + 7 原则落地
 
 ### 架构重构
