@@ -146,14 +146,15 @@ def on_close(main_window):
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_path = os.path.join(backup_dir, f"dap_data_{ts}.json")
         data_path = Config.get_data_file_path()
+        print(f"[备份] data_path={data_path} exists={os.path.exists(data_path)}", flush=True)
         if os.path.exists(data_path):
             shutil.copy2(data_path, backup_path)
-        # 仅保留最近 30 个备份
+            print(f"[备份] 已保存到 {backup_path}", flush=True)
         backups = sorted(os.listdir(backup_dir))
         while len(backups) > 30:
             os.remove(os.path.join(backup_dir, backups.pop(0)))
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[备份] 失败: {e}", flush=True)
 
     # --- 第二步：保存窗口位置和大小 ---
     try:
