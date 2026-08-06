@@ -1021,7 +1021,7 @@ class ProjectDialog(tk.Toplevel):
             if not root:
                 messagebox.showwarning("提示", "请先输入或选择文件夹路径", parent=self)
                 return
-            cname = (self._company_var.get().strip() or "未命名").replace("/", "_").replace("\\", "_")
+            cname = (self._company_var.get().strip() or "未命名").replace("/", "_").replace("\\", "_").replace("\n", "")
             # 收集所有系统名称（从多系统表格行中读取，去除非空）
             sys_names = []
             for rd in self._sys_rows_list:
