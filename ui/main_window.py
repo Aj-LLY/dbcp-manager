@@ -510,30 +510,6 @@ class MainWindow(tk.Tk):
         """
         on_column_resize(self, stage_id, new_width)
 
-    def _create_project_folder(self, project):
-        """为项目创建本地文件夹结构
-
-        委托给 controllers.project_handlers.create_project_folder 处理。
-        在项目根目录下创建子目录结构（如测评方案、测评报告等）。
-
-        Args:
-            project: 项目实体对象，用于获取路径和名称信息
-        """
-        create_project_folder(self, project)
-
-    def _generate_nda_template(self, root, cname_clean, company_name):
-        """生成保密承诺书（NDA）模板文件
-
-        委托给 controllers.project_handlers.generate_nda_template 处理。
-        在指定目录下创建 .docx 格式的保密承诺书模板文件。
-
-        Args:
-            root: 目标目录路径
-            cname_clean: 清理后的公司名称（去掉特殊字符）
-            company_name: 原始公司名称
-        """
-        generate_nda_template(self, root, cname_clean, company_name)
-
     # ==================================================================================
     # 窗口事件处理方法
     # ==================================================================================

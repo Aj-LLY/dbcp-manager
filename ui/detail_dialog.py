@@ -488,30 +488,6 @@ class DetailDialog(tk.Toplevel):
         y = py + (ph - h) // 2                                 # 居中 Y
         self.geometry(f"+{x}+{y}")
 
-    # =========================================================================
-    # 焦点管理（失焦自动关闭）
-    # =========================================================================
-
-    def _on_focus_out(self, event):
-        """Tk 焦点离开事件处理：延迟检查焦点状态。
-
-        如果正在打开子窗口（_opening_child 为 True），跳过检查防止误关。
-        否则延迟 100ms 后检查焦点是否真的离开了整个对话框。
-        """
-        if self._opening_child:                                # 打开子窗口时跳过
-            return
-        self.after(100, self._check_focus)                     # 延迟检查
-
-    def _check_focus(self):
-        """延迟检查焦点：如果当前没有任何子组件持有焦点，则关闭窗口。
-
-        使用异常捕获处理窗口已被销毁导致的 TclError。
-        """
-        try:
-            if not self.focus_get():                           # 无组件持有焦点
-                self.destroy()
-        except Exception:
-            self.destroy()                                     # 窗口已销毁则安全关闭
 
 
 # =============================================================================

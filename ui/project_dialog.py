@@ -673,20 +673,7 @@ class ProjectDialog(tk.Toplevel):
         }
         self._add_sys_row(copy_data)  # 创建独立的新行
 
-    def _on_row_province_change(self, prov_combo, city_combo, keep_city: str = ""):
-        """省级下拉变更时更新对应行的市级下拉选项。
 
-        Args:
-            prov_combo: 该行的省级 ttk.Combobox 控件。
-            city_combo: 该行的市级 ttk.Combobox 控件。
-            keep_city: 期望保留选中的市级名称（编辑模式预填时使用）。
-        """
-        province = prov_combo.get()
-        cities = PROVINCE_CITIES.get(province, [])
-        if not cities:
-            cities = ["请先选择省区"]
-        city_combo["values"] = cities
-        city_combo.set(keep_city if keep_city in cities else "")
 
     def _refresh_delete_buttons(self):
         """根据当前行数刷新所有删除按钮的可见性。
@@ -786,19 +773,6 @@ class ProjectDialog(tk.Toplevel):
         if result is not None:
             self._deadline_var.set(result)                   # 将选中日期填入输入框
 
-    def _open_issue_calendar(self):
-        """打开日历选择器并填入第一行系统数据的下证日期输入框（向后兼容方法）。
-
-        该方法将操作委托给 _open_row_issue_calendar，目标为 _sys_rows_list
-        中第一行的 issue_date_var。当 OCR 模块或其他旧代码直接调用此方法时，
-        依然可以正确将选中日期填入第一行系统的下证日期字段。
-
-        Returns:
-            None
-        """
-        if self._sys_rows_list:
-            self._open_row_issue_calendar(self._sys_rows_list[0]["issue_date_var"])
-
     def _open_row_issue_calendar(self, date_var):
         """打开日历选择器并将选中日期填入指定的 StringVar。
 
@@ -819,13 +793,6 @@ class ProjectDialog(tk.Toplevel):
         cities = PROVINCE_CITIES.get(province, ["请先选择省区"])
         self._location_city_combo["values"] = cities
         self._location_city_var.set("")
-
-    def _on_province_change(self, event=None, keep_city=""):
-        """向后兼容：公司级属地省级变更。"""
-        province = self._location_prov_var.get()
-        cities = PROVINCE_CITIES.get(province, ["请先选择省区"])
-        self._location_city_combo["values"] = cities
-        self._location_city_var.set(keep_city if keep_city in cities else "")
 
     # =========================================================================
     # 快捷日期设置
@@ -943,22 +910,6 @@ class ProjectDialog(tk.Toplevel):
             "systems": systems,
         }
         self.destroy()  # 关闭对话框
-
-    def _get_location(self) -> str:
-        """根据省级和市级的当前选择值，拼接属地字符串。
-
-        格式为 "省区-市区"。
-        若市级未选择或为占位文字 "请先选择省区"，则返回空字符串。
-
-        Returns:
-            str: 形如 "广东-深圳" 的属地字符串，或空字符串。
-        """
-        p = self._province_var.get().strip()                 # 省级选择值
-        c = self._city_var.get().strip()                     # 市级选择值
-        # 仅当两级均有有效选择时才拼接返回
-        if p and c and c != "请先选择省区" and c != "":
-            return f"{p}-{c}"
-        return ""
 
     # =========================================================================
     # 文件/文件夹操作

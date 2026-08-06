@@ -50,7 +50,6 @@ from ui.dialog_report_print import (
 
 # ---- 文件操作函数（从本类中提取为独立模块） ----
 from ui.card_file_ops import (
-    find_project_folder,       # 查找项目文件夹路径
     on_folder_click,           # 在文件管理器中打开项目文件夹
     on_init_click,             # 项目初始化（创建子目录和模板文件）
     on_rename_click,           # 批量重命名过程文件
@@ -513,16 +512,6 @@ class ProjectCard(tk.Frame):
         委托给独立模块 ui.card_file_ops.on_folder_click。
         """
         on_folder_click(self.project)
-
-    def _find_project_folder(self) -> str:
-        """根据项目信息查找本地文件夹路径
-
-        委托给独立模块 ui.card_file_ops.find_project_folder。
-
-        Returns:
-            str: 找到的文件夹路径，未找到返回空字符串 ""
-        """
-        return find_project_folder(self.project)
 
     def _on_rename_click(self):
         """处理"一键重命名"按钮点击 - 批量修正项目过程文件的命名
