@@ -176,6 +176,8 @@ class LogDialog(tk.Toplevel):
         self._tree.column("action", width=80, anchor="center", stretch=False)
         self._tree.column("detail", width=500, anchor="w", stretch=True)
         self._tree.column("project", width=160, anchor="w", stretch=False)
+        print(f"[日志对话框] 列宽: time=140 action=80 detail=500(stretch) project=160", flush=True)
+        print(f"[日志对话框] tree_frame grid: row0-weight={tree_frame.grid_rowconfigure(0)}, col0-weight={tree_frame.grid_columnconfigure(0)}", flush=True)
 
         # 创建垂直和水平滚动条
         scrollbar_y = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL,
@@ -253,7 +255,8 @@ class LogDialog(tk.Toplevel):
                 if log.get("project_name") == filter_name
             ]
 
-        # 逐行插入筛选后的日志到 Treeview（追加到末尾）
+        max_len = max((len(log.get("detail","")) for log in filtered_logs), default=0)
+        print(f"[日志对话框] {len(filtered_logs)}条日志, 最长detail={max_len}字", flush=True)
         for log in filtered_logs:
             self._tree.insert("", tk.END, values=(
                 log.get("timestamp", ""),                      # 时间列
